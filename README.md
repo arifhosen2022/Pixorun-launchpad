@@ -17,8 +17,9 @@ Dashboard entry point: `/launchpad/`
 - Responsive dashboard and launchpad pages
 - EVM wallet connection, network switching and testnet ETH balance lookup
 - Missions, create mission, creator studio, points, staking, profile, faucet, fee claims and docs pages
-- Solidity curve-math library and immutable-supply mission-token primitive
+- Solidity contracts for fixed-supply mission tokens, bonding curves, Liftoff migration, PIXORUN Swap, fee distribution and staking rewards
+- Foundry build and integration tests for the contract foundation
 - Foundry contract-test workflow
 
 ## Implementation status
-This is a beta UI and contract foundation, not a complete live launchpad. Token creation, bonding-curve buy/sell, Liftoff, AMM swaps, Genesis Pass gating, staking, fee distribution, and persistent Supabase-backed user data still require implementation, testing and deployment. Do not treat placeholder screens as live functionality or send real funds. No smart contracts or Supabase functions were deployed as part of this setup.
+This is a beta UI and contract foundation, not a live launchpad. The Solidity modules and test suite are implemented as an initial foundation and pass the current GitHub Actions build/tests. They have not been deployed or independently audited. Wallet-connected UI pages still contain placeholders; frontend contract integration, Supabase-backed user data, final tokenomics validation, security review and Robinhood Chain Testnet deployment remain outstanding. Do not treat placeholder screens as live functionality or send real funds. No smart contracts or Supabase functions have been deployed.
