@@ -74,3 +74,49 @@
 .pixel-home .app-menu nav .menu-connect:hover{background:#9350cf}
 @media(max-width:700px){.pixel-sub-nav{height:auto;min-height:78px;gap:10px}.pixel-sub-nav .nav-right{gap:8px}.pixel-sub-nav .network-pill{display:none}}
 @media(max-width:420px){.pixel-sub-nav .app-menu summary{width:40px;height:40px}}
+
+/* PIXORUN legacy Minimal Luxury theme shared across all pages */
+:root{--bg:#f7f7f5;--panel:#fff;--line:#e7e7e2;--muted:#777873;--white:#151515;--violet:#7555d9;--lime:#7555d9;color-scheme:light}
+html,body{background:#f7f7f5!important;color:#151515!important}
+body{background:radial-gradient(ellipse at 78% 0%,#7555d91a,transparent 38%),#f7f7f5!important}
+.app-nav,.app-header,.app-footer{border-color:#e7e7e2!important}
+.app-logo,.pixel-brand,.pixel-brand b{color:#151515!important}
+.pixel-brand small{color:#777873!important}
+.pixel-brand-mark,.brand-mark{background:#7555d9!important;color:#fff!important;border-color:#7555d9!important;box-shadow:none!important}
+.network-pill{color:#5e40c0!important;border:1px solid #d9d1f3!important;background:#f0edfa!important;border-radius:999px!important}
+.app-menu summary{background:#fff!important;color:#151515!important;border:1px solid #e7e7e2!important;border-radius:10px!important;box-shadow:0 3px 12px #17171a0d!important}
+.app-menu nav{background:#fff!important;border:1px solid #e7e7e2!important;border-radius:14px!important;box-shadow:0 18px 50px #17171a20!important}
+.app-menu nav a,.app-menu nav button{background:#fff!important;color:#151515!important;border-bottom:1px solid #eee!important;font-family:'Space Grotesk',sans-serif!important;font-size:13px!important}
+.app-menu nav a:hover,.app-menu nav a[aria-current=page],.app-menu nav button:hover{background:#f0edfa!important;color:#5e40c0!important;outline:0!important}
+.app-menu nav a span{color:#7555d9!important}
+.app-main h1,.page-main h1,.pixel-hero h1{color:#151515!important;text-shadow:none!important}
+.eyebrow,.pixel-kicker,.section-kicker{color:#7555d9!important}
+.lead,.pixel-lead,.hero-panel>p{color:#777873!important}
+.app-card,.tool-card,.step,.pass-card,.pixel-menu-hint{background:#fff!important;border:1px solid #e7e7e2!important;box-shadow:0 8px 30px #17171a08!important;border-radius:16px!important}
+.app-card h2,.app-card h3,.tool-card h3,.pixel-menu-hint b{color:#151515!important}
+.app-field label,.app-label,.app-value{color:#151515!important}
+.app-field input,.app-field textarea{background:#fff!important;color:#151515!important;border:1px solid #dcdcd5!important}
+.app-field input:focus,.app-field textarea:focus{border-color:#7555d9!important}
+.app-btn,.primary-btn,.pixel-cta,.pixel-connect{background:#151515!important;color:#fff!important;border:1px solid #151515!important;border-radius:999px!important;box-shadow:none!important}
+.app-btn:hover,.primary-btn:hover,.pixel-cta:hover,.pixel-connect:hover{background:#7555d9!important;border-color:#7555d9!important}
+.app-btn.secondary,.secondary-btn,.pixel-docs{background:#fff!important;color:#151515!important;border:1px solid #dcdcd5!important;border-radius:999px!important}
+.app-note,.beta-note{background:#f0edfa!important;border:1px solid #e3dcf7!important;color:#5d5670!important;border-radius:12px!important}
+.app-note strong,.app-status,.status-line{color:#5e40c0!important}
+.app-footer{color:#777873!important}.app-footer a,.app-footer-inner a{color:#7555d9!important}
+.pixel-home{background:#f7f7f5!important;background-image:radial-gradient(ellipse at 78% 0%,#7555d91a,transparent 38%)!important}
+.pixel-home .app-nav{border-bottom:1px solid #e7e7e2!important}
+.pixel-home .pixel-hero{background:#fff!important;border:1px solid #e7e7e2!important;border-radius:24px!important;box-shadow:0 18px 55px #17171a0d!important}
+.pixel-home .pixel-hero:before{border:1px solid #e7e7e2!important}
+.pixel-home .pixel-hero:after{background:#7555d91a!important}
+.pixel-home .pixel-art{opacity:1!important}.pixel-home .pixel-orbit{border-color:#c9bee9!important}
+.pixel-home .pixel-cube{background:linear-gradient(145deg,#fff,#aaa6b7)!important;border-color:#8a8498!important;box-shadow:10px 10px 0 #d8d5df,15px 15px 0 #f0edfa!important}
+.pixel-home .pixel-cube span{background:#7555d9!important;box-shadow:0 0 0 7px #e3dcf7,0 0 25px #7555d966!important}
+.pixel-home .pixel-spark{color:#7555d9!important;text-shadow:none!important}
+.pixel-home .pixel-scroll{color:#777873!important}.pixel-home .pixel-scroll span{color:#7555d9!important}
+.pixel-home .pixel-wallet{border-color:#e7e7e2!important}.pixel-home .pixel-wallet small{color:#777873!important}
+.pixel-home .pixel-wallet strong{color:#151515!important}.pixel-home .pixel-wallet a{color:#7555d9!important}
+.pixel-home .pixel-menu-hint{background:#fff!important}
+.pixel-home .hint-icon{background:#f0edfa!important;border:1px solid #d9d1f3!important;color:#5e40c0!important}
+.pixel-home .hint-arrow{color:#7555d9!important}
+.pixel-home .app-menu nav .menu-connect{background:#151515!important;color:#fff!important;border:1px solid #151515!important;border-radius:999px!important;box-shadow:none!important;font-family:'Space Grotesk',sans-serif!important;font-size:13px!important}
+.pixel-home .app-menu nav .menu-connect:hover{background:#7555d9!important}
