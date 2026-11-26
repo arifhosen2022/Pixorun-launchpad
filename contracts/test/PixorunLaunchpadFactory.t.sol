@@ -66,7 +66,7 @@ contract PixorunLaunchpadFactoryTest {
         MockGenesisPass pass = new MockGenesisPass();
         pass.setBalance(address(this), 1);
         PixorunLaunchpadFactory factory = new PixorunLaunchpadFactory(
-            address(pass), payable(address(this)), 0.01 ether
+            address(pass), address(new MockLaunchFeeDistributor()), 0.01 ether
         );
 
         (bool ok,) = address(factory).call(
