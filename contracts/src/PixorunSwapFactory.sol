@@ -5,7 +5,7 @@ import "./PixorunSwapPair.sol";
 
 interface IPixorunSeedToken { function transferFrom(address from,address to,uint256 amount) external returns(bool); }
 
-/// @title PIXORUN PIXORUN Swap Factory
+/// @title PIXORUN Swap Factory
 /// @notice Creates one pool per launch token; only the configured Launchpad may seed a pool.
 contract PixorunSwapFactory {
     address public immutable feeDistributor;
