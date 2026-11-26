@@ -18,3 +18,5 @@ robinhood_mainnet = "https://rpc.mainnet.chain.robinhood.com"
 [etherscan]
 robinhood_testnet = { key = "empty", url = "https://explorer.testnet.chain.robinhood.com/api/" }
 robinhood_mainnet = { key = "empty", url = "https://robinhoodchain.blockscout.com/api/" }
+
+# Security-hardening validation run for Liftoff factory link checks.
