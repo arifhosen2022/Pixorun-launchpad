@@ -3,6 +3,14 @@ pragma solidity 0.8.24;
 
 import "../src/PixorunLaunchpadFactory.sol";
 
+contract MockLaunchFeeDistributor {
+    uint256 public creationFees;
+    uint256 public tradeFees;
+    receive() external payable {}
+    function notifyCreationFee() external payable { creationFees += msg.value; }
+    function notifyTradeFee(address) external payable { tradeFees += msg.value; }
+}
+
 contract MockGenesisPass {
     mapping(address => uint256) public balanceOf;
 
@@ -24,7 +32,7 @@ contract PixorunLaunchpadFactoryTest {
         MockGenesisPass pass = new MockGenesisPass();
         pass.setBalance(address(this), 1);
         PixorunLaunchpadFactory factory = new PixorunLaunchpadFactory(
-            address(pass), payable(address(this)), 0.01 ether
+            address(pass), address(new MockLaunchFeeDistributor()), 0.01 ether
         );
 
         (address tokenAddress, address curveAddress) =
@@ -44,7 +52,7 @@ contract PixorunLaunchpadFactoryTest {
     function testNonGenesisAddressCannotCreateLaunch() external {
         MockGenesisPass pass = new MockGenesisPass();
         PixorunLaunchpadFactory factory = new PixorunLaunchpadFactory(
-            address(pass), payable(address(this)), 0
+            address(pass), address(new MockLaunchFeeDistributor()), 0
         );
         NoPassCaller caller = new NoPassCaller();
 
