@@ -108,6 +108,8 @@ contract PixorunBondingCurve {
         if (tokensIn==0) revert ZeroAmount();
         if (tokensIn>totalSold) revert InsufficientLiquidity();
         (uint256 grossNative,uint256 feeAmount,uint256 netNative)=quoteSell(tokensIn);
+        // Never accept tokens for a zero-value payout after integer rounding.
+        if (netNative==0) revert InsufficientLiquidity();
         if (netNative<minNativeOut || grossNative>realNative) revert SlippageExceeded();
         if (!token.transferFrom(msg.sender,address(this),tokensIn)) revert TransferFailed();
         virtualNative-=grossNative; virtualToken+=tokensIn; realNative-=grossNative;
