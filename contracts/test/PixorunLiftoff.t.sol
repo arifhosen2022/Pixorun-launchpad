@@ -54,7 +54,7 @@ contract PixorunLiftoffTest {
         require(fees.liftoffFees()==0.0084 ether,"three percent Liftoff fee");
         require(token.balanceOf(address(launchFactory))==0,"reserve fully allocated or burned");
         require(token.balanceOf(pairAddress)>0,"matching tokens seeded");
-        require(token.balanceOf(token.DEAD())>0,"excess reserve burned");
+        require(token.balanceOf(0x000000000000000000000000000000000000dEaD)>0,"excess reserve burned");
         require(curve.realNative()==0,"curve native moved");
     }
 
