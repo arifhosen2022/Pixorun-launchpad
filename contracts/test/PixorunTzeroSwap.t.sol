@@ -27,6 +27,7 @@ contract PixorunTzeroSwapTest {
         MockSwapFeeDistributor fees = new MockSwapFeeDistributor();
         PixorunTzeroSwapFactory factory = new PixorunTzeroSwapFactory(address(fees));
         factory.configureLaunchpadFactory(address(this));
+        factory.configureLaunchpadFactory(address(this));
         PixorunMissionToken token = new PixorunMissionToken("Swap Test", "SWP", address(this));
 
         uint256 seedTokens = 100_000 ether;
