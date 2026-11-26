@@ -1,0 +1,17 @@
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/lib/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.keystore
+*.key
+
+# Editors and OS
+.DS_Store
+.vscode/
+.idea/
