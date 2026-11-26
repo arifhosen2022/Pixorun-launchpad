@@ -8,7 +8,6 @@ interface IPixorunLaunchFeeDistributor {
     function notifyCreationFee() external payable;
     function notifyLiftoffFee() external payable;
 }
-interface IGenesisPassBalance { function balanceOf(address account) external view returns (uint256); }
 interface IPixorunSwapFactory {
     function createAndSeed(address token,address creator,uint256 tokenAmount) external payable returns (address);
 }
@@ -36,7 +35,6 @@ contract PixorunLaunchpadFactory {
     uint256 public constant LIFTOFF_FEE_BPS=300;
     address public constant DEAD=0x000000000000000000000000000000000000dEaD;
 
-    IGenesisPassBalance public immutable genesisPass;
     IPixorunLaunchFeeDistributor public immutable feeDistributor;
     uint256 public immutable creationFee;
     address public immutable configurator;
@@ -46,7 +44,7 @@ contract PixorunLaunchpadFactory {
     mapping(address=>address) public creatorOf;
     mapping(address=>bool) public liftoffCompleted;
 
-    error ZeroAddress(); error GenesisPassRequired(); error IncorrectCreationFee();
+    error ZeroAddress(); error IncorrectCreationFee();
     error TokenTransferFailed(); error UnauthorizedCurve(); error SwapFactoryAlreadyConfigured();
     error SwapFactoryNotConfigured(); error InvalidMigration(); error LiftoffAlreadyCompleted();
 
@@ -61,9 +59,8 @@ contract PixorunLaunchpadFactory {
         _entered = 1;
     }
 
-    constructor(address genesisPass_,address feeDistributor_,uint256 creationFee_) {
-        if (genesisPass_==address(0)||feeDistributor_==address(0)) revert ZeroAddress();
-        genesisPass=IGenesisPassBalance(genesisPass_);
+    constructor(address feeDistributor_,uint256 creationFee_) {
+        if (feeDistributor_==address(0)) revert ZeroAddress();
         feeDistributor=IPixorunLaunchFeeDistributor(feeDistributor_);
         creationFee=creationFee_;
         configurator=msg.sender;
@@ -85,7 +82,6 @@ contract PixorunLaunchpadFactory {
     function createLaunch(string calldata name,string calldata symbol)
         external payable returns(address tokenAddress,address curveAddress)
     {
-        if (genesisPass.balanceOf(msg.sender)==0) revert GenesisPassRequired();
         if (msg.value!=creationFee) revert IncorrectCreationFee();
         PixorunMissionToken token=new PixorunMissionToken(name,symbol,address(this));
         PixorunBondingCurve curve=new PixorunBondingCurve(address(token),address(feeDistributor),msg.sender);
