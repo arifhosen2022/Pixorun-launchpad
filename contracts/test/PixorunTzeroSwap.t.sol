@@ -27,7 +27,6 @@ contract PixorunTzeroSwapTest {
         MockSwapFeeDistributor fees = new MockSwapFeeDistributor();
         PixorunTzeroSwapFactory factory = new PixorunTzeroSwapFactory(address(fees));
         factory.configureLaunchpadFactory(address(this));
-        factory.configureLaunchpadFactory(address(this));
         PixorunMissionToken token = new PixorunMissionToken("Swap Test", "SWP", address(this));
 
         uint256 seedTokens = 100_000 ether;
@@ -60,6 +59,7 @@ contract PixorunTzeroSwapTest {
         vm.deal(address(this), 2 ether);
         MockSwapFeeDistributor fees = new MockSwapFeeDistributor();
         PixorunTzeroSwapFactory factory = new PixorunTzeroSwapFactory(address(fees));
+        factory.configureLaunchpadFactory(address(this));
         PixorunMissionToken token = new PixorunMissionToken("Swap Test", "SWP", address(this));
         require(token.approve(address(factory), 2_000 ether), "approve");
         factory.createAndSeed{value: 1 ether}(address(token), address(this), 1_000 ether);
