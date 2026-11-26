@@ -6,13 +6,13 @@ import "../src/PixorunMissionToken.sol";
 
 
 contract ReentrantCurveFeeDistributor {
-    PixorunBondingCurve public curve;
+    address public curveAddress;
     bool public attempted;
     bool public reentrySucceeded;
-    function setCurve(PixorunBondingCurve curve_) external { curve=curve_; }
+    function setCurve(address curve_) external { curveAddress=curve_; }
     function notifyTradeFee(address) external payable {
         attempted=true;
-        (reentrySucceeded,)=address(curve).call(abi.encodeWithSignature("buy(uint256)",0));
+        (reentrySucceeded,)=curveAddress.call(abi.encodeWithSignature("buy(uint256)",0));
     }
 
     function testFeeDistributorCallbackCannotReenterBuy() external {
@@ -20,7 +20,7 @@ contract ReentrantCurveFeeDistributor {
         PixorunMissionToken token=new PixorunMissionToken("PIXORUN Test","PTST",address(this));
         PixorunBondingCurve curve=new PixorunBondingCurve(address(token),address(fees),address(this));
         require(token.transfer(address(curve),793_100_000 ether),"seed curve inventory");
-        fees.setCurve(curve);
+        fees.setCurve(address(curve));
 
         vm.deal(address(this),1 ether);
         CurveBuyer buyer=new CurveBuyer();
