@@ -84,9 +84,8 @@ contract PixorunLaunchpadFactoryTest {
     }
 
     function testSwapFactoryConfigurationChecksBothLinks() external {
-        MockGenesisPass pass = new MockGenesisPass();
         MockLaunchFeeDistributor fees = new MockLaunchFeeDistributor();
-        PixorunLaunchpadFactory factory = new PixorunLaunchpadFactory(address(pass), address(fees), 0);
+        PixorunLaunchpadFactory factory = new PixorunLaunchpadFactory(address(fees), 0);
 
         MockSwapFactoryConfig wrongFee = new MockSwapFactoryConfig(address(1), address(factory));
         (bool wrongFeeOk,) = address(factory).call(
