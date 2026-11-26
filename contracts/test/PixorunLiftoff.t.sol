@@ -9,9 +9,6 @@ import "../src/PixorunMissionToken.sol";
 
 interface VmLiftoff { function deal(address account,uint256 newBalance) external; }
 
-contract GenesisPassMock {
-    function balanceOf(address) external pure returns(uint256) { return 1; }
-}
 contract LiftoffFeeMock {
     uint256 public creationFees;
     uint256 public tradeFees;
