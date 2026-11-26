@@ -1,0 +1,20 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.24"
+optimizer = true
+optimizer_runs = 10000
+via_ir = true
+
+[profile.default.fuzz]
+runs = 512
+
+[rpc_endpoints]
+robinhood_testnet = "https://rpc.testnet.chain.robinhood.com"
+robinhood_mainnet = "https://rpc.mainnet.chain.robinhood.com"
+
+[etherscan]
+robinhood_testnet = { key = "empty", url = "https://explorer.testnet.chain.robinhood.com/api/" }
+robinhood_mainnet = { key = "empty", url = "https://robinhoodchain.blockscout.com/api/" }
