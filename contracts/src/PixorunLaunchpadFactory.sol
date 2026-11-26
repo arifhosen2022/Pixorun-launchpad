@@ -28,7 +28,7 @@ interface IPixorunCurveState {
 }
 
 /// @title PIXORUN Launchpad Factory
-/// @notice Genesis Pass-gated token creation and permissioned, atomic Liftoff migration.
+/// @notice Open token creation and permissioned, atomic Liftoff migration.
 contract PixorunLaunchpadFactory {
     uint256 public constant TOTAL_SUPPLY=1_000_000_000 ether;
     uint256 public constant CURVE_ALLOCATION=793_100_000 ether;
