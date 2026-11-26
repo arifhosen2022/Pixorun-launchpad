@@ -100,7 +100,7 @@ contract PixorunTzeroSwapPair {
         amountOut = (amountInAfterFee * rT) / (rN + amountInAfterFee);
         if (amountOut == 0 || amountOut < minTokensOut || amountOut >= rT) revert SlippageExceeded();
 
-        reserveNative = _to112(rN + msg.value);
+        reserveNative = _to112(rN + amountInAfterFee);
         reserveToken = _to112(rT - amountOut);
         if (!token.transfer(msg.sender, amountOut)) revert TransferFailed();
         if (fee != 0) feeDistributor.notifySwapFee{value: fee}(creator);
@@ -122,7 +122,7 @@ contract PixorunTzeroSwapPair {
         if (nativeOut == 0 || nativeOut < minNativeOut || grossOut >= rN) revert SlippageExceeded();
 
         reserveToken = _to112(rT + tokensIn);
-        reserveNative = _to112(rN - nativeOut);
+        reserveNative = _to112(rN - grossOut);
         (bool paid,) = payable(msg.sender).call{value: nativeOut}("");
         if (!paid) revert TransferFailed();
         if (fee != 0) feeDistributor.notifySwapFee{value: fee}(creator);
