@@ -32,10 +32,8 @@ contract PixorunFeeDistributorTest {
         address swapFactory = address(0x1002);
         address team = address(0x1003);
         StakingFeeMock staking = new StakingFeeMock();
-        PixorunFeeDistributor distributor = new PixorunFeeDistributor(
-            team, address(staking), launchFactory, swapFactory
-        );
-        FeeSourceMock source = new FeeSourceMock(launchFactory);
+        PixorunFeeDistributor distributor = new PixorunFeeDistributor(team, address(staking));
+        FeeSourceMock source = new FeeSourceMock(address(new FeeFactoryMock(address(distributor))));
 
         source.sendFee{value: 1 ether}(distributor, address(this));
 
@@ -54,9 +52,7 @@ contract PixorunFeeDistributorTest {
         address launchFactory = address(0x1001);
         StakingFeeMock staking = new StakingFeeMock();
         staking.setRejectFees(true);
-        PixorunFeeDistributor distributor = new PixorunFeeDistributor(
-            address(0x1003), address(staking), launchFactory, address(0x1002)
-        );
+        PixorunFeeDistributor distributor = new PixorunFeeDistributor(address(0x1003), address(staking));
         FeeSourceMock source = new FeeSourceMock(launchFactory);
         source.sendFee{value: 1 ether}(distributor, address(this));
 
@@ -65,10 +61,8 @@ contract PixorunFeeDistributorTest {
     }
 
     function testRejectsUnregisteredFeeSource() external {
-        PixorunFeeDistributor distributor = new PixorunFeeDistributor(
-            address(0x1003), address(0), address(0x1001), address(0x1002)
-        );
-        FeeSourceMock attacker = new FeeSourceMock(address(0x9999));
+        PixorunFeeDistributor distributor = new PixorunFeeDistributor(address(0x1003), address(0));
+        FeeSourceMock attacker = new FeeSourceMock(address(new FeeFactoryMock(address(0x9999))));
         (bool ok,) = address(attacker).call{value: 1 ether}(
             abi.encodeCall(attacker.sendFee, (distributor, address(this)))
         );
