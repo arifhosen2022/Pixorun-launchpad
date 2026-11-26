@@ -9,27 +9,7 @@ contract MockLaunchFeeDistributor {
     receive() external payable {}
     function notifyCreationFee() external payable { creationFees += msg.value; }
     function notifyTradeFee(address) external payable { tradeFees += msg.value; }
-    function testSwapFactoryConfigurationChecksBothLinks() external {
-        MockGenesisPass pass = new MockGenesisPass();
-        MockLaunchFeeDistributor fees = new MockLaunchFeeDistributor();
-        PixorunLaunchpadFactory factory = new PixorunLaunchpadFactory(address(pass), address(fees), 0);
 
-        MockSwapFactoryConfig wrongFee = new MockSwapFactoryConfig(address(1), address(factory));
-        (bool wrongFeeOk,) = address(factory).call(
-            abi.encodeCall(factory.configureSwapFactory, (address(wrongFee)))
-        );
-        require(!wrongFeeOk, "wrong fee distributor rejected");
-
-        MockSwapFactoryConfig wrongLaunchpad = new MockSwapFactoryConfig(address(fees), address(2));
-        (bool wrongLaunchpadOk,) = address(factory).call(
-            abi.encodeCall(factory.configureSwapFactory, (address(wrongLaunchpad)))
-        );
-        require(!wrongLaunchpadOk, "wrong launchpad rejected");
-
-        MockSwapFactoryConfig valid = new MockSwapFactoryConfig(address(fees), address(factory));
-        factory.configureSwapFactory(address(valid));
-        require(address(factory.swapFactory()) == address(valid), "valid factory linked");
-    }
 
 }
 
@@ -101,5 +81,27 @@ contract PixorunLaunchpadFactoryTest {
             abi.encodeCall(factory.createLaunch, ("PIXORUN Test", "PTST"))
         );
         require(!ok, "incorrect fee must be rejected");
+    }
+
+    function testSwapFactoryConfigurationChecksBothLinks() external {
+        MockGenesisPass pass = new MockGenesisPass();
+        MockLaunchFeeDistributor fees = new MockLaunchFeeDistributor();
+        PixorunLaunchpadFactory factory = new PixorunLaunchpadFactory(address(pass), address(fees), 0);
+
+        MockSwapFactoryConfig wrongFee = new MockSwapFactoryConfig(address(1), address(factory));
+        (bool wrongFeeOk,) = address(factory).call(
+            abi.encodeCall(factory.configureSwapFactory, (address(wrongFee)))
+        );
+        require(!wrongFeeOk, "wrong fee distributor rejected");
+
+        MockSwapFactoryConfig wrongLaunchpad = new MockSwapFactoryConfig(address(fees), address(2));
+        (bool wrongLaunchpadOk,) = address(factory).call(
+            abi.encodeCall(factory.configureSwapFactory, (address(wrongLaunchpad)))
+        );
+        require(!wrongLaunchpadOk, "wrong launchpad rejected");
+
+        MockSwapFactoryConfig valid = new MockSwapFactoryConfig(address(fees), address(factory));
+        factory.configureSwapFactory(address(valid));
+        require(address(factory.swapFactory()) == address(valid), "valid factory linked");
     }
 }
