@@ -25,10 +25,9 @@ contract PixorunLiftoffTest {
 
     function testFinalBuyMigratesAndBurnsExcessReserveAtomically() external {
         vm.deal(address(this),2 ether);
-        GenesisPassMock pass=new GenesisPassMock();
         LiftoffFeeMock fees=new LiftoffFeeMock();
         PixorunSwapFactory swapFactory=new PixorunSwapFactory(address(fees));
-        PixorunLaunchpadFactory launchFactory=new PixorunLaunchpadFactory(address(pass),address(fees),0);
+        PixorunLaunchpadFactory launchFactory=new PixorunLaunchpadFactory(address(fees),0);
         swapFactory.configureLaunchpadFactory(address(launchFactory));
         launchFactory.configureSwapFactory(address(swapFactory));
 
