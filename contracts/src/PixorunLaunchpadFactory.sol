@@ -4,6 +4,10 @@ pragma solidity 0.8.24;
 import "./PixorunMissionToken.sol";
 import "./PixorunBondingCurve.sol";
 
+interface IPixorunLaunchFeeDistributor {
+    function notifyCreationFee() external payable;
+}
+
 interface IGenesisPassBalance {
     function balanceOf(address account) external view returns (uint256);
 }
@@ -17,7 +21,7 @@ contract PixorunLaunchpadFactory {
     uint256 public constant LIFTOFF_RESERVE = 206_900_000 ether;
 
     IGenesisPassBalance public immutable genesisPass;
-    address payable public immutable feeRecipient;
+    IPixorunLaunchFeeDistributor public immutable feeDistributor;
     uint256 public immutable creationFee;
 
     mapping(address => address) public curveOf;
@@ -37,10 +41,10 @@ contract PixorunLaunchpadFactory {
         string symbol
     );
 
-    constructor(address genesisPass_, address payable feeRecipient_, uint256 creationFee_) {
-        if (genesisPass_ == address(0) || feeRecipient_ == address(0)) revert ZeroAddress();
+    constructor(address genesisPass_, address feeDistributor_, uint256 creationFee_) {
+        if (genesisPass_ == address(0) || feeDistributor_ == address(0)) revert ZeroAddress();
         genesisPass = IGenesisPassBalance(genesisPass_);
-        feeRecipient = feeRecipient_;
+        feeDistributor = IPixorunLaunchFeeDistributor(feeDistributor_);
         creationFee = creationFee_;
     }
 
@@ -52,7 +56,7 @@ contract PixorunLaunchpadFactory {
 
         PixorunMissionToken token = new PixorunMissionToken(name, symbol, address(this));
         PixorunBondingCurve curve = new PixorunBondingCurve(
-            address(token), feeRecipient, msg.sender
+            address(token), address(feeDistributor), msg.sender
         );
 
         if (!token.transfer(address(curve), CURVE_ALLOCATION)) revert TokenTransferFailed();
@@ -63,8 +67,7 @@ contract PixorunLaunchpadFactory {
         creatorOf[tokenAddress] = msg.sender;
 
         if (creationFee != 0) {
-            (bool paid,) = feeRecipient.call{value: creationFee}("");
-            if (!paid) revert FeeTransferFailed();
+            feeDistributor.notifyCreationFee{value: creationFee}();
         }
 
         emit LaunchCreated(msg.sender, tokenAddress, curveAddress, name, symbol);
