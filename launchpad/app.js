@@ -5,7 +5,7 @@ const network={chainId:CHAIN,chainName:'Robinhood Chain Testnet',nativeCurrency:
 const $=s=>document.querySelector(s);let account=null,chainId=null;
 const pathNow=location.pathname;
 const basePath=pathNow.startsWith('/Pixorun-launchpad/launchpad/')?'/Pixorun-launchpad/launchpad/':(pathNow.startsWith('/launchpad/')?'/launchpad/':'/');
-document.querySelectorAll('.app-menu nav a, a.app-logo').forEach(a=>{const h=a.getAttribute('href');if(h&&h.startsWith('/'))a.setAttribute('href',basePath+h.replace(/^\\/+/,''));});
+document.querySelectorAll('.app-menu nav a, a.app-logo').forEach(a=>{const h=a.getAttribute('href');if(h&&h.startsWith('/'))a.setAttribute('href',basePath+h.replace(/^\/+/,''));});
 const short=a=>a?a.slice(0,6)+'…'+a.slice(-4):'';
 const status=m=>{const e=$('[data-status]');if(e)e.textContent=m;};
 async function readState(){if(!window.ethereum)return;try{const [a,c]=await Promise.all([window.ethereum.request({method:'eth_accounts'}),window.ethereum.request({method:'eth_chainId'})]);account=a?.[0]||null;chainId=c?.toLowerCase()||null;}catch(e){console.warn('PIXORUN wallet state:',e);}}
