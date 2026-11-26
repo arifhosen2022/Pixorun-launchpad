@@ -5,23 +5,21 @@ interface IPixorunFeeSource {
     function factory() external view returns (address);
 }
 
+interface IPixorunFeeFactoryLink {
+    function feeDistributor() external view returns (address);
+}
+
 interface IPixorunStakingFeeReceiver {
-    /// @notice Must revert when there are no eligible stakers; rewards start next block.
+    /// @dev Revert when no eligible stake exists; reward accounting starts next block.
     function notifyFee() external payable;
 }
 
 /// @title PIXORUN Fee Distributor
-/// @notice Accounts for 30% team, 20% stakers and 50% creator from 1% trade fees.
-/// @dev Team and creator shares are pull-claimed; failed team payouts never block trades.
+/// @notice Trade fees split 30% team, 20% stakers, 50% creator; creation/Liftoff fees use 70/30.
 contract PixorunFeeDistributor {
     uint256 public constant BPS = 10_000;
-    uint256 public constant TEAM_BPS = 3_000;
-    uint256 public constant STAKER_BPS = 2_000;
-
     address public immutable teamWallet;
     address public immutable stakingRewards;
-    address public immutable launchpadFactory;
-    address public immutable swapFactory;
 
     mapping(address => uint256) public creatorClaimable;
     uint256 public teamClaimable;
@@ -50,54 +48,36 @@ contract PixorunFeeDistributor {
         unlocked = 1;
     }
 
-    constructor(address teamWallet_, address stakingRewards_, address launchpadFactory_, address swapFactory_) {
-        if (teamWallet_ == address(0) || launchpadFactory_ == address(0) || swapFactory_ == address(0)) {
-            revert ZeroAddress();
-        }
+    constructor(address teamWallet_, address stakingRewards_) {
+        if (teamWallet_ == address(0)) revert ZeroAddress();
         teamWallet = teamWallet_;
         stakingRewards = stakingRewards_;
-        launchpadFactory = launchpadFactory_;
-        swapFactory = swapFactory_;
     }
 
-    /// @notice Creation fee split: 70% team and 30% stakers.
+    /// @notice Creation fee: 70% team and 30% stakers.
     function notifyCreationFee() external payable {
-        if (msg.sender != launchpadFactory) revert UnauthorizedSource();
+        if (!_isLinkedFactory(msg.sender)) revert UnauthorizedSource();
         if (msg.value == 0) revert NothingToClaim();
-
         uint256 teamShare = msg.value * 7_000 / BPS;
         uint256 stakerShare = msg.value - teamShare;
-        teamClaimable += teamShare;
-        totalTeamAccrued += teamShare;
-
-        if (stakerShare != 0) {
-            if (stakingRewards == address(0)) {
-                teamClaimable += stakerShare;
-                totalTeamAccrued += stakerShare;
-                emit StakerFeeRedirectedToTeam(stakerShare);
-            } else {
-                try IPixorunStakingFeeReceiver(stakingRewards).notifyFee{value: stakerShare}() {
-                    totalStakerForwarded += stakerShare;
-                    emit StakerFeeForwarded(stakerShare);
-                } catch {
-                    teamClaimable += stakerShare;
-                    totalTeamAccrued += stakerShare;
-                    emit StakerFeeRedirectedToTeam(stakerShare);
-                }
-            }
-        }
+        _creditTeam(teamShare);
+        _forwardStakerOrTeam(stakerShare);
         emit FeeAllocated(msg.sender, address(0), msg.value, teamShare, stakerShare, 0);
     }
 
-    /// @notice Called by a registered launch curve or TzeroSwap pair.
-    function notifySwapFee(address creator) external payable {
-        _allocate(creator);
+    /// @notice Liftoff fee: 70% team and 30% stakers.
+    function notifyLiftoffFee() external payable {
+        if (!_isLinkedFactory(msg.sender)) revert UnauthorizedSource();
+        if (msg.value == 0) revert NothingToClaim();
+        uint256 teamShare = msg.value * 7_000 / BPS;
+        uint256 stakerShare = msg.value - teamShare;
+        _creditTeam(teamShare);
+        _forwardStakerOrTeam(stakerShare);
+        emit FeeAllocated(msg.sender, address(0), msg.value, teamShare, stakerShare, 0);
     }
 
-    /// @notice Same accounting path for bonding-curve trade fees.
-    function notifyTradeFee(address creator) external payable {
-        _allocate(creator);
-    }
+    function notifySwapFee(address creator) external payable { _allocateTradeFee(creator); }
+    function notifyTradeFee(address creator) external payable { _allocateTradeFee(creator); }
 
     function claimCreatorFees() external nonReentrant {
         uint256 amount = creatorClaimable[msg.sender];
@@ -117,43 +97,55 @@ contract PixorunFeeDistributor {
         emit TeamClaimed(teamWallet, amount);
     }
 
-    function _allocate(address creator) internal {
+    function _allocateTradeFee(address creator) internal {
         if (msg.value == 0) revert NothingToClaim();
         if (creator == address(0)) revert ZeroCreator();
-
         address sourceFactory;
         try IPixorunFeeSource(msg.sender).factory() returns (address f) {
             sourceFactory = f;
         } catch {
             revert UnauthorizedSource();
         }
-        if (sourceFactory != launchpadFactory && sourceFactory != swapFactory) revert UnauthorizedSource();
+        if (!_isLinkedFactory(sourceFactory)) revert UnauthorizedSource();
 
-        uint256 teamShare = msg.value * TEAM_BPS / BPS;
-        uint256 stakerShare = msg.value * STAKER_BPS / BPS;
+        uint256 teamShare = msg.value * 3_000 / BPS;
+        uint256 stakerShare = msg.value * 2_000 / BPS;
         uint256 creatorShare = msg.value - teamShare - stakerShare;
-
         creatorClaimable[creator] += creatorShare;
         totalCreatorAccrued += creatorShare;
-        teamClaimable += teamShare;
-        totalTeamAccrued += teamShare;
-
-        if (stakerShare != 0) {
-            if (stakingRewards == address(0)) {
-                teamClaimable += stakerShare;
-                totalTeamAccrued += stakerShare;
-                emit StakerFeeRedirectedToTeam(stakerShare);
-            } else {
-                try IPixorunStakingFeeReceiver(stakingRewards).notifyFee{value: stakerShare}() {
-                    totalStakerForwarded += stakerShare;
-                    emit StakerFeeForwarded(stakerShare);
-                } catch {
-                    teamClaimable += stakerShare;
-                    totalTeamAccrued += stakerShare;
-                    emit StakerFeeRedirectedToTeam(stakerShare);
-                }
-            }
-        }
+        _creditTeam(teamShare);
+        _forwardStakerOrTeam(stakerShare);
         emit FeeAllocated(msg.sender, creator, msg.value, teamShare, stakerShare, creatorShare);
+    }
+
+    function _creditTeam(uint256 amount) internal {
+        if (amount == 0) return;
+        teamClaimable += amount;
+        totalTeamAccrued += amount;
+    }
+
+    function _forwardStakerOrTeam(uint256 amount) internal {
+        if (amount == 0) return;
+        if (stakingRewards == address(0)) {
+            _creditTeam(amount);
+            emit StakerFeeRedirectedToTeam(amount);
+            return;
+        }
+        try IPixorunStakingFeeReceiver(stakingRewards).notifyFee{value: amount}() {
+            totalStakerForwarded += amount;
+            emit StakerFeeForwarded(amount);
+        } catch {
+            _creditTeam(amount);
+            emit StakerFeeRedirectedToTeam(amount);
+        }
+    }
+
+    function _isLinkedFactory(address candidate) internal view returns (bool) {
+        if (candidate == address(0)) return false;
+        try IPixorunFeeFactoryLink(candidate).feeDistributor() returns (address configured) {
+            return configured == address(this);
+        } catch {
+            return false;
+        }
     }
 }
