@@ -1,17 +1,56 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111116"><meta name="description" content="PIXORUN Launchpad beta dashboard on Robinhood Chain Testnet."><title>PIXORUN Launchpad</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./app.css"></head>
-<body><div class="app-wrap"><header class="app-header"><a class="brand" href="./"><span class="brand-mark">P</span><span>PIXORUN <small>LAUNCHPAD</small></span></a><div class="header-actions"><span class="network-pill">ROBINHOOD TESTNET</span><button class="primary-btn" data-connect>Connect wallet</button></div></header>
-<main class="page-main"><section class="hero-panel"><div class="eyebrow">PRIVATE BETA · SPRINT ONE</div><h1>Launch. Trade.<br><span>Build together.</span></h1><p>Explore the PIXORUN launchpad beta on Robinhood Chain Testnet. Connect your wallet to get started.</p><div class="hero-actions"><a class="primary-btn" href="./missions/">Explore missions <span>↗</span></a><a class="secondary-btn" href="./docs/">Read documentation</a></div><div class="wallet-overview"><div><small>CONNECTED WALLET</small><strong data-wallet-address>Not connected</strong></div><div><small>TESTNET BALANCE</small><strong data-wallet-balance>Connect wallet to view balance</strong></div><a data-wallet-explorer hidden target="_blank" rel="noopener noreferrer">View on explorer ↗</a></div><p class="status-line" data-status aria-live="polite"></p></section>
-<section class="section-heading"><div><div class="eyebrow">YOUR WORKSPACE</div><h2>Launchpad tools</h2></div><span class="muted">BETA ACCESS</span></section>
-<section class="tool-grid">
-<a class="tool-card" href="./missions/"><span class="tool-icon">↗</span><h3>Explore Missions</h3><p>Discover active token launches and mission pages.</p><span class="card-link">Explore <b>→</b></span></a>
-<a class="tool-card" href="./create/"><span class="tool-icon">＋</span><h3>Create Mission</h3><p>Start preparing a new token launch mission.</p><span class="card-link">Create <b>→</b></span></a>
-<a class="tool-card" href="./creator/"><span class="tool-icon">✳</span><h3>Creator Studio</h3><p>Manage creator activity and launch information.</p><span class="card-link">Open studio <b>→</b></span></a>
-<a class="tool-card" href="./points/"><span class="tool-icon">✦</span><h3>PIXORUN Points</h3><p>Review your beta points and participation status.</p><span class="card-link">View points <b>→</b></span></a>
-<a class="tool-card" href="./staking/"><span class="tool-icon">◇</span><h3>Staking Hub</h3><p>View staking information and available actions.</p><span class="card-link">Open staking <b>→</b></span></a>
-<a class="tool-card" href="./profile/"><span class="tool-icon">◎</span><h3>Your Profile</h3><p>View your connected wallet and profile details.</p><span class="card-link">View profile <b>→</b></span></a>
-<a class="tool-card" href="./faucet/"><span class="tool-icon">⌁</span><h3>Testnet Faucet</h3><p>Find test ETH for Robinhood Chain Testnet.</p><span class="card-link">Get test ETH <b>→</b></span></a>
-<a class="tool-card" href="./fees/"><span class="tool-icon">↙</span><h3>Fee Claims</h3><p>Fee claiming interface for eligible participants.</p><span class="card-link">View fees <b>→</b></span></a>
-<a class="tool-card" href="./docs/"><span class="tool-icon">▤</span><h3>Documentation</h3><p>Read the launchpad mechanics and beta guide.</p><span class="card-link">Read docs <b>→</b></span></a>
-</section><p class="beta-note">Beta interface only. On-chain launch, swaps, staking and fee claims remain unavailable until their contracts and backend are implemented, tested and deployed.</p></main>
-<footer class="app-footer"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></footer></div><script src="./app.js"></script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111116"><meta name="description" content="PIXORUN Launchpad — private beta on Robinhood Chain Testnet.">
+<title>PIXORUN — Launchpad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./app.css">
+</head>
+<body class="pixel-home">
+<div class="app-wrap">
+<header class="app-nav">
+<a class="app-logo pixel-brand" href="./" aria-label="PIXORUN home"><span class="pixel-brand-mark">P</span><span>PIXORUN<b>.</b><small>LAUNCHPAD</small></span></a>
+<div class="nav-right">
+<span class="network-pill">ROBINHOOD TESTNET</span>
+<details class="app-menu">
+<summary aria-label="Open navigation menu">☰</summary>
+<nav aria-label="Main navigation">
+<a href="./">HOME <span>↗</span></a>
+<a href="./missions/">EXPLORE MISSIONS <span>↗</span></a>
+<a href="./create/">CREATE MISSION <span>↗</span></a>
+<a href="./creator/">CREATOR STUDIO <span>↗</span></a>
+<a href="./points/">PIXORUN POINTS <span>↗</span></a>
+<a href="./staking/">STAKING HUB <span>↗</span></a>
+<a href="./profile/">MY PROFILE <span>↗</span></a>
+<a href="./faucet/">TESTNET FAUCET <span>↗</span></a>
+<a href="./fees/">FEE CLAIMS <span>↗</span></a>
+<a href="./docs/">DOCUMENTATION <span>↗</span></a>
+</nav>
+</details>
+<button class="primary-btn pixel-connect" data-connect>CONNECT WALLET</button>
+</div>
+</header>
+<main class="pixel-main">
+<section class="pixel-hero">
+<div class="pixel-kicker"><i></i> PRIVATE BETA · SPRINT ONE</div>
+<div class="pixel-art" aria-hidden="true"><div class="pixel-orbit"></div><div class="pixel-cube"><span></span></div><div class="pixel-spark spark-one">✦</div><div class="pixel-spark spark-two">✧</div></div>
+<h1>BUILD THE<br><em>ONCHAIN</em> FUTURE.</h1>
+<p class="pixel-lead">A new way to launch, discover and grow tokens.<br>PIXORUN is taking its first steps on Robinhood Chain.</p>
+<div class="pixel-hero-actions"><a class="pixel-cta" href="./missions/">EXPLORE MISSIONS <span>↗</span></a><a class="pixel-docs" href="./docs/">READ THE GUIDE</a></div>
+<div class="pixel-wallet">
+<div><small>CONNECTED WALLET</small><strong data-wallet-address>Not connected</strong></div>
+<div><small>TESTNET BALANCE</small><strong data-wallet-balance>Connect wallet to view balance</strong></div>
+<a data-wallet-explorer hidden target="_blank" rel="noopener noreferrer">VIEW EXPLORER ↗</a>
+</div>
+<p class="status-line" data-status aria-live="polite"></p>
+<div class="pixel-scroll">PIXORUN BETA <span>◆</span> ROBINHOOD CHAIN</div>
+</section>
+<section class="pixel-menu-hint"><span class="hint-icon">☰</span><div><b>EVERYTHING IN ONE MENU</b><small>Open the menu above to access all PIXORUN launchpad sections.</small></div><span class="hint-arrow">↗</span></section>
+<p class="beta-note">PRIVATE BETA INTERFACE. Token launches, swaps, staking and fee claims will become available only after their smart contracts and backend are implemented, tested and deployed.</p>
+</main>
+<footer class="app-footer"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></footer>
+</div>
+<script src="./app.js"></script>
+</body></html>
