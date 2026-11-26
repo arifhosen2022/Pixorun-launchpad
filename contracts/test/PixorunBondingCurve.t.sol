@@ -72,4 +72,19 @@ contract PixorunBondingCurveTest {
         require(token.balanceOf(address(buyer))>beforeTokens,"outer buy completed");
         require(curve.realNative()>0,"outer reserves updated");
     }
+
+    function testSellRejectsZeroNativePayoutAfterRounding() external {
+        vm.deal(address(this), 1 ether);
+        PixorunMissionToken token = new PixorunMissionToken("PIXORUN Test", "PTST", address(this));
+        PixorunBondingCurve curve = new PixorunBondingCurve(
+            address(token), payable(address(this)), address(this)
+        );
+        require(token.transfer(address(curve), 793_100_000 ether), "seed curve inventory");
+        curve.buy{value:0.01 ether}(0);
+        require(token.approve(address(curve), 1), "approve dust sell");
+        uint256 beforeBalance = token.balanceOf(address(this));
+        (bool ok,) = address(curve).call(abi.encodeWithSelector(curve.sell.selector, 1, 0));
+        require(!ok, "zero-payout sell must revert");
+        require(token.balanceOf(address(this)) == beforeBalance, "seller token balance unchanged");
+    }
 }
