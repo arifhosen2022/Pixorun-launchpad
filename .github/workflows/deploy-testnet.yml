@@ -1,0 +1,36 @@
+name: Deploy PIXORUN to Robinhood Testnet
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    env:
+      PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      TEAM_WALLET: ${{ secrets.TEAM_WALLET }}
+      RPC_URL: https://rpc.testnet.chain.robinhood.com
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Check required secrets
+        shell: bash
+        run: |
+          test -n "$PRIVATE_KEY" || { echo "::error::Missing Actions secret PRIVATE_KEY"; exit 1; }
+          test -n "$TEAM_WALLET" || { echo "::error::Missing Actions secret TEAM_WALLET"; exit 1; }
+
+      - name: Deploy contracts to Robinhood Chain Testnet
+        shell: bash
+        run: bash deploy-testnet.sh
