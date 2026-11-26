@@ -22,9 +22,8 @@ contract ReentrantCurveFeeDistributor {
         require(token.transfer(address(curve),793_100_000 ether),"seed curve inventory");
         fees.setCurve(curve);
 
+        vm.deal(address(this),1 ether);
         CurveBuyer buyer=new CurveBuyer();
-        (bool funded,)=address(buyer).call{value:0.02 ether}("");
-        require(funded,"fund buyer");
         uint256 beforeTokens=token.balanceOf(address(buyer));
         buyer.buy{value:0.01 ether}(curve);
 
@@ -37,12 +36,16 @@ contract ReentrantCurveFeeDistributor {
 }
 
 contract CurveBuyer {
+    receive() external payable {}
     function buy(PixorunBondingCurve curve) external payable returns(uint256) {
         return curve.buy{value:msg.value}(0);
     }
 }
 
+interface VmCurve { function deal(address account,uint256 newBalance) external; }
+
 contract PixorunBondingCurveTest {
+    VmCurve private constant vm=VmCurve(address(uint160(uint256(keccak256("hevm cheat code")))));
     function testCalibrationAndBuyQuote() external {
         PixorunMissionToken token = new PixorunMissionToken("PIXORUN Test", "PTST", address(this));
         PixorunBondingCurve curve = new PixorunBondingCurve(
