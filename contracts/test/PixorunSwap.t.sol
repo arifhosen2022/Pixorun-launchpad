@@ -17,7 +17,7 @@ contract MockSwapFeeDistributor {
     }
 }
 
-contract PixorunPIXORUN SwapTest {
+contract PixorunSwapTest {
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     receive() external payable {}
