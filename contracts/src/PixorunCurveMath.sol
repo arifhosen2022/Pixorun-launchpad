@@ -9,6 +9,9 @@ library PixorunCurveMath {
     uint256 internal constant TRADE_FEE_BPS = 100;
     uint256 internal constant CURVE_SUPPLY = 793_100_000 ether;
     uint256 internal constant LIFTOFF_RESERVE = 206_900_000 ether;
+    // Provisional calibration: 0.1 ETH virtual native + 0.28 ETH net buys
+    // exhaust the 793.1M curve allocation. Reconfirm before deployment.
+    uint256 internal constant VIRTUAL_TOKEN_RESERVE = 1_076_350_000 ether;
 
     error InvalidReserves();
     error ZeroAmount();
@@ -35,6 +38,18 @@ library PixorunCurveMath {
         // x*y=k; output is rounded down, favouring the curve.
         tokensOut = r.virtualToken * netNative / (r.virtualNative + netNative);
         if (tokensOut == 0 || tokensOut > r.realToken) revert CurveExhausted();
+    }
+
+    function netNativeForExactTokens(uint256 virtualNative, uint256 virtualToken, uint256 tokensOut)
+        internal pure returns (uint256 netNative)
+    {
+        if (tokensOut == 0) revert ZeroAmount();
+        if (virtualNative == 0 || virtualToken <= tokensOut) revert InvalidReserves();
+        // Inverse of buyQuote, rounded up so the curve is never underpaid.
+        uint256 numerator = virtualNative * tokensOut;
+        uint256 denominator = virtualToken - tokensOut;
+        netNative = numerator / denominator;
+        if (numerator % denominator != 0) ++netNative;
     }
 
     function sellQuote(Reserves memory r, uint256 tokensIn)
