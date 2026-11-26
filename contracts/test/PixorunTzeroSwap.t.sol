@@ -43,7 +43,7 @@ contract PixorunTzeroSwapTest {
         uint256 out = pair.swapNativeForToken{value: 0.1 ether}(0);
         require(out > 0, "native swap output");
         require(token.balanceOf(address(this)) == tokenBefore + out, "tokens received");
-        require(fees.received == 0.001 ether, "one percent native fee");
+        require(fees.received() == 0.001 ether, "one percent native fee");
         require(pair.reserveNative() == 1.099 ether, "fee excluded from pool reserve");
         require(fees.lastCreator() == address(this), "creator routed");
 
