@@ -2,8 +2,8 @@
 pragma solidity 0.8.24;
 
 import "../src/PixorunLaunchpadFactory.sol";
-import "../src/PixorunTzeroSwapFactory.sol";
-import "../src/PixorunTzeroSwapPair.sol";
+import "../src/PixorunSwapFactory.sol";
+import "../src/PixorunSwapPair.sol";
 import "../src/PixorunBondingCurve.sol";
 import "../src/PixorunMissionToken.sol";
 
@@ -30,7 +30,7 @@ contract PixorunLiftoffTest {
         vm.deal(address(this),2 ether);
         GenesisPassMock pass=new GenesisPassMock();
         LiftoffFeeMock fees=new LiftoffFeeMock();
-        PixorunTzeroSwapFactory swapFactory=new PixorunTzeroSwapFactory(address(fees));
+        PixorunSwapFactory swapFactory=new PixorunSwapFactory(address(fees));
         PixorunLaunchpadFactory launchFactory=new PixorunLaunchpadFactory(address(pass),address(fees),0);
         swapFactory.configureLaunchpadFactory(address(launchFactory));
         launchFactory.configureSwapFactory(address(swapFactory));
@@ -47,7 +47,7 @@ contract PixorunLiftoffTest {
 
         address pairAddress=swapFactory.getPair(tokenAddress);
         require(pairAddress!=address(0),"pair created");
-        PixorunTzeroSwapPair pair=PixorunTzeroSwapPair(payable(pairAddress));
+        PixorunSwapPair pair=PixorunSwapPair(payable(pairAddress));
         require(pair.initialized(),"pair initialized");
         require(pair.balanceOf(pair.DEAD())==pair.totalSupply(),"LP locked");
         require(fees.tradeFees()==gross/100,"trade fee routed");
@@ -60,7 +60,7 @@ contract PixorunLiftoffTest {
 
     function testSwapFactoryRejectsUnconfiguredCaller() external {
         LiftoffFeeMock fees=new LiftoffFeeMock();
-        PixorunTzeroSwapFactory swapFactory=new PixorunTzeroSwapFactory(address(fees));
+        PixorunSwapFactory swapFactory=new PixorunSwapFactory(address(fees));
         (bool ok,)=address(swapFactory).call{value:1 ether}(
             abi.encodeCall(swapFactory.createAndSeed,(address(1),address(this),1 ether))
         );
