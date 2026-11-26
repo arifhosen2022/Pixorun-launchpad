@@ -19,6 +19,8 @@ contract ReentrantCurveFeeDistributor {
 
 }
 
+contract NoopCurveFeeDistributor { function notifyTradeFee(address) external payable {} }
+
 contract CurveBuyer {
     receive() external payable {}
     function buy(PixorunBondingCurve curve) external payable returns(uint256) {
@@ -76,8 +78,9 @@ contract PixorunBondingCurveTest {
     function testSellRejectsZeroNativePayoutAfterRounding() external {
         vm.deal(address(this), 1 ether);
         PixorunMissionToken token = new PixorunMissionToken("PIXORUN Test", "PTST", address(this));
+        NoopCurveFeeDistributor fees = new NoopCurveFeeDistributor();
         PixorunBondingCurve curve = new PixorunBondingCurve(
-            address(token), payable(address(this)), address(this)
+            address(token), address(fees), address(this)
         );
         require(token.transfer(address(curve), 793_100_000 ether), "seed curve inventory");
         curve.buy{value:0.01 ether}(0);
