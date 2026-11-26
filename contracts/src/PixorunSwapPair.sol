@@ -11,7 +11,7 @@ interface IPixorunFeeDistributor {
     function notifySwapFee(address creator) external payable;
 }
 
-/// @title PIXORUN PIXORUN Swap Pair
+/// @title PIXORUN Swap Pair
 /// @notice Native-coin/token constant-product pool. Initial LP is permanently locked.
 contract PixorunSwapPair {
     uint256 public constant BPS = 10_000;
