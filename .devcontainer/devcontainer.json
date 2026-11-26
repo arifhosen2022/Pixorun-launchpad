@@ -1,0 +1,8 @@
+{
+  "name": "PIXORUN Solidity + Foundry",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": { "ghcr.io/devcontainers/features/git:1": {} },
+  "postCreateCommand": "curl -L https://foundry.paradigm.xyz | bash && ~/.foundry/bin/foundryup",
+  "customizations": { "vscode": { "extensions": ["JuanBlanco.solidity", "tintinweb.vscode-solidity-language"] } },
+  "remoteUser": "vscode"
+}
