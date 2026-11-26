@@ -60,6 +60,35 @@ contract PixorunFeeDistributor {
         swapFactory = swapFactory_;
     }
 
+    /// @notice Creation fee split: 70% team and 30% stakers.
+    function notifyCreationFee() external payable {
+        if (msg.sender != launchpadFactory) revert UnauthorizedSource();
+        if (msg.value == 0) revert NothingToClaim();
+
+        uint256 teamShare = msg.value * 7_000 / BPS;
+        uint256 stakerShare = msg.value - teamShare;
+        teamClaimable += teamShare;
+        totalTeamAccrued += teamShare;
+
+        if (stakerShare != 0) {
+            if (stakingRewards == address(0)) {
+                teamClaimable += stakerShare;
+                totalTeamAccrued += stakerShare;
+                emit StakerFeeRedirectedToTeam(stakerShare);
+            } else {
+                try IPixorunStakingFeeReceiver(stakingRewards).notifyFee{value: stakerShare}() {
+                    totalStakerForwarded += stakerShare;
+                    emit StakerFeeForwarded(stakerShare);
+                } catch {
+                    teamClaimable += stakerShare;
+                    totalTeamAccrued += stakerShare;
+                    emit StakerFeeRedirectedToTeam(stakerShare);
+                }
+            }
+        }
+        emit FeeAllocated(msg.sender, address(0), msg.value, teamShare, stakerShare, 0);
+    }
+
     /// @notice Called by a registered launch curve or TzeroSwap pair.
     function notifySwapFee(address creator) external payable {
         _allocate(creator);
