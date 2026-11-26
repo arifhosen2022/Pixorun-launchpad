@@ -15,23 +15,7 @@ contract ReentrantCurveFeeDistributor {
         (reentrySucceeded,)=curveAddress.call(abi.encodeWithSignature("buy(uint256)",0));
     }
 
-    function testFeeDistributorCallbackCannotReenterBuy() external {
-        ReentrantCurveFeeDistributor fees=new ReentrantCurveFeeDistributor();
-        PixorunMissionToken token=new PixorunMissionToken("PIXORUN Test","PTST",address(this));
-        PixorunBondingCurve curve=new PixorunBondingCurve(address(token),address(fees),address(this));
-        require(token.transfer(address(curve),793_100_000 ether),"seed curve inventory");
-        fees.setCurve(address(curve));
 
-        vm.deal(address(this),1 ether);
-        CurveBuyer buyer=new CurveBuyer();
-        uint256 beforeTokens=token.balanceOf(address(buyer));
-        buyer.buy{value:0.01 ether}(curve);
-
-        require(fees.attempted(),"fee callback attempted");
-        require(!fees.reentrySucceeded(),"nested buy rejected");
-        require(token.balanceOf(address(buyer))>beforeTokens,"outer buy completed");
-        require(curve.realNative()>0,"outer reserves updated");
-    }
 
 }
 
@@ -69,5 +53,23 @@ contract PixorunBondingCurveTest {
 
         (uint256 tokensOut,,) = curve.quoteBuy(0.01 ether);
         require(tokensOut > 0 && tokensOut < curve.realToken(), "bounded output");
+    }
+
+    function testFeeDistributorCallbackCannotReenterBuy() external {
+        ReentrantCurveFeeDistributor fees=new ReentrantCurveFeeDistributor();
+        PixorunMissionToken token=new PixorunMissionToken("PIXORUN Test","PTST",address(this));
+        PixorunBondingCurve curve=new PixorunBondingCurve(address(token),address(fees),address(this));
+        require(token.transfer(address(curve),793_100_000 ether),"seed curve inventory");
+        fees.setCurve(address(curve));
+
+        vm.deal(address(this),1 ether);
+        CurveBuyer buyer=new CurveBuyer();
+        uint256 beforeTokens=token.balanceOf(address(buyer));
+        buyer.buy{value:0.01 ether}(curve);
+
+        require(fees.attempted(),"fee callback attempted");
+        require(!fees.reentrySucceeded(),"nested buy rejected");
+        require(token.balanceOf(address(buyer))>beforeTokens,"outer buy completed");
+        require(curve.realNative()>0,"outer reserves updated");
     }
 }
