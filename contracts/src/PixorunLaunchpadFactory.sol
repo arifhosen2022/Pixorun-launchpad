@@ -17,6 +17,15 @@ interface IPixorunLaunchToken {
     function approve(address spender,uint256 amount) external returns (bool);
     function transfer(address to,uint256 amount) external returns (bool);
 }
+interface IPixorunSwapFactoryConfig {
+    function feeDistributor() external view returns (address);
+    function launchpadFactory() external view returns (address);
+}
+interface IPixorunCurveState {
+    function graduated() external view returns (bool);
+    function virtualNative() external view returns (uint256);
+    function virtualToken() external view returns (uint256);
+}
 
 /// @title PIXORUN Launchpad Factory
 /// @notice Genesis Pass-gated token creation and permissioned, atomic Liftoff migration.
@@ -32,6 +41,7 @@ contract PixorunLaunchpadFactory {
     uint256 public immutable creationFee;
     address public immutable configurator;
     IPixorunSwapFactory public swapFactory;
+    uint256 private _entered = 1;
     mapping(address=>address) public curveOf;
     mapping(address=>address) public creatorOf;
     mapping(address=>bool) public liftoffCompleted;
@@ -43,6 +53,13 @@ contract PixorunLaunchpadFactory {
     event LaunchCreated(address indexed creator,address indexed token,address indexed curve,string name,string symbol);
     event SwapFactoryConfigured(address indexed swapFactory);
     event LiftoffCompleted(address indexed token,address indexed pair,uint256 grossNative,uint256 fee,uint256 nativeLiquidity,uint256 tokenLiquidity,uint256 burnedTokens);
+
+    modifier nonReentrant() {
+        require(_entered == 1, "REENTRANT_CALL");
+        _entered = 2;
+        _;
+        _entered = 1;
+    }
 
     constructor(address genesisPass_,address feeDistributor_,uint256 creationFee_) {
         if (genesisPass_==address(0)||feeDistributor_==address(0)) revert ZeroAddress();
@@ -57,6 +74,10 @@ contract PixorunLaunchpadFactory {
         if (msg.sender!=configurator) revert UnauthorizedCurve();
         if (address(swapFactory)!=address(0)) revert SwapFactoryAlreadyConfigured();
         if (swapFactory_==address(0)) revert ZeroAddress();
+        if (swapFactory_.code.length==0) revert InvalidMigration();
+        IPixorunSwapFactoryConfig candidate=IPixorunSwapFactoryConfig(swapFactory_);
+        if (candidate.feeDistributor()!=address(feeDistributor) ||
+            candidate.launchpadFactory()!=address(this)) revert InvalidMigration();
         swapFactory=IPixorunSwapFactory(swapFactory_);
         emit SwapFactoryConfigured(swapFactory_);
     }
@@ -77,12 +98,15 @@ contract PixorunLaunchpadFactory {
 
     /// @notice Called only by the registered curve when its final token is sold.
     function completeLiftoff(address token,address creator,uint256 virtualNative,uint256 virtualToken)
-        external payable returns(address pairAddress)
+        external payable nonReentrant returns(address pairAddress)
     {
         if (curveOf[token]!=msg.sender || creatorOf[token]!=creator) revert UnauthorizedCurve();
         if (liftoffCompleted[token]) revert LiftoffAlreadyCompleted();
         if (address(swapFactory)==address(0)) revert SwapFactoryNotConfigured();
         if (msg.value==0 || virtualNative==0 || virtualToken==0) revert InvalidMigration();
+        IPixorunCurveState curve=IPixorunCurveState(msg.sender);
+        if (!curve.graduated() || curve.virtualNative()!=virtualNative ||
+            curve.virtualToken()!=virtualToken) revert InvalidMigration();
         liftoffCompleted[token]=true;
 
         uint256 liftoffFee=msg.value*LIFTOFF_FEE_BPS/10_000;
