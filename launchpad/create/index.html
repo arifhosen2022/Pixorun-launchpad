@@ -1,12 +1,25 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111116"><title>Launch a Mission — PIXORUN</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="../app.css"></head><body>
-<header class="app-wrap app-nav"><a class="app-logo" href="../">PIXO<b>RUN</b></a><details class="app-menu"><summary aria-label="Open menu">⋮</summary><nav><button type="button" data-connect>Connect wallet</button><a href="../">Mission Control</a><a href="../missions/">Missions</a><a href="../create/" aria-current="page">Launch</a><a href="../staking/">Stake PIXORUN</a><a href="../creator/">Creator</a><a href="../profile/">Profile</a><a href="../faucet/">Faucet</a><a href="../fees/">Fees</a><a href="../docs/">Docs</a></nav></details></header>
+<header class="app-wrap app-nav pixel-sub-nav">
+<a class="app-logo pixel-brand" href="/Pixorun-launchpad/launchpad/" aria-label="PIXORUN home"><span class="pixel-brand-mark">P</span><span>PIXORUN<b>.</b><small>LAUNCHPAD</small></span></a>
+<div class="nav-right"><span class="network-pill">ROBINHOOD TESTNET</span><details class="app-menu"><summary aria-label="Open navigation menu">☰</summary><nav aria-label="Main navigation">
+<a href="/Pixorun-launchpad/launchpad/">HOME <span>↗</span></a>
+<a href="/Pixorun-launchpad/launchpad/missions/">EXPLORE MISSIONS <span>↗</span></a>
+<a href="/Pixorun-launchpad/launchpad/create/">CREATE MISSION <span>↗</span></a>
+<a href="/Pixorun-launchpad/launchpad/creator/">CREATOR STUDIO <span>↗</span></a>
+<a href="/Pixorun-launchpad/launchpad/points/">PIXORUN POINTS <span>↗</span></a>
+<a href="/Pixorun-launchpad/launchpad/staking/">STAKING HUB <span>↗</span></a>
+<a href="/Pixorun-launchpad/launchpad/profile/">MY PROFILE <span>↗</span></a>
+<a href="/Pixorun-launchpad/launchpad/faucet/">TESTNET FAUCET <span>↗</span></a>
+<a href="/Pixorun-launchpad/launchpad/fees/">FEE CLAIMS <span>↗</span></a>
+<a href="/Pixorun-launchpad/launchpad/docs/">DOCUMENTATION <span>↗</span></a>
+</nav></details></div></header>
 <main class="app-wrap app-main"><div class="eyebrow">MISSION BRIEFING · ROBINHOOD CHAIN TESTNET</div><h1>Launch a mission</h1><p class="lead">Name your token, choose its ticker and image, and launch it in one transaction. An optional first buy is included in the same transaction to prevent an earlier buyer from jumping ahead.</p>
 <div class="app-card"><div class="app-grid"><div class="app-field"><label for="tokenName">Name · 1–32 bytes</label><input id="tokenName" maxlength="32" placeholder="e.g. PIXORUN World"></div><div class="app-field"><label for="tokenSymbol">Ticker · 1–10 characters</label><input id="tokenSymbol" maxlength="10" pattern="[A-Za-z0-9]{1,10}" placeholder="e.g. PIX"></div></div>
 <div class="app-field"><label for="tokenImage">Image URL</label><input id="tokenImage" type="url" placeholder="https://…"></div><div class="app-field"><label for="tokenDesc">Description · optional, max 280 characters</label><textarea id="tokenDesc" maxlength="280" rows="3" placeholder="Describe your mission"></textarea></div>
 <div class="app-grid"><div class="app-field"><label for="tokenWebsite">Website · optional</label><input id="tokenWebsite" type="url" placeholder="https://…"></div><div class="app-field"><label for="tokenX">X · optional</label><input id="tokenX" type="url" placeholder="https://x.com/…"></div></div><div class="app-field"><label for="tokenTelegram">Telegram · optional</label><input id="tokenTelegram" type="url" placeholder="https://t.me/…"></div>
 <div class="app-field"><label for="initialBuy">Initial buy (ETH) · optional, same transaction</label><input id="initialBuy" type="number" min="0" step="0.000001" value="0"></div>
 <div class="app-note"><strong>Launch parameters</strong><br>1,000,000,000 fixed supply · 793,100,000 curve allocation (79.31%) · 206,900,000 Liftoff liquidity reserve (20.69%). Constant-product curve with virtual reserves. 1% buy/sell fee. Testnet creation fee reference: 0.0001 ETH.</div>
-<div class="app-row" style="margin-top:20px"><button class="app-btn" type="button" data-connect>Connect wallet</button><button class="app-btn secondary" type="button" disabled>Launch mission — factory contract not deployed</button></div><p class="app-status" data-status aria-live="polite">On-chain launch is unavailable until the PIXORUN launchpad contract and metadata flow are deployed and verified.</p></div>
+<div class="app-row" style="margin-top:20px"><button class="app-btn secondary" type="button" disabled>Launch mission — factory contract not deployed</button></div><p class="app-status" data-status aria-live="polite">On-chain launch is unavailable until the PIXORUN launchpad contract and metadata flow are deployed and verified.</p></div>
 <div class="app-card"><h2>Launch summary</h2><p class="lead">Creation fee: 0.0001 ETH (testnet reference) + optional initial buy + network gas. Actual token amount, price and slippage quote will be calculated by the launchpad contract once deployed.</p></div></main>
 <footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer><script src="../app.js"></script></body></html>
