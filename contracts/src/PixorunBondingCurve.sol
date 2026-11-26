@@ -3,6 +3,10 @@ pragma solidity 0.8.24;
 
 import "./PixorunCurveMath.sol";
 
+interface IPixorunCurveFeeDistributor {
+    function notifyTradeFee(address creator) external payable;
+}
+
 interface IPixorunERC20 {
     function balanceOf(address account) external view returns (uint256);
     function transfer(address to, uint256 value) external returns (bool);
@@ -21,7 +25,8 @@ contract PixorunBondingCurve {
     uint256 public constant INITIAL_VIRTUAL_TOKEN = 1_076_350_000 ether;
 
     IPixorunERC20 public immutable token;
-    address payable public immutable feeRecipient;
+    IPixorunCurveFeeDistributor public immutable feeDistributor;
+    address public immutable factory;
     address public immutable creator;
 
     uint256 public virtualNative = INITIAL_VIRTUAL_NATIVE;
@@ -44,12 +49,13 @@ contract PixorunBondingCurve {
     event Sold(address indexed seller, uint256 tokensIn, uint256 grossNative, uint256 fee, uint256 netNative);
     event GraduationFlagged(uint256 totalSold, uint256 realNative);
 
-    constructor(address token_, address payable feeRecipient_, address creator_) {
-        if (token_ == address(0) || feeRecipient_ == address(0) || creator_ == address(0)) {
+    constructor(address token_, address feeDistributor_, address creator_) {
+        if (token_ == address(0) || feeDistributor_ == address(0) || creator_ == address(0)) {
             revert ZeroAddress();
         }
         token = IPixorunERC20(token_);
-        feeRecipient = feeRecipient_;
+        feeDistributor = IPixorunCurveFeeDistributor(feeDistributor_);
+        factory = msg.sender;
         creator = creator_;
     }
 
@@ -130,7 +136,7 @@ contract PixorunBondingCurve {
     }
 
     function _sendFee(uint256 amount) internal {
-        if (amount != 0) _sendNative(feeRecipient, amount);
+        if (amount != 0) feeDistributor.notifyTradeFee{value: amount}(creator);
     }
 
     function _sendNative(address payable to, uint256 amount) internal {
