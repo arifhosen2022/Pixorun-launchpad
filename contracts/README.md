@@ -42,4 +42,4 @@ Expected chain ID: 46630.
 
 ## Current implementation status
 
-The current Solidity files are only an initial foundation: curve quote math and an immutable-supply token primitive. The full launchpad, Liftoff migration, AMM, staking, fee accounting, and access-control integration are not implemented yet. Existing curve constants and fee assumptions must be reviewed against final approved tokenomics before deployment.
+The Solidity workspace now contains the initial PIXORUN protocol modules: fixed-supply mission token, curve math, bonding curve, Genesis Pass-gated launch factory, atomic Liftoff migration, PIXORUN Swap factory/pair, fee distributor and staking rewards. The current Foundry build and integration tests pass in GitHub Actions. This is not an audit or deployment approval. Frontend contract integration, final tokenomics confirmation, fuzz/invariant testing and independent security review remain outstanding. Review all addresses and constructor parameters before any deployment.
