@@ -17,6 +17,35 @@ contract MockSwapFeeDistributor {
     }
 }
 
+
+contract ReentrantPairToken {
+    mapping(address=>uint256) public balanceOf;
+    mapping(address=>mapping(address=>uint256)) public allowance;
+    address public pair;
+    bool public attemptReentry;
+    bool public reentrySucceeded;
+
+    constructor(uint256 supply) { balanceOf[msg.sender]=supply; }
+    function setPair(address pair_) external { pair=pair_; }
+    function setAttemptReentry(bool enabled) external { attemptReentry=enabled; }
+    function approve(address spender,uint256 amount) external returns(bool) {
+        allowance[msg.sender][spender]=amount; return true;
+    }
+    function transfer(address to,uint256 amount) external returns(bool) {
+        require(balanceOf[msg.sender]>=amount,"balance");
+        balanceOf[msg.sender]-=amount; balanceOf[to]+=amount; return true;
+    }
+    function transferFrom(address from,address to,uint256 amount) external returns(bool) {
+        uint256 allowed=allowance[from][msg.sender];
+        require(allowed>=amount && balanceOf[from]>=amount,"allowance/balance");
+        if (attemptReentry && to==pair) {
+            (reentrySucceeded,)=pair.call(abi.encodeWithSignature("swapTokenForNative(uint256,uint256)",1,0));
+        }
+        allowance[from][msg.sender]=allowed-amount;
+        balanceOf[from]-=amount; balanceOf[to]+=amount; return true;
+    }
+}
+
 contract PixorunSwapTest {
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
@@ -53,6 +82,27 @@ contract PixorunSwapTest {
         uint256 nativeOut = pair.swapTokenForNative(1_000 ether, 0);
         require(nativeOut > 0, "token swap output");
         require(address(this).balance > nativeBefore, "native received");
+    }
+
+    function testSwapPairBlocksTokenCallbackReentrancy() external {
+        vm.deal(address(this), 2 ether);
+        MockSwapFeeDistributor fees = new MockSwapFeeDistributor();
+        PixorunSwapFactory factory = new PixorunSwapFactory(address(fees));
+        factory.configureLaunchpadFactory(address(this));
+        ReentrantPairToken token = new ReentrantPairToken(200_000 ether);
+        require(token.approve(address(factory), 100_000 ether), "seed approval");
+        address pairAddress = factory.createAndSeed{value: 1 ether}(
+            address(token), address(this), 100_000 ether
+        );
+        PixorunSwapPair pair = PixorunSwapPair(payable(pairAddress));
+        token.setPair(pairAddress);
+        token.setAttemptReentry(true);
+        require(token.approve(pairAddress, 1_000 ether), "swap approval");
+
+        uint256 out = pair.swapTokenForNative(1_000 ether, 0);
+        require(out > 0, "outer swap completes");
+        require(!token.reentrySucceeded(), "nested swap rejected by lock");
+        require(pair.reserveToken() == 101_000 ether, "reserve updated once");
     }
 
     function testCannotCreateSecondPoolForSameToken() external {
