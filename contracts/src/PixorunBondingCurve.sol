@@ -98,6 +98,7 @@ contract PixorunBondingCurve {
         if (graduated) revert AlreadyGraduated();
         if (tokensIn == 0) revert ZeroAmount();
 
+        if (tokensIn > totalSold) revert InsufficientLiquidity();
         (uint256 grossNative, uint256 feeAmount, uint256 netNative) = quoteSell(tokensIn);
         if (netNative < minNativeOut) revert SlippageExceeded();
         if (grossNative > realNative) revert InsufficientLiquidity();
