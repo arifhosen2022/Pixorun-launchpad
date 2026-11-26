@@ -55,6 +55,7 @@ contract PixorunStakingRewardsTest {
     }
 
     function testNoStakersCannotReceiveFee() external {
+        vm.deal(address(this), 1 ether);
         MockT0 token = new MockT0();
         PixorunStakingRewards staking = new PixorunStakingRewards(address(token), address(this));
         (bool ok,) = address(staking).call{value: 1 ether}(abi.encodeCall(staking.notifyFee, ()));
@@ -62,6 +63,7 @@ contract PixorunStakingRewardsTest {
     }
 
     function testFinalStakerCannotExitBeforeQueuedRewardActivates() external {
+        vm.deal(address(this), 1 ether);
         MockT0 token = new MockT0();
         PixorunStakingRewards staking = new PixorunStakingRewards(address(token), address(this));
         token.mint(address(this), 10 ether);
