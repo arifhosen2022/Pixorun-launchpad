@@ -13,7 +13,7 @@ let cached=null;try{cached=cacheKey?JSON.parse(localStorage.getItem(cacheKey)||'
 if(cached){$('tokenName').textContent=cached.name||'Token';$('tokenSymbol').textContent=cached.symbol||'—';$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;if(cached.curveAddress){$('curveAddress').textContent=cached.curveAddress;$('curveAddress').href=EXPLORER+'/address/'+cached.curveAddress;}if(cached.creator){$('creatorAddress').textContent=cached.creator;$('creatorAddress').href=EXPLORER+'/address/'+cached.creator;}$('totalSupply').textContent=cached.totalSupply||'—';$('tradeMode').textContent=cached.tradeMode||'Refreshing market…';}
 let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n;
 const withTimeout=(promise,label,ms=12000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Error(label+' timed out. Robinhood RPC did not respond.')),ms))]);
-const fmt=(v,d=18)=>Number(ethers.formatUnits(v,d)).toLocaleString(undefined,{maximumFractionDigits:10});
+const fmt=(v,d=18)=>{const raw=ethers.formatUnits(v,d),parts=raw.split('.'),whole=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');const fraction=(parts[1]||'').replace(/0+$/,'');return fraction?whole+'.'+fraction:whole;};
 const setStatus=m=>{if($('tradeStatus'))$('tradeStatus').textContent=m;};
 function wallet(){const p=window.ethereum,b=window.bitkeep?.ethereum;if(p?.isMetaMask)return p;if(b?.isBitKeep||window.bitkeep?.isBitKeep)return b||p;return p||b||null;}
 function slippage(){return Math.max(0,Math.min(50,Number($('slippage')?.value||1)));}
