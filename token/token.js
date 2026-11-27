@@ -89,6 +89,7 @@ function drawMarketChart(points){
  const coords=points.map((p,i)=>{const x=12+i*976/Math.max(1,points.length-1),y=164-(p.price-min)/range*145;return x.toFixed(1)+','+y.toFixed(1)}).join(' ');
  host.innerHTML='<svg viewBox="0 0 1000 180" preserveAspectRatio="none" role="img" aria-label="Price chart from confirmed on-chain trades"><polyline points="'+coords+'" fill="none" stroke="#a78bfa" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 }
+async function findBlockAtOrAfter(target,latest){let lo=0,hi=latest;while(lo<hi){const mid=Math.floor((lo+hi)/2),b=await withTimeout(provider.getBlock(mid),'Block timestamp');if(!b)throw Error('Could not read block timestamp.');if(Number(b.timestamp)<target)lo=mid+1;else hi=mid;}return lo;}
 async function loadMarketData(){
  const latest=await withTimeout(provider.getBlockNumber(),'Latest block');
  let price=0,liquidity='—',reserveEth=0,reserveToken=0;
@@ -108,7 +109,7 @@ async function loadMarketData(){
  marketText('marketCap',price>0?marketFmt(mcap,5)+' ETH':'—');
  marketText('marketLiquidity',liquidity);
  // Scan a bounded recent window; all prices and volume below come from actual emitted swap events.
- const fromBlock=Math.max(0,latest-12000),logs=[];
+ const fromBlock=await findBlockAtOrAfter(Math.floor(Date.now()/1000)-86400,latest),logs=[];
  const topics=[curveEvents.getEvent('Bought').topicHash,curveEvents.getEvent('Sold').topicHash,pairEvents.getEvent('Swap').topicHash];
  for(let start=fromBlock;start<=latest;start+=1000){
   const end=Math.min(latest,start+999);
@@ -138,7 +139,7 @@ async function loadMarketData(){
  const rows=recent.slice(-8).reverse();marketText('marketTradeCount',recent.length+' trades');
  const host=$('marketRecentTrades');
  if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
- marketText('marketDataNote','On-chain event scan: latest '+Math.min(12000,latest)+' blocks, filtered by block timestamp to the last 24 hours. 24h stats cover this scan window only.');
+ marketText('marketDataNote','On-chain event scan: blocks from the exact 24-hour timestamp window. Values are based on confirmed curve and swap events.');
 }
 
 async function refresh(){
