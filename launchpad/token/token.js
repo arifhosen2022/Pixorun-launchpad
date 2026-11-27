@@ -130,6 +130,15 @@ async function loadMarketData(){
  try{
   const cached=JSON.parse(localStorage.getItem(marketCacheKey)||'null');
   if(cached?.data)render(cached.data,'Saved snapshot');
+  else {
+   const legacy=JSON.parse(localStorage.getItem('pixorun:market:v1:'+tokenAddress.toLowerCase())||'null');
+   if(legacy&&Date.now()-legacy.savedAt<86400000){
+    marketText('marketPrice',legacy.price||'—');marketText('marketCap',legacy.cap||'—');marketText('marketLiquidity',legacy.liquidity||'—');
+    marketText('marketVolume',legacy.volume||'—');marketText('marketChange',legacy.change||'—');marketText('marketTrades',legacy.trades||'—');
+    marketText('marketUpdated','Saved cache · refreshing Supabase');drawMarketChart(legacy.points||[]);
+    marketText('marketTradeCount',legacy.tradeCount||'');const host=$('marketRecentTrades');if(host)host.innerHTML=legacy.rows||'';
+   }
+  }
  }catch(_){}
  marketText('marketUpdated',$('marketPrice')?.textContent&&$('marketPrice').textContent!=='—'?'Refreshing…':'Loading saved market data…');
  try{
@@ -176,7 +185,7 @@ async function refresh(){
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('Token loaded · enter an amount to see the exact on-chain fee quote.');
  await Promise.all([quoteBuy(),quoteSell(),loadMetadata()]);
- loadMarketData().catch(e=>{console.warn('Market data unavailable:',e);marketText('marketUpdated','Market data temporarily unavailable');marketText('marketDataNote','Robinhood Chain RPC is slow or rate-limited. Token details and trading remain available; tap Retry to refresh.');});
+
  if(account)await refreshBalances();
 }
 
@@ -242,5 +251,6 @@ const retry=$('tokenRetry');if(retry)retry.addEventListener('click',()=>{retry.d
 const p=wallet();p?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;$('buyAmount').value='';$('sellAmount').value='';await readConnectedWallet();await quoteBuy();await quoteSell();});
 p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
 setStatus(cached?'Showing saved token details · checking the blockchain…':'Starting token data request…');
+loadMarketData().catch(e=>console.warn('Supabase market data unavailable:',e));
 refresh().then(readConnectedWallet).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
 })();
