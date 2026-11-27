@@ -39,17 +39,34 @@ async function walletChainId(){
  const id=await timeout(window.ethereum.request({method:'eth_chainId'}),'Wallet network check');
  return Number(BigInt(id));
 }
+async function refreshWalletNetwork(){
+ const config={chainId:CHAIN_HEX,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]};
+ try{
+   await timeout(window.ethereum.request({method:'wallet_addEthereumChain',params:[config]}),'Wallet network RPC update',30000);
+ }catch(e){
+   // Wallets may reject re-adding a chain that is already configured. The RPC probe below decides whether it is usable.
+   if(e.code===4001||e.code===-32002)throw e;
+ }
+}
 async function switchToTestnet(){
  let chain=await walletChainId();
- if(chain===CHAIN_ID)return;
- status('Your wallet is on the wrong network. Approve switching to Robinhood Chain Testnet (46630).','pending');
- try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN_HEX}]});}
- catch(e){
-   if(e.code!==4902)throw e;
-   await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN_HEX,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]});
+ if(chain!==CHAIN_ID){
+   status('Your wallet is on the wrong network. Approve switching to Robinhood Chain Testnet (46630).','pending');
+   try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN_HEX}]});}
+   catch(e){
+     if(e.code!==4902)throw e;
+     await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN_HEX,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]});
+   }
  }
  chain=await walletChainId();
  if(chain!==CHAIN_ID)throw new Error('Robinhood Chain Testnet was not selected. Switch the network in your wallet and try again.');
+ try{
+   await timeout(window.ethereum.request({method:'eth_blockNumber',params:[]}), 'Wallet RPC block check',15000);
+ }catch(firstError){
+   status('Your wallet is on Robinhood Testnet but its saved RPC is not responding. Updating the network RPC…','pending');
+   await refreshWalletNetwork();
+   await timeout(window.ethereum.request({method:'eth_blockNumber',params:[]}), 'Wallet RPC still unavailable',20000);
+ }
 }
 async function setup(){
  const form=$('launchForm'),btn=$('launchBtn');
