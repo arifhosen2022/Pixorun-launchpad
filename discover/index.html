@@ -26,11 +26,16 @@
 .discover-stat-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#81758f}
 .discover-stat-value{display:block;margin-top:7px;font-size:25px;font-weight:800;letter-spacing:-.04em;color:#2c2040;font-variant-numeric:tabular-nums}
 .discover-stat-note{margin-top:3px;font-size:10px;color:#968ba3}
-.discover-ticker{display:flex;align-items:center;gap:12px;overflow:hidden;padding:12px 15px;margin:0 0 24px;border:1px solid #e8e2f1;border-radius:13px;background:#fff}
-.discover-ticker-label{flex:none;font-size:10px;font-weight:800;letter-spacing:.08em;color:#7040b5}
-.discover-ticker-items{display:flex;align-items:center;gap:9px;overflow-x:auto;scrollbar-width:none;white-space:nowrap}.discover-ticker-items::-webkit-scrollbar{display:none}
-.discover-ticker-item{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#f5f0fb;color:#514064;font-size:11px;font-weight:700}
-.discover-ticker-item small{color:#8b7b9e;font-weight:600}
+.discover-ticker{display:flex;align-items:center;gap:13px;overflow:hidden;padding:13px 16px;margin:0 0 24px;border:1px solid #91c9f5;border-radius:14px;background:linear-gradient(110deg,#eaf6ff 0%,#d9edff 52%,#e5f4ff 100%);box-shadow:0 8px 24px #247ac018}
+.discover-ticker-label{position:relative;flex:none;font-size:10px;font-weight:900;letter-spacing:.1em;color:#145b9c}
+.discover-ticker-label:before{content:'';display:inline-block;width:7px;height:7px;margin:0 7px 1px 0;border-radius:50%;background:#2589d8;box-shadow:0 0 0 4px #2589d820}
+.discover-ticker-window{min-width:0;flex:1;overflow:hidden}
+.discover-ticker-items{display:flex;align-items:center;gap:10px;width:max-content;min-width:100%;white-space:nowrap;animation:discoverTickerRun 24s linear infinite}
+.discover-ticker:hover .discover-ticker-items{animation-play-state:paused}
+.discover-ticker-item{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid #b7daf5;border-radius:999px;background:linear-gradient(135deg,#fff 0%,#f1f8ff 100%);color:#174d79;font-size:11px;font-weight:800;box-shadow:0 3px 9px #286da00c}
+.discover-ticker-item small{color:#397eae;font-weight:700}
+@keyframes discoverTickerRun{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+@media(prefers-reduced-motion:reduce){.discover-ticker-items{animation:none;overflow-x:auto}}
 .discover-market{padding:18px!important;margin:0 0 14px!important}
 .discover-market-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .discover-market-title{font-size:18px;font-weight:800;letter-spacing:-.03em;color:#2c2040}
@@ -85,7 +90,7 @@
  <article class="discover-stat"><div class="discover-stat-label">Graduated</div><strong class="discover-stat-value" id="statGraduated">—</strong><div class="discover-stat-note">Completed bonding curve</div></article>
  <article class="discover-stat"><div class="discover-stat-label">New launches</div><strong class="discover-stat-value" id="statNew">—</strong><div class="discover-stat-note">Last 30 minutes</div></article>
 </section>
-<section class="discover-ticker" aria-label="Latest token launches"><span class="discover-ticker-label">LATEST LAUNCHES</span><div class="discover-ticker-items" id="discoverTicker"><span class="discover-ticker-item">Loading launches…</span></div></section>
+<section class="discover-ticker" aria-label="Latest token launches"><span class="discover-ticker-label">LATEST LAUNCHES</span><div class="discover-ticker-window"><div class="discover-ticker-items" id="discoverTicker"><span class="discover-ticker-item">Loading recent launches…</span></div></div></section>
 <section class="app-card discover-market">
  <div class="discover-market-head"><div class="discover-market-title">Explore tokens</div><label class="discover-search"><input id="discoverSearch" type="search" placeholder="Search name, symbol or address…" autocomplete="off" aria-label="Search tokens"></label></div>
  <div class="mission-launch-panel"><div class="mission-filter-bar" role="group" aria-label="Filter token launches">
@@ -98,4 +103,4 @@
  <div id="missionList"></div>
 </section>
 </main>
-<footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer><script src="../registry.js?v=launch-audit-20261127e"></script><script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script><script src="./discover.js?v=discover-marketplace-20261127a"></script><script src="../app.js?v=menu-active-autoclose-20261127a"></script></body></html>
+<footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer><script src="../registry.js?v=launch-audit-20261127e"></script><script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script><script src="./discover.js?v=recent-ticker-20261127b"></script><script src="../app.js?v=menu-active-autoclose-20261127a"></script></body></html>
