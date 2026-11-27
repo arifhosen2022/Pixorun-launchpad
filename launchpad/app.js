@@ -6,7 +6,7 @@ const $=(s,r=document)=>r.querySelector(s);let account=null,chainId=null,connect
 const pathNow=location.pathname;
 const basePath=pathNow.startsWith('/Pixorun-launchpad/launchpad/')?'/Pixorun-launchpad/launchpad/':(pathNow.startsWith('/launchpad/')?'/launchpad/':'/');
 const short=a=>a?a.slice(0,6)+'…'+a.slice(-4):'';
-function walletProvider(){const injected=window.ethereum;const candidates=[...(Array.isArray(injected?.providers)?injected.providers:[]),injected,window.bitkeep?.ethereum,window.okxwallet,window.coinbaseWalletExtension].filter((p,i,a)=>p&&typeof p.request==='function'&&a.indexOf(p)===i);return candidates.find(p=>p.isBitKeep||p.isBitget)||candidates.find(p=>p.isMetaMask)||candidates[0]||null;}
+function walletProvider(){const injected=window.ethereum,bitget=window.bitkeep?.ethereum;if(injected?.isMetaMask)return injected;if(window.bitkeep?.isBitKeep||bitget?.isBitKeep)return bitget||injected;return injected||bitget||null;}
 function status(m){let found=false;document.querySelectorAll('[data-status]').forEach(e=>{e.textContent=m;found=true;});const trade=document.getElementById('tradeStatus');if(trade){trade.textContent=m;found=true;}const note=document.getElementById('walletNetworkNote');if(note){note.textContent=m;found=true;}if(!found)console.info('PIXORUN wallet:',m);}
 function controls(){
  const nav=$('.nav-right');if(!nav||$('.home-wallet',nav))return;
@@ -37,6 +37,6 @@ document.addEventListener('click',async e=>{
  const cp=e.target.closest('[data-copy-wallet]');if(cp){if(!account){status('Connect your wallet first.');return;}try{await navigator.clipboard.writeText(account);status('Wallet address copied.');}catch{status('Could not copy automatically.');}return;}
  const generic=e.target.closest('[data-connect]');if(generic){try{await connect();}catch(err){status(err.message||'Wallet connection failed.');}}
 });
-const providers=[...(Array.isArray(window.ethereum?.providers)?window.ethereum.providers:[]),window.ethereum,window.bitkeep?.ethereum,window.okxwallet].filter((p,i,a)=>p&&typeof p.request==='function'&&a.indexOf(p)===i);for(const p of providers){p.on?.('accountsChanged',async()=>{locallyDisconnected=false;await readState();render();});p.on?.('chainChanged',async()=>{await readState();render();if(account&&chainId!==CHAIN)status('Wrong network. Switch to Robinhood Chain Testnet.');});}
+const providers=[window.ethereum,window.bitkeep?.ethereum].filter(Boolean);for(const p of providers){p.on?.('accountsChanged',async()=>{locallyDisconnected=false;await readState();render();});p.on?.('chainChanged',async()=>{await readState();render();if(account&&chainId!==CHAIN)status('Wrong network. Switch to Robinhood Chain Testnet.');});}
 readState().then(render);
 })();
