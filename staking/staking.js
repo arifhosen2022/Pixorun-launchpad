@@ -7,7 +7,7 @@ const EXPLORER='https://explorer.testnet.chain.robinhood.com';
 const $=id=>document.getElementById(id);
 const tokenAbi=['function balanceOf(address) view returns(uint256)','function allowance(address,address) view returns(uint256)','function decimals() view returns(uint8)','function symbol() view returns(string)','function approve(address,uint256) returns(bool)'];
 const stakingAbi=['function stakingToken() view returns(address)','function totalStaked() view returns(uint256)','function balanceOf(address) view returns(uint256)','function earned(address) view returns(uint256)','function stake(uint256)','function withdraw(uint256)','function claimReward()'];
-let config=null,readProvider=null,tokenRead=null,stakingRead=null,decimals=18,symbol='PIXORUN',busy=false,account=null,signer=null,tokenWrite=null,stakingWrite=null;
+let config=null,readProvider=null,tokenRead=null,stakingRead=null,decimals=18,symbol='PIXORUN',busy=false,account=null,signer=null,tokenWrite=null,stakingWrite=null,configReady=false,lastWalletDetail=null;
 const status=(message,type='info')=>{const el=$('stakingStatus');if(el){el.textContent=message;el.dataset.type=type;}};
 const fmt=(value,d=decimals)=>{try{return Number(ethers.formatUnits(value,d)).toLocaleString(undefined,{maximumFractionDigits:6});}catch(_){return '—';}};
 const explorerAddress=a=>EXPLORER+'/address/'+a;
@@ -49,10 +49,11 @@ async function refresh(){
 }
 async function useSharedWallet(detail){
  const shared=window.PIXORUN_WALLET;
- const provider=detail?.provider||shared?.getProvider?.();
- const accounts=shared?await shared.getAccounts():[];
- const next=detail?.account||accounts?.[0]||null;
- const chain=String(detail?.chainId||(provider?await provider.request({method:'eth_chainId'}):'')).toLowerCase();
+ const state=detail?.provider?detail:(shared?.getState?await shared.getState():null);
+ const provider=state?.provider||detail?.provider||shared?.getProvider?.();
+ const accounts=state?.account?[state.account]:(shared?await shared.getAccounts():[]);
+ const next=state?.account||detail?.account||accounts?.[0]||null;
+ const chain=String(state?.chainId||detail?.chainId||(provider?await provider.request({method:'eth_chainId'}):'')).toLowerCase();
  if(!provider||!next){
   account=null;signer=null;tokenWrite=null;stakingWrite=null;
   await refresh();
@@ -98,13 +99,13 @@ async function runAction(action){
  }catch(e){status(e?.shortMessage||e?.reason||e?.message||'Transaction failed.','error');}
  finally{busy=false;setButtons(!!signer&&!!config?.stakingRewards);if(account)await refresh().catch(()=>{});}
 }
+window.addEventListener('pixorun:walletChanged',e=>{lastWalletDetail=e.detail||{};if(configReady)useSharedWallet(lastWalletDetail).catch(err=>{account=null;signer=null;tokenWrite=null;stakingWrite=null;refresh();status(err?.message||'Could not sync the connected site wallet.','error');});});
 document.addEventListener('DOMContentLoaded',async()=>{
  setButtons(false);
  $('stakeBtn')?.addEventListener('click',()=>runAction('stake'));
  $('unstakeBtn')?.addEventListener('click',()=>runAction('unstake'));
  $('claimBtn')?.addEventListener('click',()=>runAction('claim'));
  document.querySelectorAll('[data-stake-percent]').forEach(button=>button.addEventListener('click',async()=>{if(!account||!tokenRead)return;const balance=await tokenRead.balanceOf(account);const pct=BigInt(button.dataset.stakePercent);const amount=balance*pct/100n;$('stakeAmount').value=ethers.formatUnits(amount,decimals);}));
- try{await loadConfig();await refresh();const provider=window.PIXORUN_WALLET?.getProvider?.();const accounts=await window.PIXORUN_WALLET?.getAccounts?.();if(provider&&accounts?.[0])await useSharedWallet({provider,account:accounts[0]});else status('Connect your wallet using the main site header to use Staking.','info');}catch(e){status(e?.message||'Staking is unavailable.','error');setButtons(false);}
- window.addEventListener('pixorun:walletChanged',async e=>{try{await useSharedWallet(e.detail||{});}catch(err){account=null;signer=null;tokenWrite=null;stakingWrite=null;await refresh();status(err?.message||'Could not sync the connected site wallet.','error');}});
+ try{await loadConfig();configReady=true;await refresh();const state=await window.PIXORUN_WALLET?.getState?.();if(state?.provider&&state?.account)await useSharedWallet(state);else if(lastWalletDetail?.provider&&lastWalletDetail?.account)await useSharedWallet(lastWalletDetail);else status('Connect your wallet using the main site header to use Staking.','info');}catch(e){status(e?.message||'Staking is unavailable.','error');setButtons(false);}
 });
 })();
