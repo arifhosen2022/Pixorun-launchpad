@@ -154,6 +154,14 @@ async function setup(){
      let token='',curve='';
      for(const log of receipt.logs){try{const parsed=readFactory.interface.parseLog(log);if(parsed?.name==='LaunchCreated'){token=parsed.args.token;curve=parsed.args.curve;break;}}catch(_){}}
      if(!token||!curve)throw new Error('Transaction confirmed, but token addresses could not be read from LaunchCreated event. Check '+txLink);
+     // Save the confirmed launch locally so My Profile can display it instantly.
+     try{
+       const profileKey='pixorun:profile:v2:'+account.toLowerCase();
+       const saved=JSON.parse(localStorage.getItem(profileKey)||'null');
+       const items=Array.isArray(saved?.items)?saved.items:[];
+       if(!items.some(item=>item.token?.toLowerCase()===token.toLowerCase()))items.unshift({token,name,symbol,blockNumber:receipt.blockNumber,txHash});
+       localStorage.setItem(profileKey,JSON.stringify({items,lastBlock:receipt.blockNumber}));
+     }catch(storageError){console.warn('Could not cache PIXORUN launch for My Profile:',storageError);}
      $('resultToken').textContent=token;$('resultToken').href=explorer('address',token);
      $('resultCurve').textContent=curve;$('resultCurve').href=explorer('address',curve);
      $('resultTokenLabel')&&($('resultTokenLabel').textContent='TOKEN CONTRACT');
