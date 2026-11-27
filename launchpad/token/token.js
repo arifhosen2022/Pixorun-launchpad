@@ -135,7 +135,7 @@ async function loadMarketData(){
  const num=(v,d=6)=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:d});
  const render=(data,label)=>{
   const snap=data?.snapshot;if(!snap)return false;
-  const trades=[...(data.trades||[])].reverse();
+  const trades=[...(data.trades||[])].sort((a,b)=>{const ta=Date.parse(a.block_timestamp)||0,tb=Date.parse(b.block_timestamp)||0;return ta-tb||Number(a.block_number||0)-Number(b.block_number||0)||Number(a.log_index||0)-Number(b.log_index||0);});
   const points=trades.map(t=>({price:Number(t.price_native),time:Math.floor(new Date(t.block_timestamp).getTime()/1000)})).filter(t=>Number.isFinite(t.price)&&t.price>0);
   marketText('marketPrice',Number(snap.price_native)>0?num(snap.price_native,12)+' ETH':'—');
   marketText('marketCap',Number(snap.market_cap_native)>0?num(snap.market_cap_native,5)+' ETH':'—');
@@ -145,10 +145,10 @@ async function loadMarketData(){
   marketText('marketTrades',String(snap.trades_24h??0));
   marketText('marketUpdated',label+' · '+new Date(snap.data_updated_at||Date.now()).toLocaleTimeString());
   drawMarketChart(points);
-  marketText('marketTradeCount',String(snap.trades_24h??0)+' trades · Supabase');
+  marketText('marketTradeCount',String(snap.trades_24h??0)+' trades in 24h');
   const host=$('marketRecentTrades'),rows=trades.slice(-8).reverse();
   if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.side==='Buy'?'market-buy':'market-sell')+'">'+t.side+'</strong><span>'+num(t.token_amount,3)+' tokens · '+num(t.native_amount,6)+' ETH</span><a href="'+EXPLORER+'/tx/'+t.tx_hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
-  marketText('marketDataNote','Robinhood Chain Testnet · Supabase indexed confirmed on-chain events · block '+(snap.indexed_block??'—')+'.');
+  marketText('marketDataNote','Robinhood Chain Testnet · verified confirmed on-chain trades · block '+(snap.indexed_block??'—')+'.');
   return true;
  };
  // Paint the last known snapshot immediately, before waiting for the network.
@@ -167,10 +167,10 @@ async function loadMarketData(){
  }catch(_){}
  marketText('marketUpdated',$('marketPrice')?.textContent&&$('marketPrice').textContent!=='—'?'Refreshing…':'Loading saved market data…');
  try{
-  if(!window.PIXORUN_REGISTRY?.getMarketData)throw Error('Supabase registry client unavailable');
+  if(!window.PIXORUN_REGISTRY?.getMarketData)throw Error('Market data service unavailable');
   const data=await window.PIXORUN_REGISTRY.getMarketData(tokenAddress);
   if(data?.snapshot){
-   render(data,'Supabase');
+   render(data,'Live market data');
    try{localStorage.setItem(marketCacheKey,JSON.stringify({savedAt:Date.now(),data}));}catch(_){}
   }else if(!$('marketPrice')?.textContent||$('marketPrice').textContent==='—'){
    marketText('marketUpdated','Waiting for first indexed snapshot');
@@ -181,7 +181,7 @@ async function loadMarketData(){
   console.warn('Supabase market read failed:',e);
   if(!$('marketPrice')?.textContent||$('marketPrice').textContent==='—'){
    marketText('marketUpdated','Market data temporarily unavailable');
-   marketText('marketDataNote','Could not reach the Supabase market cache. Refresh to retry; the page will not run a slow RPC history scan.');
+   marketText('marketDataNote','Market data is temporarily unavailable. Refresh to retry; the page will not run a slow RPC history scan.');
   }
  }
 }
