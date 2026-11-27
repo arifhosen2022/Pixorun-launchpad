@@ -95,6 +95,6 @@ document.addEventListener('DOMContentLoaded',async()=>{
  $('unstakeBtn')?.addEventListener('click',()=>runAction('unstake'));
  $('claimBtn')?.addEventListener('click',()=>runAction('claim'));
  try{await loadConfig();await refresh();}catch(e){status(e?.message||'Staking is unavailable.','error');setButtons(false);}
- window.addEventListener('pixorun:walletChanged',async e=>{if(e.detail?.account&&account&&e.detail.account.toLowerCase()!==account.toLowerCase()){account=null;signer=null;tokenWrite=null;stakingWrite=null;await refresh();}});
+ window.addEventListener('pixorun:walletChanged',async e=>{const next=e.detail?.account||null;const nextChain=String(e.detail?.chainId||'').toLowerCase();if(!next||!account||next.toLowerCase()!==account.toLowerCase()||nextChain!==CHAIN_HEX){account=null;signer=null;tokenWrite=null;stakingWrite=null;await refresh();if(next&&nextChain!==CHAIN_HEX)status('Switch to Robinhood Chain Testnet and reconnect your wallet.','error');}});
 });
 })();
