@@ -11,7 +11,7 @@ const tokenAddress=new URLSearchParams(location.search).get('address');
 const cacheKey=tokenAddress&&ethers.isAddress(tokenAddress)?'pixorun:token:v2:'+tokenAddress.toLowerCase():null;
 let cached=null;try{cached=cacheKey?JSON.parse(localStorage.getItem(cacheKey)||'null'):null;}catch(_){}
 if(cached){$('tokenName').textContent=cached.name||'Token';$('tokenSymbol').textContent=cached.symbol||'—';$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;if(cached.curveAddress){$('curveAddress').textContent=cached.curveAddress;$('curveAddress').href=EXPLORER+'/address/'+cached.curveAddress;}if(cached.creator){$('creatorAddress').textContent=cached.creator;$('creatorAddress').href=EXPLORER+'/address/'+cached.creator;}$('totalSupply').textContent=cached.totalSupply||'—';$('tradeMode').textContent=cached.tradeMode||'Refreshing market…';}
-let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n;
+let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n,totalSupplyRaw=0n,holderRows=[],holderOffset=0,holderCount=0,holderTop10=0,holderTop50=0,holderLoading=false;
 const withTimeout=(promise,label,ms=12000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Error(label+' timed out. Robinhood RPC did not respond.')),ms))]);
 const fmt=(v,d=18)=>{const raw=ethers.formatUnits(v,d),parts=raw.split('.'),whole=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');const fraction=(parts[1]||'').replace(/0+$/,'');return fraction?whole+'.'+fraction:whole;};
 const setStatus=m=>{if($('tradeStatus'))$('tradeStatus').textContent=m;};
@@ -29,11 +29,11 @@ async function connect(){
  account=ethers.getAddress(a[0]);const chain=(await p.request({method:'eth_chainId'})).toLowerCase();
  $('tokenConnect').textContent=account.slice(0,6)+'…'+account.slice(-4);
  $('walletNetworkNote').textContent=chain===CHAIN?'Wallet connected to Robinhood Chain Testnet.':'Wallet connected on another network. Switch to Robinhood Chain Testnet when trading.';
- await refreshBalances();return account;
+ await refreshBalances();renderHolderRows();return account;
 }
 async function readConnectedWallet(){
  const p=wallet();if(!p)return;
- try{const [a,chain]=await Promise.all([p.request({method:'eth_accounts'}),p.request({method:'eth_chainId'})]);account=a?.[0]?ethers.getAddress(a[0]):null;if(account){$('tokenConnect').textContent=account.slice(0,6)+'…'+account.slice(-4);$('walletNetworkNote').textContent=chain.toLowerCase()===CHAIN?'Connected · Robinhood Chain Testnet':'Connected · wrong network; switch only when you trade.';await refreshBalances();}else{$('tokenConnect').textContent='Connect wallet';$('walletEthBalance').textContent='Not connected';$('walletTokenBalance').textContent='Not connected';}}catch(e){console.warn('Wallet state unavailable',e);}
+ try{const [a,chain]=await Promise.all([p.request({method:'eth_accounts'}),p.request({method:'eth_chainId'})]);account=a?.[0]?ethers.getAddress(a[0]):null;if(account){$('tokenConnect').textContent=account.slice(0,6)+'…'+account.slice(-4);$('walletNetworkNote').textContent=chain.toLowerCase()===CHAIN?'Connected · Robinhood Chain Testnet':'Connected · wrong network; switch only when you trade.';await refreshBalances();renderHolderRows();}else{$('tokenConnect').textContent='Connect wallet';renderHolderRows();$('walletEthBalance').textContent='Not connected';$('walletTokenBalance').textContent='Not connected';}}catch(e){console.warn('Wallet state unavailable',e);}
 }
 function showMetadata(m){
  if(!m)return;const about=$('tokenAbout');let has=false;
@@ -242,6 +242,51 @@ async function loadMarketData(){
  }
 }
 
+function holderPct(raw){
+ const supply=Number(ethers.formatUnits(totalSupplyRaw||0n,decimals));
+ const balance=Number(ethers.formatUnits(BigInt(raw||0),decimals));
+ return supply>0?(balance/supply)*100:0;
+}
+function holderPctText(value){return value>0&&value<0.0001?'<0.0001%':value.toLocaleString('en-US',{maximumFractionDigits:4})+'%';}
+function holderSummary(){
+ const top10=holderRows.slice(0,10).reduce((s,r)=>s+holderPct(r.balance_raw),0);
+ const top50=holderRows.slice(0,50).reduce((s,r)=>s+holderPct(r.balance_raw),0);
+ holderTop10=top10;holderTop50=top50;
+ marketText('holdersTop10',holderRows.length>=Math.min(10,holderCount)?holderPctText(top10):'—');
+ marketText('holdersTop50',holderRows.length>=Math.min(50,holderCount)?holderPctText(top50):'—');
+}
+function renderHolderRows(){
+ const host=$('holdersTableHost');if(!host)return;
+ if(!holderRows.length){host.innerHTML='<div class="holders-empty">No positive-balance holders found.</div>';return;}
+ const rows=holderRows.map((h,i)=>{
+  const address=String(h.wallet_address||'').toLowerCase();
+  const pct=holderPct(h.balance_raw),you=account&&address===account.toLowerCase();
+  const amount=fmt(BigInt(h.balance_raw||0),decimals);
+  const rank=i+1;
+  return '<tr><td><span class="holders-rank '+(rank<=3?'top':'')+'">'+rank+'</span></td><td><a class="holders-wallet" href="'+EXPLORER+'/address/'+address+'" target="_blank" rel="noopener noreferrer">'+address.slice(0,6)+'…'+address.slice(-4)+' ↗</a> <button class="holders-copy" type="button" data-holder-copy="'+address+'" aria-label="Copy wallet address">Copy</button> '+(you?'<span class="holders-you">YOU</span>':'')+'</td><td class="holders-balance">'+amount+' '+($('tokenSymbol')?.textContent||'')+'</td><td><div class="holders-share"><span>'+holderPctText(pct)+'</span><span class="holders-bar"><i style="width:'+Math.min(100,pct)+'%"></i></span></div></td></tr>';
+ }).join('');
+ host.innerHTML='<table class="holders-table"><thead><tr><th>Rank</th><th>Wallet</th><th>Token balance</th><th>Supply share</th></tr></thead><tbody>'+rows+'</tbody></table>';
+ holderSummary();
+}
+async function loadTopHolders(reset=false){
+ if(holderLoading||!tokenAddress||!window.PIXORUN_REGISTRY?.getTopHolders)return;
+ holderLoading=true;const button=$('holdersMore');if(button)button.disabled=true;
+ if(reset){holderRows=[];holderOffset=0;holderCount=0;marketText('holdersStatus','Checking index…');marketText('holdersTotal','—');marketText('holdersTop10','—');marketText('holdersTop50','—');if($('holdersTableHost'))$('holdersTableHost').innerHTML='<div class="holders-state">Loading verified holder balances…</div>';}
+ try{
+  const result=await window.PIXORUN_REGISTRY.getTopHolders(tokenAddress,holderOffset,50);
+  if(!result.complete){marketText('holdersStatus','Indexing');marketText('holdersTotal','Indexing…');marketText('holdersTop10','—');marketText('holdersTop50','—');if($('holdersTableHost'))$('holdersTableHost').innerHTML='<div class="holders-state">Holder indexing is still in progress. The list will appear when the full token transfer history has been indexed.</div>';if(button)button.hidden=true;return;}
+  holderCount=Number(result.holderCount||0);holderRows=reset?[...(result.holders||[])]:holderRows.concat(result.holders||[]);holderOffset=holderRows.length;
+  marketText('holdersTotal',holderCount.toLocaleString('en-US'));marketText('holdersStatus','Verified on-chain');renderHolderRows();
+  if(button){button.hidden=!result.hasMore;button.textContent='Load more holders · '+Math.max(0,holderCount-holderOffset).toLocaleString('en-US')+' remaining';}
+  if(!holderCount){if($('holdersTableHost'))$('holdersTableHost').innerHTML='<div class="holders-empty">No holders with a positive token balance yet.</div>';marketText('holdersStatus','No holders yet');}
+ }catch(e){console.warn('Holder list unavailable:',e);marketText('holdersStatus','Temporarily unavailable');if($('holdersTableHost')&&reset)$('holdersTableHost').innerHTML='<div class="holders-state">Could not load holder balances. Tap Retry or refresh this page.</div>';}
+ finally{holderLoading=false;if(button)button.disabled=false;}
+}
+$('holdersMore')?.addEventListener('click',()=>loadTopHolders(false));
+$('holdersTableHost')?.addEventListener('click',async event=>{
+ const button=event.target.closest('[data-holder-copy]');if(!button)return;
+ const address=button.getAttribute('data-holder-copy');try{await navigator.clipboard.writeText(address);button.textContent='Copied';setTimeout(()=>button.textContent='Copy',1300);}catch(_){button.textContent='Copy unavailable';setTimeout(()=>button.textContent='Copy',1300);}
+});
 async function refresh(){
  if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Explore Missions.');
  setStatus('Reading PIXORUN Factory on Robinhood Testnet…');
@@ -251,7 +296,7 @@ async function refresh(){
  token=new ethers.Contract(tokenAddress,tokenAbi,provider);curve=new ethers.Contract(curveAddress,curveAbi,provider);
  const swapFactory=new ethers.Contract(SWAP_FACTORY,swapFactoryAbi,provider);
  setStatus('Factory found · loading token and market data…');
- const [name,symbol,tokenDecimals,supply,creator,done,graduatedState,pairAddr]=await withTimeout(Promise.all([token.name(),token.symbol(),token.decimals(),token.totalSupply(),factory.creatorOf(tokenAddress),factory.liftoffCompleted(tokenAddress),curve.graduated(),swapFactory.getPair(tokenAddress)]),'Token data read');decimals=Number(tokenDecimals);
+ const [name,symbol,tokenDecimals,supply,creator,done,graduatedState,pairAddr]=await withTimeout(Promise.all([token.name(),token.symbol(),token.decimals(),token.totalSupply(),factory.creatorOf(tokenAddress),factory.liftoffCompleted(tokenAddress),curve.graduated(),swapFactory.getPair(tokenAddress)]),'Token data read');decimals=Number(tokenDecimals);totalSupplyRaw=supply;
  graduated=done||graduatedState;pairAddress=pairAddr;mode=graduated&&pairAddr!==ethers.ZeroAddress?'swap':'curve';
  $('tokenName').textContent=name;$('tokenSymbol').textContent=symbol;$('sellTicker').textContent=symbol;$('walletTokenLabel').textContent=symbol+' balance';$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;
  $('curveAddress').textContent=curveAddress;$('curveAddress').href=EXPLORER+'/address/'+curveAddress;
@@ -265,7 +310,7 @@ async function refresh(){
  const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('Token loaded · enter an amount to see the exact on-chain fee quote.');
- await Promise.all([quoteBuy(),quoteSell(),loadMetadata()]);
+ await Promise.all([quoteBuy(),quoteSell(),loadMetadata(),loadTopHolders(true)]);
 
  if(account)await refreshBalances();
 }
