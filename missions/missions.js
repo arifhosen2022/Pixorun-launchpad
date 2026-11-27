@@ -5,7 +5,7 @@ const factoryAbi=['event LaunchCreated(address indexed creator,address indexed t
 const curveAbi=['function graduated() view returns(bool)','function totalSold() view returns(uint256)','function realNative() view returns(uint256)'];
 const root=document.getElementById('missionList');if(!root)return;
 const iface=new ethers.Interface(factoryAbi),provider=new ethers.JsonRpcProvider(RPC,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true});
-let records=[],active='all';
+let records=[],active='all',lastBlock=0,refreshing=false;try{const cache=JSON.parse(localStorage.getItem('pixorun:missions:v2')||'null');if(cache&&Array.isArray(cache.records)){records=cache.records.map(x=>({...x,sold:BigInt(x.sold||0)}));lastBlock=Number(cache.lastBlock)||0;}}catch(_){}
 const status=document.getElementById('missionStatus');
 const esc=s=>String(s??'');
 const short=a=>a.slice(0,6)+'…'+a.slice(-4);
@@ -33,28 +33,25 @@ function render(){
  const count=document.getElementById('missionCount');if(count)count.textContent=records.length+' on-chain launch'+(records.length===1?'':'es');
 }
 async function load(){
+ if(refreshing)return;refreshing=true;
  try{
-  status.textContent='Reading token launch events from Robinhood Chain Testnet…';
-  const latest=await provider.getBlockNumber(),logs=[];
-  const topic=iface.getEvent('LaunchCreated').topicHash;
-  const step=10000;
-  for(let from=0;from<=latest;from+=step){
-   const to=Math.min(from+step-1,latest);
-   const batch=await provider.getLogs({address:FACTORY,topics:[topic],fromBlock:from,toBlock:to});
-   logs.push(...batch);
-  }
-  records=await Promise.all(logs.map(async log=>{
+  status.textContent=records.length?'Saved launches shown · checking for updates…':'Checking latest launches…';
+  const latest=await provider.getBlockNumber(),logs=[],topic=iface.getEvent('LaunchCreated').topicHash,fromStart=lastBlock?lastBlock+1:0,ranges=[];
+  for(let from=fromStart;from<=latest;from+=10000)ranges.push({fromBlock:from,toBlock:Math.min(from+9999,latest)});
+  const batches=await Promise.all(ranges.map(r=>provider.getLogs({address:FACTORY,topics:[topic],...r})));logs.push(...batches.flat());
+  const known=new Set(records.map(x=>x.token.toLowerCase())),fresh=logs.filter(log=>!known.has(iface.parseLog(log).args.token.toLowerCase()));
+  const additions=await Promise.all(fresh.map(async log=>{
    const p=iface.parseLog(log),creator=p.args.creator,token=p.args.token,curve=p.args.curve;
    const c=new ethers.Contract(curve,curveAbi,provider);
    let graduated=false,sold=0n;
    try{[graduated,sold]=await Promise.all([c.graduated(),c.totalSold()]);}catch(_){}
    return {creator,token,curve,name:p.args.name,symbol:p.args.symbol,graduated,sold,blockNumber:log.blockNumber};
   }));
-  records.sort((a,b)=>b.blockNumber-a.blockNumber);
-  status.textContent='Verified directly from the Launchpad Factory on Robinhood Chain Testnet.';
-  render();
- }catch(e){status.textContent='Could not load on-chain launches: '+(e.shortMessage||e.message||'RPC error');}
+  records=[...records,...additions].sort((a,b)=>b.blockNumber-a.blockNumber);lastBlock=latest;
+  try{localStorage.setItem('pixorun:missions:v2',JSON.stringify({lastBlock,records:records.map(x=>({...x,sold:String(x.sold)}))}));}catch(_){}
+  status.textContent=records.length?'Updated just now · verified on Robinhood Chain Testnet.':'No PIXORUN tokens found yet. Create the first token to see it here.';render();
+ }catch(e){status.textContent=records.length?'Saved launches shown · refresh failed.':'Could not load launches. Please retry.';}finally{refreshing=false;}
 }
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{active=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('secondary',x!==b));render();}));
-load();
+render();load();
 })();
