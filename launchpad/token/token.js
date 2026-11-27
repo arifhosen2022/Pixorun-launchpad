@@ -258,12 +258,13 @@ function holderSummary(){
 function renderHolderRows(){
  const host=$('holdersTableHost');if(!host)return;
  if(!holderRows.length){host.innerHTML='<div class="holders-empty">No positive-balance holders found.</div>';return;}
- const rows=holderRows.map((h,i)=>{
-  const address=String(h.wallet_address||'').toLowerCase();
+ const rows=holderRows.filter(h=>ethers.isAddress(String(h.wallet_address||''))).map((h,i)=>{
+  const address=ethers.getAddress(String(h.wallet_address)).toLowerCase();
   const pct=holderPct(h.balance_raw),you=account&&address===account.toLowerCase();
   const amount=fmt(BigInt(h.balance_raw||0),decimals);
+  const symbol=String($('tokenSymbol')?.textContent||'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
   const rank=i+1;
-  return '<tr><td><span class="holders-rank '+(rank<=3?'top':'')+'">'+rank+'</span></td><td><a class="holders-wallet" href="'+EXPLORER+'/address/'+address+'" target="_blank" rel="noopener noreferrer">'+address.slice(0,6)+'…'+address.slice(-4)+' ↗</a> <button class="holders-copy" type="button" data-holder-copy="'+address+'" aria-label="Copy wallet address">Copy</button> '+(you?'<span class="holders-you">YOU</span>':'')+'</td><td class="holders-balance">'+amount+' '+($('tokenSymbol')?.textContent||'')+'</td><td><div class="holders-share"><span>'+holderPctText(pct)+'</span><span class="holders-bar"><i style="width:'+Math.min(100,pct)+'%"></i></span></div></td></tr>';
+  return '<tr><td><span class="holders-rank '+(rank<=3?'top':'')+'">'+rank+'</span></td><td><a class="holders-wallet" href="'+EXPLORER+'/address/'+address+'" target="_blank" rel="noopener noreferrer">'+address.slice(0,6)+'…'+address.slice(-4)+' ↗</a> <button class="holders-copy" type="button" data-holder-copy="'+address+'" aria-label="Copy wallet address">Copy</button> '+(you?'<span class="holders-you">YOU</span>':'')+'</td><td class="holders-balance">'+amount+' '+symbol+'</td><td><div class="holders-share"><span>'+holderPctText(pct)+'</span><span class="holders-bar"><i style="width:'+Math.min(100,pct)+'%"></i></span></div></td></tr>';
  }).join('');
  host.innerHTML='<table class="holders-table"><thead><tr><th>Rank</th><th>Wallet</th><th>Token balance</th><th>Supply share</th></tr></thead><tbody>'+rows+'</tbody></table>';
  holderSummary();
