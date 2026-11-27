@@ -75,7 +75,9 @@ async function setup(){
      const fee=await timeout(readFactory.creationFee(),'Creation fee read');
      const balance=await timeout(readProvider.getBalance(accounts[0]),'Wallet balance read');
      if(balance<fee)throw new Error('Insufficient testnet ETH for the creation fee and network gas.');
-     status('Please confirm the token launch transaction in your wallet. Creation fee: '+fmt(fee)+' ETH, plus network gas.','pending');
+     status('Checking the launch transaction on Robinhood Testnet before opening your wallet…','pending');
+     await timeout(readFactory.createLaunch.staticCall(name,symbol,{from:accounts[0],value:fee}),'Launch preflight simulation');
+     status('Preflight passed. Please confirm the token launch transaction in your wallet. Creation fee: '+fmt(fee)+' ETH, plus network gas.','pending');
      btn.textContent='WAITING FOR WALLET…';
      const tx=await timeout(factory.createLaunch(name,symbol,{value:fee,gasLimit:6000000}),'Wallet transaction request',45000);
      status('Transaction submitted: '+tx.hash+'. Waiting for confirmation…','pending');
@@ -89,7 +91,7 @@ async function setup(){
      $('resultCurve').textContent=curve;$('resultCurve').href=explorer('address',curve);
      $('resultTx').href=explorer('tx',tx.hash);$('launchResult').hidden=false;
      status('Token created successfully on Robinhood Chain Testnet.','success');form.reset();
-   }catch(e){status(e.shortMessage||e.reason||e.message||'Token launch failed.','error');}
+   }catch(e){const detail=e.shortMessage||e.reason||e.info?.error?.message||e.error?.message||e.data?.message||e.message||'Token launch failed.';status(String(detail).slice(0,500),'error');}
    finally{btn.disabled=false;btn.textContent='CONNECT WALLET TO LAUNCH';}
  });
 }
