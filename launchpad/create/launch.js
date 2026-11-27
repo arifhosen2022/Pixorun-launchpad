@@ -13,8 +13,20 @@ const ABI=[
 ];
 const $=id=>document.getElementById(id);
 let readProvider,readFactory,creationFee,launchBusy=false;
-const walletProvider=()=>window.bitkeep?.ethereum||window.ethereum;
-const isBitgetProvider=provider=>!!window.bitkeep?.ethereum&&provider===window.bitkeep.ethereum;
+function walletProvider(){
+ const injected=window.ethereum;
+ const bitget=window.bitkeep?.ethereum;
+ // If MetaMask is explicitly injected, never let a simultaneously installed
+ // Bitget extension silently replace it.
+ if(injected?.isMetaMask)return injected;
+ if(window.bitkeep?.isBitKeep||bitget?.isBitKeep)return bitget||injected;
+ return injected||bitget;
+}
+const isBitgetProvider=provider=>!!provider&&(
+ provider===window.bitkeep?.ethereum ||
+ provider.isBitKeep===true ||
+ (window.bitkeep?.isBitKeep===true&&provider===window.ethereum)
+);
 const status=(message,type='info')=>{const el=$('launchStatus');if(el){el.textContent=message;el.dataset.type=type;}};
 const fmt=v=>Number(ethers.formatEther(v)).toLocaleString(undefined,{maximumFractionDigits:6});
 const explorer=(kind,address)=>EXPLORER+'/'+kind+'/'+address;
