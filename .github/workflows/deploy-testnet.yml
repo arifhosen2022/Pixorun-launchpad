@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   deploy:
@@ -31,6 +31,15 @@ jobs:
           test -n "$PRIVATE_KEY" || { echo "::error::Missing Actions secret PRIVATE_KEY"; exit 1; }
           test -n "$TEAM_WALLET" || { echo "::error::Missing Actions secret TEAM_WALLET"; exit 1; }
 
-      - name: Deploy contracts to Robinhood Chain Testnet
+      - name: Deploy new staking-enabled stack to Robinhood Chain Testnet
         shell: bash
         run: bash deploy-testnet.sh
+
+      - name: Commit verified deployment registry
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add contracts/deployments/robinhood-testnet.json
+          git commit -m "Record staking-enabled Robinhood testnet deployment"
+          git push

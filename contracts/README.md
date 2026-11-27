@@ -43,3 +43,14 @@ Expected chain ID: 46630.
 ## Current implementation status
 
 The Solidity workspace now contains the initial PIXORUN protocol modules: fixed-supply mission token, curve math, bonding curve, open-access launch factory, atomic Liftoff migration, PIXORUN Swap factory/pair, fee distributor and staking rewards. The current Foundry build and integration tests pass in GitHub Actions. This is not an audit or deployment approval. Frontend contract integration, final tokenomics confirmation, fuzz/invariant testing and independent security review remain outstanding. Review all addresses and constructor parameters before any deployment.
+
+
+## Single-token staking deployment
+
+The Testnet staking migration uses only the official PIXORUN token:
+
+`0x74f0dA3f0C3C304933D26EA90411124287D7a920`
+
+Run the manual GitHub Actions workflow **Deploy PIXORUN to Robinhood Testnet** only after confirming the `PRIVATE_KEY` and `TEAM_WALLET` Actions secrets are configured. The workflow deploys a new FeeDistributor, links a new StakingRewards contract once, deploys replacement Swap/Launchpad factories, verifies all links, and commits the resulting addresses to `contracts/deployments/robinhood-testnet.json`.
+
+This is a forward migration: already deployed curves and factories retain their original immutable FeeDistributor references. Existing launches are not modified. New launches after the migration use the new staking-enabled factory stack.

@@ -1,6 +1,6 @@
 (()=> {
 'use strict';
-const FACTORY='0xD3B77BaA03b128f348fc45c133248b0070C1b7bc';
+let FACTORY='';
 const CHAIN_ID=46630, CHAIN_HEX='0xb626';
 const RPC='https://rpc.testnet.chain.robinhood.com';
 const EXPLORER='https://explorer.testnet.chain.robinhood.com';
@@ -142,6 +142,7 @@ async function switchToTestnet(){
 async function setup(){
  const form=$('launchForm'),btn=$('launchBtn');
  if(!form||!btn)return;
+ try{const registry=await fetch('../contracts/deployments/robinhood-testnet.json',{cache:'no-store'});if(!registry.ok)throw new Error('Deployment registry unavailable.');const deployment=await registry.json();if(Number(deployment.chainId)!==CHAIN_ID||!ethers.isAddress(deployment.launchpadFactory))throw new Error('Launchpad deployment is not configured.');FACTORY=deployment.launchpadFactory;}catch(e){status(e.message||'Launchpad deployment unavailable.','error');setButton('LAUNCHPAD UNAVAILABLE',true);return;}
  $('factoryAddress').textContent=FACTORY;$('factoryAddress').href=explorer('address',FACTORY);
  $('factoryAddress').title=FACTORY;
  $('tokenName')?.addEventListener('input',updatePreview);

@@ -19,7 +19,8 @@ interface IPixorunStakingFeeReceiver {
 contract PixorunFeeDistributor {
     uint256 public constant BPS = 10_000;
     address public immutable teamWallet;
-    address public immutable stakingRewards;
+    address public stakingRewards;
+    address public immutable configurator;
 
     mapping(address => uint256) public creatorClaimable;
     uint256 public teamClaimable;
@@ -34,6 +35,8 @@ contract PixorunFeeDistributor {
     error NothingToClaim();
     error TransferFailed();
     error ReentrantCall();
+    error UnauthorizedConfigurator();
+    error StakingAlreadyConfigured();
 
     event FeeAllocated(address indexed source, address indexed creator, uint256 totalFee, uint256 team, uint256 stakers, uint256 creatorShare);
     event CreatorClaimed(address indexed creator, uint256 amount);
@@ -51,6 +54,16 @@ contract PixorunFeeDistributor {
     constructor(address teamWallet_, address stakingRewards_) {
         if (teamWallet_ == address(0)) revert ZeroAddress();
         teamWallet = teamWallet_;
+        configurator = msg.sender;
+        stakingRewards = stakingRewards_;
+    }
+
+    /// @notice Set the staking receiver once after deploying it against this distributor.
+    /// @dev Only the original deployer can configure this, and it cannot be changed later.
+    function setStakingRewards(address stakingRewards_) external {
+        if (msg.sender != configurator) revert UnauthorizedConfigurator();
+        if (stakingRewards != address(0)) revert StakingAlreadyConfigured();
+        if (stakingRewards_ == address(0) || stakingRewards_.code.length == 0) revert ZeroAddress();
         stakingRewards = stakingRewards_;
     }
 

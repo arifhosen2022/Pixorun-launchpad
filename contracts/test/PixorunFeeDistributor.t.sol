@@ -29,8 +29,27 @@ contract StakingFeeMock {
     }
 }
 
+contract StakingLinkAttacker {
+    function tryConfigure(PixorunFeeDistributor distributor, address staking) external returns (bool) {
+        (bool ok,) = address(distributor).call(abi.encodeWithSignature("setStakingRewards(address)", staking));
+        return ok;
+    }
+}
+
 contract PixorunFeeDistributorTest {
     receive() external payable {}
+
+    function testStakingReceiverCanBeConfiguredExactlyOnceByDeployer() external {
+        PixorunFeeDistributor distributor = new PixorunFeeDistributor(address(0x1003), address(0));
+        StakingFeeMock staking = new StakingFeeMock();
+        distributor.setStakingRewards(address(staking));
+        require(distributor.stakingRewards() == address(staking), "staking receiver set");
+        (bool second,) = address(distributor).call(
+            abi.encodeWithSignature("setStakingRewards(address)", address(staking))
+        );
+        require(!second, "cannot replace staking receiver");
+        require(!new StakingLinkAttacker().tryConfigure(distributor, address(staking)), "only deployer configures");
+    }
 
     function testSplitsTradeFeeAndCreatorCanClaim() external {
         StakingFeeMock staking = new StakingFeeMock();
