@@ -33,7 +33,7 @@ async function quoteSell(){
  }catch(e){$('sellQuote').textContent=e.shortMessage||e.reason||e.message||'Quote unavailable';}
 }
 async function refresh(){
- const activeWallet=wallet();const connected=activeWallet?await activeWallet.request({method:'eth_accounts'}):[];account=connected?.[0]||account||null;
+ const activeWallet=wallet();const connected=activeWallet?await activeWallet.request({method:'eth_accounts'}):[];account=activeWallet?(connected?.[0]||null):account;
  if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Explore Missions.');
  const factory=new ethers.Contract(FACTORY,factoryAbi,provider);
  [curveAddress,account]=await Promise.all([factory.curveOf(tokenAddress),Promise.resolve(account)]);
