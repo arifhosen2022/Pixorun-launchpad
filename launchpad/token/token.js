@@ -114,7 +114,7 @@ async function loadMarketData(){
   const points=trades.map(t=>({price:Number(t.price_native),time:Math.floor(new Date(t.block_timestamp).getTime()/1000)})).filter(t=>Number.isFinite(t.price)&&t.price>0);
   marketText('marketPrice',Number(snap.price_native)>0?num(snap.price_native,12)+' ETH':'—');
   marketText('marketCap',Number(snap.market_cap_native)>0?num(snap.market_cap_native,5)+' ETH':'—');
-  marketText('marketLiquidity',num(snap.liquidity_native,5)+' ETH + '+num(snap.liquidity_token,0)+' tokens');
+  marketText('marketLiquidity',num(snap.liquidity_native,18)+' ETH + '+num(snap.liquidity_token,0)+' tokens');
   marketText('marketVolume',num(snap.volume_24h_native,5)+' ETH');
   marketText('marketChange',snap.price_change_24h===null?'—':(Number(snap.price_change_24h)>=0?'+':'')+num(snap.price_change_24h,2)+'%');
   marketText('marketTrades',String(snap.trades_24h??0));
