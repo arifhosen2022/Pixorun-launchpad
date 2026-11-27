@@ -21,7 +21,7 @@ async function getLaunch(address){
 async function registerLaunch(txHash,payload){
  const r=await fetch(URL+'/functions/v1/register-launch',{method:'POST',headers,body:JSON.stringify({txHash,...(payload||{})})});
  const body=await r.json().catch(()=>({}));
- if(!r.ok||!body.success)throw Error(body.error||'Could not sync this launch to the shared registry.');
+ if(!r.ok||!body.success){const error=new Error(body.error||'Could not sync this launch to the shared registry.');error.status=r.status;throw error;}
  return body.launch;
 }
 window.PIXORUN_REGISTRY={listLaunches,getLaunch,registerLaunch};

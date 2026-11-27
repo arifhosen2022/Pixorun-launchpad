@@ -52,19 +52,32 @@ async function latestPendingMetadata(){
  if(!window.indexedDB)return null;const db=await metadataDB();const values=await new Promise((resolve,reject)=>{const tx=db.transaction('pending','readonly');const req=tx.objectStore('pending').getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});db.close();return values.length?values[values.length-1]:null;
 }
 
+async function registerWithRetry(txHash,payload){
+ let lastError;
+ for(let attempt=0;attempt<4;attempt++){
+  try{return await timeout(window.PIXORUN_REGISTRY.registerLaunch(txHash,payload),'Token profile publishing',30000);}
+  catch(error){
+   lastError=error;const code=Number(error?.status||0);
+   if((code&&code!==408&&code!==429&&code<500)||attempt===3)break;
+   await new Promise(resolve=>setTimeout(resolve,[700,1800,4000][attempt]));
+  }
+ }
+ throw lastError||new Error('Profile publishing is temporarily unavailable.');
+}
 async function syncPendingMetadata(){
  let pending=pendingMetadataSync;
  if(!pending&&pendingRegistryTxHash){try{pending=await loadPendingMetadata(pendingRegistryTxHash);pendingMetadataSync=pending;}catch(_){}}
  if(!window.PIXORUN_REGISTRY)throw new Error('Shared registry is not available. Reload the page and retry.');
- if(!pending){if(!pendingRegistryTxHash)throw new Error('There is no pending launch sync.');await timeout(window.PIXORUN_REGISTRY.registerLaunch(pendingRegistryTxHash),'Global launch registration',30000);pendingRegistryTxHash=null;try{localStorage.removeItem('pixorun:pending-registry-sync');}catch(_){}if($('retryMetadata'))$('retryMetadata').hidden=true;return true;}
+ if(!pending){if(!pendingRegistryTxHash)throw new Error('There is no pending launch sync.');await registerWithRetry(pendingRegistryTxHash);pendingRegistryTxHash=null;try{localStorage.removeItem('pixorun:pending-registry-sync');}catch(_){}if($('retryMetadata'))$('retryMetadata').hidden=true;return true;}
  const p=walletProvider();if(!p)throw new Error('Open PIXORUN in the same wallet to sign the metadata.');
  const accounts=await p.request({method:'eth_accounts'});
  if(!accounts?.[0]||ethers.getAddress(accounts[0])!==pending.account)throw new Error('Reconnect the wallet that created this token before saving its metadata.');
  const logoHash=pending.logo?.sha256||'',bannerHash=pending.banner?.sha256||'';
  const message='PIXORUN_TOKEN_METADATA_V1\n'+pending.txHash.toLowerCase()+'\n'+JSON.stringify(pending.metadata)+'\n'+logoHash+'\n'+bannerHash;
  status('Approve one free wallet signature to publish the token details and images…','pending');
- const signature=await timeout(p.request({method:'personal_sign',params:[ethers.hexlify(ethers.toUtf8Bytes(message)),pending.account]}),'Metadata wallet signature',90000);
- await timeout(window.PIXORUN_REGISTRY.registerLaunch(pending.txHash,{metadata:pending.metadata,logo:pending.logo,banner:pending.banner,signature}),'Metadata upload and global sync',30000);
+ let signature=pending.signature||'';
+ if(!signature){signature=await timeout(p.request({method:'personal_sign',params:[ethers.hexlify(ethers.toUtf8Bytes(message)),pending.account]}),'Metadata wallet signature',90000);pending.signature=signature;await savePendingMetadata(pending);}
+ await registerWithRetry(pending.txHash,{metadata:pending.metadata,logo:pending.logo,banner:pending.banner,signature});
  await removePendingMetadata(pending.txHash);pendingMetadataSync=null;pendingRegistryTxHash=null;try{localStorage.removeItem('pixorun:pending-registry-sync');}catch(_){}if($('retryMetadata'))$('retryMetadata').hidden=true;
  return true;
 }
@@ -150,7 +163,7 @@ async function setup(){
  $('tokenLogo')?.addEventListener('change',previewLogo);
  $('tokenBanner')?.addEventListener('change',()=>{const file=$('tokenBanner').files?.[0];if(file&&file.size>2*1024*1024){$('tokenBanner').value='';status('Banner image must be 2 MB or smaller.','error');}});
  updatePreview();previewLogo();
- $('retryMetadata')?.addEventListener('click',async()=>{const b=$('retryMetadata');b.disabled=true;try{await syncPendingMetadata();status('Token and shared listing are now synced across PIXORUN.','success');}catch(e){status('Metadata save failed: '+errorText(e),'error');}finally{b.disabled=false;}});
+ $('retryMetadata')?.addEventListener('click',async()=>{const b=$('retryMetadata');b.disabled=true;try{await syncPendingMetadata();status('Your token profile is now published across PIXORUN.','success');}catch(e){console.warn('PIXORUN profile publishing will resume automatically:',e);status('Your token is live. Complete the free wallet signature to publish its profile details.','pending');}finally{b.disabled=false;}});
  setButton('CHECKING LAUNCHPAD…',true);
  status('Connecting to Robinhood Chain Testnet and verifying the launch contracts…','pending');
  try{
@@ -243,20 +256,38 @@ async function setup(){
        if(hasMetadata){pendingMetadataSync={txHash,account,metadata,logo,banner};await savePendingMetadata(pendingMetadataSync);}
        if(window.PIXORUN_REGISTRY){
          if(hasMetadata)await syncPendingMetadata();
-         else {await timeout(window.PIXORUN_REGISTRY.registerLaunch(txHash),'Global launch registration',30000);pendingRegistryTxHash=null;try{localStorage.removeItem('pixorun:pending-registry-sync');}catch(_){}}
+         else {await registerWithRetry(txHash);pendingRegistryTxHash=null;try{localStorage.removeItem('pixorun:pending-registry-sync');}catch(_){}}
          globalRegistered=true;
        }
-     }catch(syncError){console.warn('PIXORUN global registry sync pending:',syncError);if((pendingMetadataSync||pendingRegistryTxHash)&&$('retryMetadata'))$('retryMetadata').hidden=false;}
+     }catch(syncError){console.warn('PIXORUN global registry sync pending:',syncError);if(pendingMetadataSync&&!pendingMetadataSync.signature&&$('retryMetadata'))$('retryMetadata').hidden=false;else setTimeout(resumePendingSync,1200);}
      $('resultToken').textContent=token;$('resultToken').href=explorer('address',token);
      $('resultCurve').textContent=curve;$('resultCurve').href=explorer('address',curve);
      $('resultTokenLabel')&&($('resultTokenLabel').textContent='TOKEN CONTRACT');
      $('resultCurveLabel')&&($('resultCurveLabel').textContent='BONDING CURVE');
-     $('launchResult').hidden=false;if((pendingMetadataSync||pendingRegistryTxHash)&&$('retryMetadata'))$('retryMetadata').hidden=false;
-     status(globalRegistered?(hasMetadata?'Success! Your token and metadata are now visible across PIXORUN.':'Success! Your token is now visible across PIXORUN.'):'Token deployed, but shared listing/metadata sync is pending. Use Retry shared sync below.','success');
+     $('launchResult').hidden=false;if(pendingMetadataSync&&!pendingMetadataSync.signature&&$('retryMetadata'))$('retryMetadata').hidden=false;
+     status(globalRegistered?(hasMetadata?'Your token and profile are now live across PIXORUN.':'Your token is now live across PIXORUN.'):(pendingMetadataSync&&!pendingMetadataSync.signature?'Your token is live. Approve one free signature to publish its profile details.':'Your token is live. We are finishing the final profile setup automatically.'),globalRegistered?'success':'pending');
      if(globalRegistered){form.reset();updatePreview();previewLogo();}
    }catch(e){status(errorText(e),'error');}
    finally{launchBusy=false;setButton('CONNECT WALLET & LAUNCH TOKEN',false);}
  });
 }
-document.addEventListener('DOMContentLoaded',async()=>{setup();try{const saved=JSON.parse(localStorage.getItem('pixorun:pending-registry-sync')||'null');if(saved?.txHash)pendingRegistryTxHash=saved.txHash;const pending=await latestPendingMetadata();if(pending){pendingMetadataSync=pending;pendingRegistryTxHash=pending.txHash;}if(pendingRegistryTxHash){if($('retryMetadata'))$('retryMetadata').hidden=false;status(pending?'A token metadata upload is waiting for your wallet signature. Use Retry shared sync to continue.':'A token launch is waiting for shared registry sync. Use Retry shared sync to continue.','pending');}}catch(e){console.warn('Could not restore pending metadata:',e);}});
+async function resumePendingSync(){
+ if(!pendingRegistryTxHash)return;
+ if(pendingMetadataSync&&!pendingMetadataSync.signature){
+  if($('retryMetadata')){$('retryMetadata').hidden=false;$('retryMetadata').textContent='PUBLISH TOKEN PROFILE';}
+  status('Your token is live. Approve one free wallet signature to publish its profile details.','pending');return;
+ }
+ try{await syncPendingMetadata();status('Your token and profile are now live across PIXORUN.','success');}
+ catch(error){console.warn('PIXORUN background profile sync will retry:',error);status('Your token is live. We are completing the final profile setup.','pending');setTimeout(resumePendingSync,30000);}
+}
+document.addEventListener('DOMContentLoaded',async()=>{
+ setup();
+ try{
+  const saved=JSON.parse(localStorage.getItem('pixorun:pending-registry-sync')||'null');
+  if(saved?.txHash)pendingRegistryTxHash=saved.txHash;
+  const pending=await latestPendingMetadata();
+  if(pending){pendingMetadataSync=pending;pendingRegistryTxHash=pending.txHash;}
+  if(pendingRegistryTxHash){if($('retryMetadata')){$('retryMetadata').hidden=true;$('retryMetadata').textContent='PUBLISH TOKEN PROFILE';}status(pending&&!pending.signature?'Your token is live. Complete its profile with one free wallet signature.':'Your token is live. Final profile setup is being completed.','pending');setTimeout(resumePendingSync,1200);}
+ }catch(e){console.warn('Could not restore pending profile publishing:',e);}
+});
 })();
