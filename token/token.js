@@ -37,7 +37,6 @@ async function quoteSell(){
  }catch(e){$('sellQuote').textContent=e.shortMessage||e.reason||e.message||'Quote unavailable';}
 }
 async function refresh(){
- account=null;
  if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Explore Missions.');
  setStatus('Reading PIXORUN Factory on Robinhood Testnet…');
  const factory=new ethers.Contract(FACTORY,factoryAbi,provider);
