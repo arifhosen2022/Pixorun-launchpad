@@ -76,6 +76,71 @@ async function quoteSell(){
  $('sellFee').textContent='Gross ETH: '+fmt(gross)+' ETH · Trading fee: '+fmt(fee)+' ETH (1%) · Gas paid separately.';
  }catch(e){$('sellQuote').textContent=e.shortMessage||e.reason||e.message||'Quote unavailable';$('sellFee').textContent='';}
 }
+
+const curveEvents=new ethers.Interface(['event Bought(address indexed buyer,uint256 grossNative,uint256 fee,uint256 tokensOut)','event Sold(address indexed seller,uint256 tokensIn,uint256 grossNative,uint256 fee,uint256 netNative)']);
+const pairEvents=new ethers.Interface(['event Swap(address indexed sender,bool nativeToToken,uint256 amountIn,uint256 amountOut,uint256 fee)']);
+const marketFmt=(n,max=6)=>Number(n).toLocaleString('en-US',{maximumFractionDigits:max});
+function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
+function drawMarketChart(points){
+ const host=$('marketChart');if(!host)return;
+ if(points.length<2){host.innerHTML='<p class="trade-help" style="padding:14px">Not enough confirmed trades in the last 24 hours to draw a chart.</p>';return;}
+ const vals=points.map(p=>p.price).filter(Number.isFinite);if(vals.length<2){host.textContent='Chart unavailable';return;}
+ const min=Math.min(...vals),max=Math.max(...vals),range=max-min||Math.max(max*0.01,1e-12);
+ const coords=points.map((p,i)=>{const x=12+i*976/Math.max(1,points.length-1),y=164-(p.price-min)/range*145;return x.toFixed(1)+','+y.toFixed(1)}).join(' ');
+ host.innerHTML='<svg viewBox="0 0 1000 180" preserveAspectRatio="none" role="img" aria-label="Price chart from confirmed on-chain trades"><polyline points="'+coords+'" fill="none" stroke="#a78bfa" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+async function loadMarketData(){
+ const latest=await withTimeout(provider.getBlockNumber(),'Latest block');
+ let price=0,liquidity='—',reserveEth=0,reserveToken=0;
+ if(mode==='curve'){
+  const [rn,rt,realN,realT]=await Promise.all([curve.virtualNative(),curve.virtualToken(),curve.realNative(),curve.realToken()]);
+  reserveEth=Number(ethers.formatEther(realN));reserveToken=Number(ethers.formatUnits(realT,decimals));
+  if(rt>0n&&rn>0n)price=Number(ethers.formatEther(rn))/Number(ethers.formatUnits(rt,decimals));
+  liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens (curve reserves)';
+ }else{
+  const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);
+  reserveEth=Number(ethers.formatEther(rn));reserveToken=Number(ethers.formatUnits(rt,decimals));
+  if(rt>0n)price=Number(ethers.formatEther(rn))/Number(ethers.formatUnits(rt,decimals));
+  liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens (pool reserves)';
+ }
+ const supply=await token.totalSupply(),mcap=price*Number(ethers.formatUnits(supply,decimals));
+ marketText('marketPrice',price>0?marketFmt(price,12)+' ETH':'—');
+ marketText('marketCap',price>0?marketFmt(mcap,5)+' ETH':'—');
+ marketText('marketLiquidity',liquidity);
+ // Scan a bounded recent window; all prices and volume below come from actual emitted swap events.
+ const fromBlock=Math.max(0,latest-12000),logs=[];
+ const topics=[curveEvents.getEvent('Bought').topicHash,curveEvents.getEvent('Sold').topicHash,pairEvents.getEvent('Swap').topicHash];
+ for(let start=fromBlock;start<=latest;start+=1000){
+  const end=Math.min(latest,start+999);
+  const [a,b]=await Promise.all([
+   provider.getLogs({address:curveAddress,fromBlock:start,toBlock:end,topics:[[topics[0],topics[1]]]}),
+   mode==='swap'?provider.getLogs({address:pairAddress,fromBlock:start,toBlock:end,topics:[topics[2]]}):Promise.resolve([])
+  ]);
+  logs.push(...a,...b);
+ }
+ const decoded=logs.map(log=>{try{
+  if(log.address.toLowerCase()===curveAddress.toLowerCase()){
+   const p=curveEvents.parseLog(log);
+   if(p.name==='Bought')return {type:'Buy',native:Number(ethers.formatEther(p.args.grossNative)),tokens:Number(ethers.formatUnits(p.args.tokensOut,decimals)),block:log.blockNumber,hash:log.transactionHash};
+   return {type:'Sell',native:Number(ethers.formatEther(p.args.netNative)),tokens:Number(ethers.formatUnits(p.args.tokensIn,decimals)),block:log.blockNumber,hash:log.transactionHash};
+  }
+  const p=pairEvents.parseLog(log),buy=p.args.nativeToToken;
+  return {type:buy?'Buy':'Sell',native:Number(ethers.formatEther(buy?p.args.amountIn:p.args.amountOut)),tokens:Number(ethers.formatUnits(buy?p.args.amountOut:p.args.amountIn,decimals)),block:log.blockNumber,hash:log.transactionHash};
+ }catch(_){return null;}}).filter(Boolean);
+ const blockNums=[...new Set(decoded.map(t=>t.block))],blockTimes={};
+ await Promise.all(blockNums.map(async n=>{try{const b=await provider.getBlock(n);blockTimes[n]=Number(b.timestamp);}catch(_){}}));
+ const now=Math.floor(Date.now()/1000),recent=decoded.map(t=>({...t,time:blockTimes[t.block]||0,price:t.tokens>0?t.native/t.tokens:0})).filter(t=>t.time>=now-86400&&t.time>0).sort((a,b)=>a.time-b.time);
+ const volume=recent.reduce((s,t)=>s+t.native,0),first=recent.find(t=>t.price>0),last=[...recent].reverse().find(t=>t.price>0);
+ const change=first&&last&&first.price>0?(last.price/first.price-1)*100:null;
+ marketText('marketVolume',marketFmt(volume,5)+' ETH');marketText('marketChange',change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%');
+ marketText('marketTrades',String(recent.length));marketText('marketUpdated','Updated '+new Date().toLocaleTimeString());
+ drawMarketChart(recent.filter(t=>t.price>0));
+ const rows=recent.slice(-8).reverse();marketText('marketTradeCount',recent.length+' trades');
+ const host=$('marketRecentTrades');
+ if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
+ marketText('marketDataNote','On-chain event scan: latest '+Math.min(12000,latest)+' blocks, filtered by block timestamp to the last 24 hours. 24h stats cover this scan window only.');
+}
+
 async function refresh(){
  if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Explore Missions.');
  setStatus('Reading PIXORUN Factory on Robinhood Testnet…');
@@ -99,7 +164,7 @@ async function refresh(){
  const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('Token loaded · enter an amount to see the exact on-chain fee quote.');
- await Promise.all([quoteBuy(),quoteSell(),loadMetadata()]);
+ await Promise.all([quoteBuy(),quoteSell(),loadMetadata(),loadMarketData()]);
  if(account)await refreshBalances();
 }
 
