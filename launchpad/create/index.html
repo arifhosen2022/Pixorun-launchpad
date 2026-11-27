@@ -2,40 +2,62 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#f7f7f5">
-<title>Launch a Mission — PIXORUN</title>
+<meta name="theme-color" content="#111116">
+<title>Launch a Token — PIXORUN</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../app.css">
 <style>
-.launch-panel{max-width:760px;margin:26px auto 0}.launch-meta{display:grid;gap:8px;margin-top:18px;font-size:12px;color:#777}.launch-meta a{overflow-wrap:anywhere;color:#5e40c0}.launch-status{padding:13px 15px;border:1px solid #e3dcf7;background:#f0edfa;border-radius:12px;color:#5e40c0;font-size:13px;line-height:1.6}.launch-status[data-type=error]{background:#fff0f0;border-color:#f2caca;color:#9b3030}.launch-status[data-type=success]{background:#eff9f1;border-color:#cce8d2;color:#236b38}.launch-result{margin-top:18px;padding:17px;border:1px solid #cce8d2;background:#eff9f1;border-radius:14px}.launch-result a{display:block;margin:8px 0;color:#236b38;overflow-wrap:anywhere;font-size:13px}.launch-small{color:#777;font-size:12px;line-height:1.6}
+.launch-panel{max-width:920px;margin:30px auto 56px}.launch-head{margin-bottom:24px}.launch-head h1{margin:8px 0}.launch-head .lead{max-width:690px}.launch-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.75fr);gap:18px;align-items:start}.launch-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px}.launch-card h2{font-size:18px;margin:0 0 18px}.launch-field{margin:0 0 18px}.launch-field label{display:flex;justify-content:space-between;gap:12px;font-size:13px;font-weight:600;margin-bottom:8px}.launch-field input{width:100%;background:#111116;color:var(--white);border:1px solid var(--line);border-radius:10px;padding:14px 13px;font:inherit;outline:none}.launch-field input:focus{border-color:var(--violet);box-shadow:0 0 0 3px #815bff22}.launch-field input[aria-invalid=true]{border-color:#d66}.launch-hint,.launch-small{color:var(--muted);font-size:12px;line-height:1.65}.launch-preview{border:1px solid var(--line);border-radius:15px;padding:18px;background:linear-gradient(145deg,#211b32,#17171f);margin-bottom:18px}.preview-icon{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;background:#815bff;color:white;font-size:25px;font-weight:700;margin-bottom:14px}.preview-name{font-size:20px;font-weight:700;overflow-wrap:anywhere}.preview-symbol{color:var(--lime);font-size:13px;margin-top:4px}.launch-facts{display:grid;gap:12px}.launch-fact{display:flex;justify-content:space-between;gap:14px;font-size:13px;padding-bottom:10px;border-bottom:1px solid var(--line)}.launch-fact span:first-child{color:var(--muted)}.launch-fact strong{text-align:right}.launch-status{margin:14px 0 0;padding:13px 14px;border:1px solid var(--line);background:#111116;border-radius:11px;color:var(--muted);font-size:13px;line-height:1.6;overflow-wrap:anywhere}.launch-status[data-type=error]{border-color:#7c3434;color:#ffaaaa;background:#2a1719}.launch-status[data-type=success]{border-color:#315e3c;color:#a9e8b5;background:#142319}.launch-status[data-type=pending]{border-color:#55427f;color:#c9b8ff;background:#211b32}.launch-btn{width:100%;margin-top:8px}.launch-result{margin-top:16px;padding:17px;border:1px solid #315e3c;background:#142319;border-radius:13px}.launch-result a{display:block;color:#a9e8b5;overflow-wrap:anywhere;font-size:12px;margin-top:9px}.launch-meta{display:grid;gap:9px;margin-top:17px;font-size:11px;color:var(--muted);overflow-wrap:anywhere}.launch-meta a{color:#b9a8ff}.launch-warning{margin-top:18px;padding:13px 15px;border-left:3px solid var(--lime);background:#1c1d18;color:#c8c5b7;font-size:12px;line-height:1.65}.launch-step{display:flex;gap:10px;align-items:flex-start;margin:11px 0;color:var(--muted);font-size:12px;line-height:1.55}.step-no{flex:0 0 23px;height:23px;border-radius:50%;display:grid;place-items:center;background:#30264b;color:#c9b8ff;font-weight:700}.network-pill{white-space:nowrap}
+@media(max-width:720px){.launch-grid{grid-template-columns:1fr}.launch-panel{margin-top:22px}.launch-card{padding:17px}.launch-head h1{font-size:34px}}
 </style>
 </head>
 <body>
 <header class="app-wrap app-nav pixel-sub-nav">
 <a class="app-logo pixel-brand" href="../../" aria-label="PIXORUN home"><span class="pixel-brand-mark">P</span><span>PIXORUN<b>.</b><small>LAUNCHPAD</small></span></a>
 <div class="nav-right"><span class="network-pill">ROBINHOOD TESTNET</span><details class="app-menu"><summary aria-label="Open navigation menu">☰</summary><nav aria-label="Main navigation">
-<a href="../../">HOME <span>↗</span></a><a href="../">EXPLORE MISSIONS <span>↗</span></a><a href="./">LAUNCH MISSION</a><a href="../creator/">CREATOR STUDIO <span>↗</span></a><a href="../points/">PIXORUN POINTS <span>↗</span></a><a href="../staking/">STAKING HUB <span>↗</span></a><a href="../profile/">MY PROFILE <span>↗</span></a><a href="../faucet/">TESTNET FAUCET <span>↗</span></a><a href="../fees/">FEE CLAIMS <span>↗</span></a><a href="../docs/">DOCUMENTATION <span>↗</span></a>
+<a href="../../">HOME <span>↗</span></a><a href="../">EXPLORE MISSIONS <span>↗</span></a><a href="./">LAUNCH TOKEN</a><a href="../creator/">CREATOR STUDIO <span>↗</span></a><a href="../points/">PIXORUN POINTS <span>↗</span></a><a href="../staking/">STAKING HUB <span>↗</span></a><a href="../profile/">MY PROFILE <span>↗</span></a><a href="../faucet/">TESTNET FAUCET <span>↗</span></a><a href="../fees/">FEE CLAIMS <span>↗</span></a><a href="../docs/">DOCUMENTATION <span>↗</span></a>
 </nav></details></div></header>
 <main class="app-wrap app-main launch-panel">
-<div class="eyebrow">MISSION BRIEFING · ROBINHOOD CHAIN TESTNET</div>
-<h1>Launch a mission</h1>
-<p class="lead">Create your fixed-supply token and bonding curve directly on Robinhood Chain Testnet. This page now uses the deployed PIXORUN Launchpad Factory.</p>
-<div class="app-card">
-<form id="launchForm">
-<div class="app-field"><label for="tokenName">Mission / token name · max 32 bytes</label><input id="tokenName" name="tokenName" maxlength="32" required placeholder="e.g. PIXORUN World"></div>
-<div class="app-field"><label for="tokenSymbol">Ticker · 1–10 English letters or numbers</label><input id="tokenSymbol" name="tokenSymbol" maxlength="10" pattern="[A-Za-z0-9]{1,10}" required placeholder="e.g. PIX"></div>
-<div class="app-note"><strong>On-chain launch parameters</strong><br>Fixed supply: 1,000,000,000 tokens<br>Bonding curve allocation: 793,100,000 (79.31%)<br>Liftoff reserve: 206,900,000 (20.69%)<br>Creation fee: <strong id="creationFee">Reading factory…</strong> plus network gas.</div>
-<div class="app-row" style="margin-top:20px"><button class="app-btn" id="launchBtn" type="button" disabled>CHECKING FACTORY…</button></div>
-<p class="launch-status" id="launchStatus" data-type="info" aria-live="polite">Checking the deployed Launchpad Factory and its linked Swap Factory…</p>
-</form>
-<div class="launch-result" id="launchResult" hidden><strong>Mission token launched successfully</strong><a id="resultToken" target="_blank" rel="noopener noreferrer"></a><a id="resultCurve" target="_blank" rel="noopener noreferrer"></a><a id="resultTx" target="_blank" rel="noopener noreferrer">View transaction ↗</a></div>
-<div class="launch-meta"><div>Launchpad Factory: <a id="factoryAddress" target="_blank" rel="noopener noreferrer">—</a></div><div>Swap Factory: <a id="swapAddress" target="_blank" rel="noopener noreferrer">—</a></div><div>Fee Distributor: <a id="feeAddress" target="_blank" rel="noopener noreferrer">—</a></div></div>
+<div class="launch-head"><div class="eyebrow">TOKEN FACTORY · ROBINHOOD CHAIN TESTNET</div><h1>Launch your token.</h1><p class="lead">Create a fixed-supply ERC-20 token and its PIXORUN bonding curve in one on-chain transaction. Connect your wallet only when you are ready to launch.</p></div>
+<div class="launch-grid">
+<section class="launch-card">
+<h2>01 / Token details</h2>
+<form id="launchForm" novalidate>
+<div class="launch-field"><label for="tokenName">Token name <span id="nameCount" class="launch-hint">0/32 bytes</span></label><input id="tokenName" name="tokenName" maxlength="32" autocomplete="off" placeholder="e.g. PIXORUN World" required><p class="launch-hint">1–32 UTF-8 bytes. This name is written into the token contract.</p></div>
+<div class="launch-field"><label for="tokenSymbol">Token ticker <span id="symbolCount" class="launch-hint">0/10</span></label><input id="tokenSymbol" name="tokenSymbol" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="e.g. PIX" required><p class="launch-hint">1–10 English letters or numbers. No spaces or special characters.</p></div>
+<div class="launch-preview"><div class="preview-icon">P</div><div class="preview-name" id="previewName">Your token name</div><div class="preview-symbol" id="previewSymbol">$TICKER</div></div>
+<div class="launch-facts">
+<div class="launch-fact"><span>Network</span><strong id="networkStatus">Checking…</strong></div>
+<div class="launch-fact"><span>Creation fee</span><strong id="creationFee">Reading factory…</strong></div>
+<div class="launch-fact"><span>Wallet gas</span><strong>Paid separately</strong></div>
 </div>
-<div class="app-card"><h2>Launch details</h2><p class="launch-small">This first on-chain flow creates the token and its bonding curve. Image, description, website/social metadata and optional initial buy are not included yet. Do not assume these details are stored on-chain.</p></div>
+<button class="app-btn launch-btn" id="launchBtn" type="button" disabled>CHECKING LAUNCHPAD…</button>
+<p class="launch-status" id="launchStatus" data-type="info" role="status" aria-live="polite">Verifying the PIXORUN Factory and Robinhood Testnet connection…</p>
+</form>
+<div class="launch-result" id="launchResult" hidden><strong>YOUR TOKEN IS LIVE ON TESTNET</strong><div class="launch-meta"><span id="resultTokenLabel">TOKEN CONTRACT</span><a id="resultToken" target="_blank" rel="noopener noreferrer"></a><span id="resultCurveLabel">BONDING CURVE</span><a id="resultCurve" target="_blank" rel="noopener noreferrer"></a><a id="resultTx" target="_blank" rel="noopener noreferrer">View transaction ↗</a></div></div>
+</section>
+<aside>
+<section class="launch-card"><h2>02 / Tokenomics</h2>
+<div class="launch-facts">
+<div class="launch-fact"><span>Total supply</span><strong>1,000,000,000</strong></div>
+<div class="launch-fact"><span>Bonding curve</span><strong>793,100,000 · 79.31%</strong></div>
+<div class="launch-fact"><span>Liftoff reserve</span><strong>206,900,000 · 20.69%</strong></div>
+<div class="launch-fact"><span>Token decimals</span><strong>18</strong></div>
+<div class="launch-fact"><span>Transfer tax</span><strong>0%</strong></div>
+</div></section>
+<section class="launch-card" style="margin-top:16px"><h2>03 / How launch works</h2>
+<div class="launch-step"><span class="step-no">1</span><span>Enter a token name and ticker. Check the live preview.</span></div>
+<div class="launch-step"><span class="step-no">2</span><span>Connect your EVM wallet and switch to Robinhood Chain Testnet if needed.</span></div>
+<div class="launch-step"><span class="step-no">3</span><span>PIXORUN simulates the transaction and estimates gas before requesting wallet approval.</span></div>
+<div class="launch-step"><span class="step-no">4</span><span>Approve the creation fee plus network gas. Your token and bonding curve are deployed together.</span></div>
+<p class="launch-warning">This launch page creates only the on-chain token and bonding curve. Logo, description, website and social links are not stored by this contract and are not being represented as saved metadata.</p>
+</section>
+<div class="launch-meta"><div>Launchpad Factory: <a id="factoryAddress" target="_blank" rel="noopener noreferrer">Loading…</a></div><div>Swap Factory: <a id="swapAddress" target="_blank" rel="noopener noreferrer">Loading…</a></div><div>Fee Distributor: <a id="feeAddress" target="_blank" rel="noopener noreferrer">Loading…</a></div><div><a href="https://explorer.testnet.chain.robinhood.com" target="_blank" rel="noopener noreferrer">Robinhood Testnet Explorer ↗</a></div></div>
+</aside>
+</div>
 </main>
 <footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer>
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
-<script src="../../app.js?v=mission-launch-20261127a"></script>
-<script src="../../create/launch.js?v=mission-launch-20261127a"></script>
+<script src="../../create/launch.js?v=token-launch-20261127b"></script>
 </body></html>
