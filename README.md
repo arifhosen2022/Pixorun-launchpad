@@ -32,7 +32,7 @@ PIXORUN is a testnet token launchpad built for Robinhood Chain Testnet.
 ## Not active yet
 - PIXORUN Points issuance and leaderboard require a verified backend/indexer and published scoring rules.
 - Staking is disabled because the staking contract is not deployed and the Fee Distributor has a zero staking address.
-- A graduated token's Swap trading UI is not yet available in this frontend.
+- Token detail page supports bonding-curve buy/sell and graduated PIXORUN Swap pool buy/sell, with slippage protection; browser testing is still required.
 - The testnet is for development; do not use real funds.
 
 ## Repository layout
