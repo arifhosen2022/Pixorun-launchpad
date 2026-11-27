@@ -71,7 +71,7 @@ async function useSharedWallet(detail){
  signer=await browserProvider.getSigner(account);
  tokenWrite=tokenRead.connect(signer);
  stakingWrite=stakingRead.connect(signer);
- status('Wallet connected and ready.','success');
+
  setButtons(true);
  await refresh();
 }
