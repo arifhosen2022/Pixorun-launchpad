@@ -44,8 +44,11 @@ function card(x){
  const links=document.createElement('div');links.className='app-row mission-actions';const trade=document.createElement('a');trade.className='app-btn';trade.href='../token/?address='+encodeURIComponent(x.token_address);trade.textContent='View token ↗';const token=document.createElement('a');token.className='app-btn secondary';token.href=EXPLORER+'/address/'+x.token_address;token.target='_blank';token.rel='noopener noreferrer';token.textContent='Explorer ↗';links.append(trade,token);el.append(addresses,links);return el;
 }
 function filtered(){
- let list=[...records];if(activeFilter==='curving')list=list.filter(x=>x.curveState==='curving');else if(activeFilter==='curved')list=list.filter(x=>x.curveState==='curved');else if(activeFilter==='new')list=list.filter(isNew).sort((a,b)=>launchedAt(b)-launchedAt(a));else if(activeFilter==='top')list.sort((a,b)=>(b.curveProgress??-1)-(a.curveProgress??-1));
- if(searchTerm){const q=searchTerm.toLowerCase();list=list.filter(x=>[x.token_name,x.token_symbol,x.token_address,x.creator_address].some(v=>String(v||'').toLowerCase().includes(q)));}return list;
+ let list=[...records];if(activeFilter==='curving')list=list.filter(x=>x.curveState==='curving');else if(activeFilter==='curved')list=list.filter(x=>x.curveState==='curved');else if(activeFilter==='new')list=list.filter(isNew);
+ if(searchTerm){const q=searchTerm.toLowerCase();list=list.filter(x=>[x.token_name,x.token_symbol,x.token_address,x.creator_address].some(v=>String(v||'').toLowerCase().includes(q)));}
+ // Always rank by bonding-curve progress: highest percentage first; unknown values last.
+ list.sort((a,b)=>{const ap=a.curveProgress??-1,bp=b.curveProgress??-1;return bp-ap||launchedAt(b)-launchedAt(a);});
+ return list;
 }
 function render(){
  root.replaceChildren();const list=filtered(),label=document.getElementById('discoverResultLabel');if(label)label.textContent=list.length+' token'+(list.length===1?'':'s')+' found';
