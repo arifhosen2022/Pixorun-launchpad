@@ -14,7 +14,7 @@ function controls(){
  wrap.innerHTML='<button type="button" class="wallet-trigger" data-wallet-trigger aria-expanded="false">CONNECT WALLET</button><div class="wallet-dropdown" data-wallet-dropdown hidden><button type="button" data-network-switch hidden>Switch Network</button><button type="button" data-disconnect>Disconnect Wallet</button></div>';
  const menu=$('.app-menu',nav);nav.insertBefore(wrap,menu||null);
 }
-document.querySelectorAll('.app-menu nav a, a.app-logo').forEach(a=>{const h=a.getAttribute('href');if(h&&h.startsWith('/'))a.setAttribute('href',basePath+h.replace(/^\/+/,''));});
+document.querySelectorAll('a[href^="/"]').forEach(a=>{const h=a.getAttribute('href');if(h&&h.startsWith('/'))a.setAttribute('href',basePath+h.replace(/^\/+/,''));});
 controls();
 async function readState(){const p=walletProvider();if(!p)return;try{const [a,c]=await Promise.all([p.request({method:'eth_accounts'}),p.request({method:'eth_chainId'})]);account=locallyDisconnected?null:(a?.[0]||null);chainId=c?.toLowerCase()||null;}catch(e){console.warn('PIXORUN wallet state',e);}}
 async function switchNetwork(){const p=walletProvider();if(!p)throw Error('No compatible EVM wallet found.');try{await p.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN}]});}catch(e){if(e.code!==4902)throw e;await p.request({method:'wallet_addEthereumChain',params:[network]});}locallyDisconnected=false;await readState();render();if(chainId!==CHAIN)throw Error('Robinhood Chain Testnet was not selected.');status('Robinhood Chain Testnet selected.');}
