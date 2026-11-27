@@ -37,8 +37,32 @@ function errorText(e){
  return (msg||'Token launch failed. Please try again.').slice(0,650);
 }
 
+
+const META_DB='pixorun-launch-metadata-v1';
+function metadataDB(){
+ return new Promise((resolve,reject)=>{
+  if(!window.indexedDB){reject(new Error('This browser does not support local metadata recovery.'));return;}
+  const request=indexedDB.open(META_DB,1);
+  request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains('pending'))db.createObjectStore('pending');};
+  request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('Could not open metadata recovery storage.'));
+ });
+}
+async function savePendingMetadata(pending){
+ const db=await metadataDB();await new Promise((resolve,reject)=>{const tx=db.transaction('pending','readwrite');tx.objectStore('pending').put(pending,pending.txHash.toLowerCase());tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();
+}
+async function loadPendingMetadata(hash){
+ const db=await metadataDB();const value=await new Promise((resolve,reject)=>{const tx=db.transaction('pending','readonly');const req=tx.objectStore('pending').get(hash.toLowerCase());req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});db.close();return value;
+}
+async function removePendingMetadata(hash){
+ if(!hash||!window.indexedDB)return;const db=await metadataDB();await new Promise((resolve,reject)=>{const tx=db.transaction('pending','readwrite');tx.objectStore('pending').delete(hash.toLowerCase());tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();
+}
+async function latestPendingMetadata(){
+ if(!window.indexedDB)return null;const db=await metadataDB();const values=await new Promise((resolve,reject)=>{const tx=db.transaction('pending','readonly');const req=tx.objectStore('pending').getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});db.close();return values.length?values[values.length-1]:null;
+}
+
 async function syncPendingMetadata(){
- const pending=pendingMetadataSync;
+ let pending=pendingMetadataSync;
+ if(!pending&&pendingRegistryTxHash){try{pending=await loadPendingMetadata(pendingRegistryTxHash);pendingMetadataSync=pending;}catch(_){}}
  if(!window.PIXORUN_REGISTRY)throw new Error('Shared registry is not available. Reload the page and retry.');
  if(!pending){if(!pendingRegistryTxHash)throw new Error('There is no pending launch sync.');await timeout(window.PIXORUN_REGISTRY.registerLaunch(pendingRegistryTxHash),'Global launch registration',30000);pendingRegistryTxHash=null;if($('retryMetadata'))$('retryMetadata').hidden=true;return true;}
  const p=walletProvider();if(!p)throw new Error('Open PIXORUN in the same wallet to sign the metadata.');
@@ -49,7 +73,7 @@ async function syncPendingMetadata(){
  status('Approve one free wallet signature to publish the token details and images…','pending');
  const signature=await timeout(p.request({method:'personal_sign',params:[ethers.hexlify(ethers.toUtf8Bytes(message)),pending.account]}),'Metadata wallet signature',90000);
  await timeout(window.PIXORUN_REGISTRY.registerLaunch(pending.txHash,{metadata:pending.metadata,logo:pending.logo,banner:pending.banner,signature}),'Metadata upload and global sync',30000);
- pendingMetadataSync=null;pendingRegistryTxHash=null;if($('retryMetadata'))$('retryMetadata').hidden=true;
+ await removePendingMetadata(pending.txHash);pendingMetadataSync=null;pendingRegistryTxHash=null;if($('retryMetadata'))$('retryMetadata').hidden=true;
  return true;
 }
 
@@ -222,7 +246,8 @@ async function setup(){
        const items=Array.isArray(saved?.items)?saved.items:[];
        if(!items.some(item=>item.token?.toLowerCase()===token.toLowerCase()))items.unshift({token,name,symbol,curve,creator:account,blockNumber:receipt.blockNumber,txHash});
        localStorage.setItem(profileKey,JSON.stringify({items,lastBlock:receipt.blockNumber}));
-       if(hasMetadata)pendingMetadataSync={txHash,account,metadata,logo,banner};
+       pendingRegistryTxHash=txHash;
+       if(hasMetadata){pendingMetadataSync={txHash,account,metadata,logo,banner};await savePendingMetadata(pendingMetadataSync);}
        if(window.PIXORUN_REGISTRY){
          if(hasMetadata)await syncPendingMetadata();
          else {await timeout(window.PIXORUN_REGISTRY.registerLaunch(txHash),'Global launch registration',30000);pendingRegistryTxHash=null;}
@@ -240,5 +265,5 @@ async function setup(){
    finally{launchBusy=false;setButton('CONNECT WALLET & LAUNCH TOKEN',false);}
  });
 }
-document.addEventListener('DOMContentLoaded',setup);
+document.addEventListener('DOMContentLoaded',async()=>{setup();try{const pending=await latestPendingMetadata();if(pending){pendingMetadataSync=pending;pendingRegistryTxHash=pending.txHash;if($('retryMetadata'))$('retryMetadata').hidden=false;status('A token metadata upload is waiting for your wallet signature. Use Retry metadata save to continue.','pending');}}catch(e){console.warn('Could not restore pending metadata:',e);}});
 })();
