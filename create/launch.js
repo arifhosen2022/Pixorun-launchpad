@@ -162,12 +162,22 @@ async function setup(){
        if(!items.some(item=>item.token?.toLowerCase()===token.toLowerCase()))items.unshift({token,name,symbol,blockNumber:receipt.blockNumber,txHash});
        localStorage.setItem(profileKey,JSON.stringify({items,lastBlock:receipt.blockNumber}));
      }catch(storageError){console.warn('Could not cache PIXORUN launch for My Profile:',storageError);}
+     // Publish the confirmed transaction to the shared Supabase registry.
+     let globalRegistered=false;
+     try{
+       const profileKey='pixorun:profile:v2:'+account.toLowerCase();
+       const saved=JSON.parse(localStorage.getItem(profileKey)||'null');
+       const items=Array.isArray(saved?.items)?saved.items:[];
+       if(!items.some(item=>item.token?.toLowerCase()===token.toLowerCase()))items.unshift({token,name,symbol,curve,creator:account,blockNumber:receipt.blockNumber,txHash});
+       localStorage.setItem(profileKey,JSON.stringify({items,lastBlock:receipt.blockNumber}));
+       if(window.PIXORUN_REGISTRY){await timeout(window.PIXORUN_REGISTRY.registerLaunch(txHash),'Global launch registration',20000);globalRegistered=true;}
+     }catch(syncError){console.warn('PIXORUN global registry sync pending:',syncError);}
      $('resultToken').textContent=token;$('resultToken').href=explorer('address',token);
      $('resultCurve').textContent=curve;$('resultCurve').href=explorer('address',curve);
      $('resultTokenLabel')&&($('resultTokenLabel').textContent='TOKEN CONTRACT');
      $('resultCurveLabel')&&($('resultCurveLabel').textContent='BONDING CURVE');
      $('launchResult').hidden=false;
-     status('Success! Your token and bonding curve are deployed on Robinhood Chain Testnet.','success');
+     status(globalRegistered?'Success! Your token is now visible across PIXORUN.':'Token deployed! Shared listing sync is pending.','success');
      form.reset();updatePreview();
    }catch(e){status(errorText(e),'error');}
    finally{launchBusy=false;setButton('CONNECT WALLET & LAUNCH TOKEN',false);}
