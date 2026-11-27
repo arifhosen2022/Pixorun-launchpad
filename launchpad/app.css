@@ -140,3 +140,38 @@ body{background:radial-gradient(ellipse at 78% 0%,#7555d91a,transparent 38%),#f7
 #marketUpdated,#marketChartRange,#marketTradeCount{color:#66558a!important}
 #marketOverview .trade-help{color:#66558a!important}
 #marketOverview h2,#marketOverview h3{color:#24183e!important}
+
+
+/* PIXORUN compact pixel typography — shared across all launchpad pages */
+html,body,button,input,select,textarea{font-family:'VT323',monospace!important}
+body{font-size:18px;line-height:1.22;letter-spacing:.015em}
+h1,h2,h3,h4,.app-main h1,.page-main h1,.section-heading h2,.hero-panel h1,.pixel-hero h1{font-family:'VT323',monospace!important;letter-spacing:.015em!important;line-height:1.02!important}
+h1,.app-main h1,.page-main h1{font-size:clamp(30px,5vw,42px)!important;margin:8px 0 10px!important}
+h2,.app-card h2,.section-heading h2{font-size:26px!important;margin:8px 0!important}
+h3,.app-card h3{font-size:22px!important}
+p,.lead,.pixel-lead,.hero-panel>p,.app-status,.app-note,.beta-note{font-size:17px;line-height:1.28}
+.eyebrow,.app-label,.app-field label,.muted,.wallet-overview small,.pixel-wallet small,.app-footer,.app-footer-inner{font-size:14px;letter-spacing:.06em}
+.app-wrap{width:min(1040px,calc(100% - 28px))}
+.app-main,.page-main{padding-top:24px!important;padding-bottom:34px!important}
+.app-card,.tool-card,.step,.pass-card{padding:15px!important;margin-top:14px!important;border-radius:12px!important}
+.app-grid,.tool-grid{gap:10px!important}
+.app-btn,.primary-btn,.secondary-btn,.pixel-cta,.pixel-docs,.pixel-connect,.wallet-trigger{font:18px/1 'VT323',monospace!important;min-height:36px!important;padding:7px 12px!important;letter-spacing:.025em}
+.app-field{gap:5px;margin:9px 0}
+.app-field input,.app-field textarea,.trade-field input,.trade-field select{font:18px 'VT323',monospace!important;padding:9px 10px!important}
+.app-nav,.pixel-sub-nav{min-height:66px!important;height:auto!important;padding-top:8px;padding-bottom:8px}
+.pixel-brand{font:26px/.9 'VT323',monospace!important}
+.pixel-brand small{font:13px 'VT323',monospace!important}
+.pixel-brand-mark{width:38px!important;height:38px!important;font:30px 'VT323',monospace!important}
+.app-menu summary{width:40px!important;height:40px!important;font:25px/1 'VT323',monospace!important}
+.app-menu nav a,.app-menu nav button{font:18px 'VT323',monospace!important;min-height:38px!important;padding:8px 10px!important}
+.market-stat,.balance-box{padding:10px!important}
+.market-stat strong,.balance-box strong{font-size:22px!important}
+@media(max-width:620px){
+ body{font-size:17px}
+ .app-wrap{width:calc(100% - 24px)}
+ h1,.app-main h1,.page-main h1{font-size:34px!important}
+ h2,.app-card h2,.section-heading h2{font-size:24px!important}
+ .app-card,.tool-card,.step,.pass-card{padding:13px!important;margin-top:12px!important}
+ .app-main,.page-main{padding-top:20px!important;padding-bottom:28px!important}
+ .app-btn,.primary-btn,.secondary-btn,.pixel-cta,.pixel-docs,.pixel-connect,.wallet-trigger{font-size:17px!important}
+}
