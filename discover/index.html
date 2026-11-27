@@ -86,6 +86,27 @@
 @media(max-width:900px){#missionList .app-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
 @media(max-width:560px){#missionList .app-grid{grid-template-columns:1fr;gap:9px}#missionList .mission-token-card{padding:12px!important}}
 
+
+/* Ultra-compact clickable Discover cards */
+#missionList .app-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#missionList a.mission-token-card{display:flex!important;flex-direction:column;gap:8px;min-width:0;padding:11px!important;border:1px solid #e9e2f2!important;border-radius:12px!important;background:linear-gradient(145deg,#fff 0%,#fbf9ff 100%)!important;box-shadow:0 3px 12px #35204f08!important;color:inherit!important;text-decoration:none!important;cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
+#missionList a.mission-token-card:hover{transform:translateY(-2px);border-color:#c8b4e2!important;box-shadow:0 8px 18px #35204f12!important}
+.compact-token-head{display:flex;align-items:center;gap:8px;min-width:0}
+.compact-token-logo,.compact-token-fallback{width:34px;height:34px;flex:none;border-radius:10px;object-fit:cover;border:1px solid #eee7f5}
+.compact-token-fallback{display:grid;place-items:center;background:#f1eafa;color:#7040b5;font-size:14px;font-weight:800}
+.compact-token-info{display:grid;gap:2px;min-width:0}
+.compact-token-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#30233f;font-size:12px;font-weight:800;line-height:1.25}
+.compact-token-symbol{color:#8056b4;font-size:10px;font-weight:800}
+.compact-token-curve{display:flex;justify-content:space-between;align-items:center;gap:6px;color:#8a8095;font-size:9px;font-weight:800;letter-spacing:.06em}
+.compact-token-curve strong{color:#58358a;font-size:11px;letter-spacing:0;font-variant-numeric:tabular-nums}
+.compact-token-track{height:5px;overflow:hidden;border-radius:99px;background:#eee8f5}
+.compact-token-track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#a17ad5,#7040b5)}
+.compact-token-foot{display:flex;justify-content:space-between;align-items:center;gap:5px;color:#94899f;font-size:9px;line-height:1.2}
+.compact-token-state{font-weight:800;letter-spacing:.035em;color:#7040b5}
+.compact-token-state.curved{color:#16805a}.compact-token-state.unknown{color:#94899f}
+@media(max-width:900px){#missionList .app-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}}
+@media(max-width:560px){#missionList .app-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}#missionList a.mission-token-card{padding:9px!important;gap:7px}.compact-token-logo,.compact-token-fallback{width:30px;height:30px}.compact-token-name{font-size:11px}.compact-token-curve strong{font-size:10px}}
+
 </style></head><body>
 <header class="app-wrap app-nav pixel-sub-nav">
 <a class="app-logo pixel-brand" href="/" aria-label="PIXORUN home"><span class="pixel-brand-mark">P</span><span>PIXORUN<b>.</b><small>LAUNCHPAD</small></span></a>
@@ -125,4 +146,4 @@
  <div id="missionList"></div>
 </section>
 </main>
-<footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer><script src="../registry.js?v=launch-audit-20261127e"></script><script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script><script src="./discover.js?v=compact-ranked-cards-20261127a"></script><script src="../app.js?v=menu-active-autoclose-20261127a"></script></body></html>
+<footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer><script src="../registry.js?v=launch-audit-20261127e"></script><script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script><script src="./discover.js?v=clickable-mini-cards-20261127b"></script><script src="../app.js?v=menu-active-autoclose-20261127a"></script></body></html>

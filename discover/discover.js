@@ -27,21 +27,25 @@ function renderStats(){
  const ticker=document.getElementById('discoverTicker');if(ticker){ticker.replaceChildren();const seen=new Set();const latest=[...records].sort((a,b)=>launchedAt(b)-launchedAt(a)).filter(x=>{const key=String(x.token_address||x.id||'').toLowerCase();if(!key||seen.has(key))return false;seen.add(key);return true;}).slice(0,5);if(!latest.length){const item=document.createElement('span');item.className='discover-ticker-item';item.textContent='No recent launches yet';ticker.append(item);}else latest.forEach(x=>{const item=document.createElement('span');item.className='discover-ticker-item';const name=document.createElement('span');name.textContent=(x.token_symbol?'$'+x.token_symbol:(x.token_name||'New token'));const state=document.createElement('small');state.textContent=ageLabel(x);item.append(name,state);ticker.append(item);});}
 }
 function card(x){
- const el=document.createElement('article');el.className='app-card mission-token-card';el.style.margin='0';
- const row=document.createElement('div');row.className='app-row mission-token-head';
- if(x.image_url){const img=document.createElement('img');img.src=x.image_url;img.alt=(x.token_name||'Token')+' logo';img.loading='lazy';img.style.cssText='width:54px;height:54px;object-fit:cover;border-radius:13px;border:1px solid #eee8f5';row.append(img);}
- const info=document.createElement('div');info.style.flex='1';info.style.minWidth='120px';
- const title=document.createElement('h2');title.textContent=x.token_name||'Unnamed token';title.style.margin='0 0 5px';
- const ticker=document.createElement('div');ticker.className='app-label';ticker.textContent='$'+(x.token_symbol||'—');
- const meta=document.createElement('p');meta.className='app-status';meta.textContent='Creator '+short(x.creator_address)+' · Verified on-chain';
- info.append(title,ticker,meta);row.append(info);
- const state=document.createElement('span');state.className='mission-state '+(x.curveState||'unknown');state.textContent=x.curveState==='curving'?'BONDING':x.curveState==='curved'?'GRADUATED':'STATUS N/A';row.append(state);el.append(row);
- const launched=document.createElement('p');launched.className='mission-launched';launched.textContent=(isNew(x)?'✦ New launch · ':'Launched · ')+ageLabel(x);el.append(launched);
- if(x.description){const d=document.createElement('p');d.className='app-status';d.textContent=x.description;el.append(d);}
- if(x.curveProgress!==null&&x.curveProgress!==undefined){const prog=document.createElement('div');prog.className='mission-progress';const label=document.createElement('div');label.className='mission-progress-label';const left=document.createElement('span');left.textContent='Bonding progress';const right=document.createElement('strong');right.textContent=x.curveState==='curved'?'100% · Graduated':x.curveProgress.toFixed(2)+'%';label.append(left,right);const track=document.createElement('div');track.className='mission-progress-track';const fill=document.createElement('div');fill.className='mission-progress-fill';fill.style.width=(x.curveState==='curved'?100:x.curveProgress)+'%';track.append(fill);prog.append(label,track);el.append(prog);}
- const socials=document.createElement('div');socials.className='app-row mission-socials';for(const [label,url] of [['Website',x.website_url],['X',x.x_url],['Telegram',x.telegram_url]])if(url){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.className='app-btn secondary';a.textContent=label+' ↗';socials.append(a);}if(socials.childElementCount)el.append(socials);
- const addresses=document.createElement('div');addresses.className='app-status';addresses.textContent='Token '+short(x.token_address);
- const links=document.createElement('div');links.className='app-row mission-actions';const trade=document.createElement('a');trade.className='app-btn';trade.href='../token/?address='+encodeURIComponent(x.token_address);trade.textContent='View token ↗';const token=document.createElement('a');token.className='app-btn secondary';token.href=EXPLORER+'/address/'+x.token_address;token.target='_blank';token.rel='noopener noreferrer';token.textContent='Explorer ↗';links.append(trade,token);el.append(addresses,links);return el;
+ const href='../token/?address='+encodeURIComponent(x.token_address||'');
+ const el=document.createElement('a');el.className='app-card mission-token-card';el.href=href;el.style.margin='0';el.setAttribute('aria-label','Open '+(x.token_name||x.token_symbol||'token')+' details');
+ const head=document.createElement('div');head.className='compact-token-head';
+ if(x.image_url){const img=document.createElement('img');img.src=x.image_url;img.alt='';img.loading='lazy';img.className='compact-token-logo';head.append(img);}
+ else{const fallback=document.createElement('span');fallback.className='compact-token-fallback';fallback.textContent=(x.token_symbol||x.token_name||'T').slice(0,1).toUpperCase();head.append(fallback);}
+ const info=document.createElement('div');info.className='compact-token-info';
+ const name=document.createElement('strong');name.className='compact-token-name';name.textContent=x.token_name||'Unnamed token';
+ const symbol=document.createElement('span');symbol.className='compact-token-symbol';symbol.textContent='$'+(x.token_symbol||'—');
+ info.append(name,symbol);head.append(info);
+ const pct=x.curveState==='curved'?100:(x.curveProgress??null);
+ const curve=document.createElement('div');curve.className='compact-token-curve';
+ const curveLabel=document.createElement('span');curveLabel.textContent='CURVE';
+ const curveValue=document.createElement('strong');curveValue.textContent=pct===null?'—':pct.toFixed(2)+'%';
+ curve.append(curveLabel,curveValue);
+ const track=document.createElement('div');track.className='compact-token-track';const fill=document.createElement('span');fill.style.width=(pct===null?0:pct)+'%';track.append(fill);
+ const foot=document.createElement('div');foot.className='compact-token-foot';
+ const state=document.createElement('span');state.className='compact-token-state '+(x.curveState||'unknown');state.textContent=x.curveState==='curving'?'BONDING':x.curveState==='curved'?'GRADUATED':'PENDING';
+ const time=document.createElement('span');time.textContent=ageLabel(x);
+ foot.append(state,time);el.append(head,curve,track,foot);return el;
 }
 function filtered(){
  let list=[...records];if(activeFilter==='curving')list=list.filter(x=>x.curveState==='curving');else if(activeFilter==='curved')list=list.filter(x=>x.curveState==='curved');else if(activeFilter==='new')list=list.filter(isNew);
