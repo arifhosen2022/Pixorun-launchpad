@@ -102,6 +102,27 @@ async function refresh(){
  await Promise.all([quoteBuy(),quoteSell(),loadMetadata()]);
  if(account)await refreshBalances();
 }
+
+async function setTradePercent(side,percent){
+ if(!account){await connect();}
+ const p=wallet();if(!p)throw Error('Connect your wallet first.');
+ if(side==='buy'){
+  const fresh=await withTimeout(provider.getBalance(account),'ETH balance');
+  ethBalance=fresh;
+  const spendable=fresh*90n/100n;
+  const amount=spendable*BigInt(percent)/100n;
+  if(amount<=0n)throw Error('Your available ETH balance is too small.');
+  $('buyAmount').value=ethers.formatEther(amount);await quoteBuy();
+ }else{
+  const fresh=await withTimeout(token.balanceOf(account),'Token balance');
+  tokenBalance=fresh;
+  if(fresh<=0n)throw Error('You do not have any of this token in the connected wallet.');
+  const amount=fresh*BigInt(percent)/100n;
+  if(amount<=0n)throw Error('Selected token amount is too small.');
+  $('sellAmount').value=ethers.formatUnits(amount,decimals);await quoteSell();
+ }
+ await refreshBalances();
+}
 async function buy(){
  if(busy)return;busy=true;$('buyBtn').disabled=true;
  try{
@@ -137,10 +158,11 @@ async function sell(){
 $('buyAmount')?.addEventListener('input',quoteBuy);$('sellAmount')?.addEventListener('input',quoteSell);$('slippage')?.addEventListener('change',()=>{quoteBuy();quoteSell();});
 $('buyBtn')?.addEventListener('click',buy);$('sellBtn')?.addEventListener('click',sell);
 $('tokenConnect')?.addEventListener('click',async()=>{try{await connect();setStatus('Wallet connected. Balances refreshed.');}catch(e){setStatus(e.shortMessage||e.message||'Wallet connection failed.');}});
-$('buyMax')?.addEventListener('click',()=>{if(!ethBalance){setStatus('Connect your wallet to use your ETH balance.');return;}const spend=ethBalance*90n/100n;$('buyAmount').value=ethers.formatEther(spend);quoteBuy();});
-$('sellMax')?.addEventListener('click',()=>{if(!tokenBalance){setStatus('Connect your wallet to use your token balance.');return;}$('sellAmount').value=ethers.formatUnits(tokenBalance,decimals);quoteSell();});
+$('buyMax')?.addEventListener('click',()=>setTradePercent('buy',100).catch(e=>setStatus(e.shortMessage||e.message||'Could not read ETH balance.')));
+$('sellMax')?.addEventListener('click',()=>setTradePercent('sell',100).catch(e=>setStatus(e.shortMessage||e.message||'Could not read token balance.')));
+document.querySelectorAll('[data-trade-side][data-trade-percent]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await setTradePercent(button.dataset.tradeSide,Number(button.dataset.tradePercent));}catch(e){setStatus(e.shortMessage||e.reason||e.message||'Could not calculate percentage.');}finally{button.disabled=false;}}));
 const retry=$('tokenRetry');if(retry)retry.addEventListener('click',()=>{retry.disabled=true;refresh().catch(e=>setStatus('Load failed: '+(e.shortMessage||e.reason||e.message||'RPC error'))).finally(()=>retry.disabled=false);});
-const p=wallet();p?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;await readConnectedWallet();});
+const p=wallet();p?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;$('buyAmount').value='';$('sellAmount').value='';await readConnectedWallet();await quoteBuy();await quoteSell();});
 p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
 setStatus(cached?'Showing saved token details · checking the blockchain…':'Starting token data request…');
 refresh().then(readConnectedWallet).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
