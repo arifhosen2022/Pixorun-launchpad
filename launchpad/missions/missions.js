@@ -2,8 +2,8 @@
 'use strict';
 const EXPLORER='https://explorer.testnet.chain.robinhood.com',root=document.getElementById('missionList');if(!root)return;
 let records=[],classified=[],activeFilter='new',refreshing=false;
-const statusText=document.getElementById('missionStatusText'),retry=document.getElementById('missionRetry');
-const say=s=>{if(statusText)statusText.textContent=s;};
+const statusBox=document.getElementById('missionStatus');
+const say=s=>{if(statusBox){statusBox.textContent=s;statusBox.hidden=!s;}};
 const short=a=>a.slice(0,6)+'…'+a.slice(-4);
 const RPC='https://rpc.testnet.chain.robinhood.com';
 const FACTORY='0xD3B77BaA03b128f348fc45c133248b0070C1b7bc';
@@ -28,14 +28,12 @@ function render(){
  root.replaceChildren();
  if(!filtered.length){const p=document.createElement('p');p.className='lead';p.textContent=activeFilter==='new'?'No new launches in the last 7 days.':activeFilter==='curve'?'No tokens are currently trading on the bonding curve.':'No tokens have graduated to a swap pool yet.';root.append(p);}
  else{const grid=document.createElement('div');grid.className='app-grid';filtered.forEach(x=>grid.append(card(x)));root.append(grid);}
- const count=document.getElementById('missionCount');if(count)count.textContent=filtered.length+' token'+(filtered.length===1?'':'s');
- const heading=document.getElementById('missionHeading');if(heading)heading.textContent=activeFilter==='new'?'New Launch':activeFilter==='curve'?'In Curve':'Graduated';
  document.getElementById('countNew').textContent=classified.filter(x=>Date.now()-new Date(x.created_at||0).getTime()<=7*86400000).length;
  document.getElementById('countCurve').textContent=classified.filter(x=>x.state==='curve').length;
  document.getElementById('countGraduated').textContent=classified.filter(x=>x.state==='graduated').length;
  document.querySelectorAll('[data-filter]').forEach(b=>{const on=b.dataset.filter===activeFilter;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));});
 }
-async function load(){if(refreshing)return;refreshing=true;if(retry)retry.disabled=true;try{say('Loading verified launches and checking on-chain status…');records=await window.PIXORUN_REGISTRY.listLaunches();classified=await Promise.all(records.map(classify));render();say('Launch categories verified against Robinhood Chain Testnet.');}catch(e){say((e.message||'Could not load shared launches')+' · Tap Retry.');}finally{refreshing=false;if(retry)retry.disabled=false;}}
+async function load(){if(refreshing)return;refreshing=true;say('');try{records=await window.PIXORUN_REGISTRY.listLaunches();classified=await Promise.all(records.map(classify));render();say('');}catch(e){say('Unable to load launches. Please try again.');const b=document.createElement('button');b.type='button';b.className='app-btn secondary';b.textContent='Retry';b.style.marginTop='8px';b.addEventListener('click',load);statusBox?.append(' ',b);}finally{refreshing=false;}}
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{activeFilter=b.dataset.filter;render();}));
-retry?.addEventListener('click',load);render();load();
+render();load();
 })();
