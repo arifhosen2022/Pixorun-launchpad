@@ -106,94 +106,50 @@ function drawMarketChart(points){
 }
 async function findBlockAtOrAfter(target,latest){let lo=0,hi=latest;while(lo<hi){const mid=Math.floor((lo+hi)/2),b=await withTimeout(provider.getBlock(mid),'Block timestamp');if(!b)throw Error('Could not read block timestamp.');if(Number(b.timestamp)<target)lo=mid+1;else hi=mid;}return lo;}
 async function loadMarketData(){
+ const marketCacheKey='pixorun:market:v2:'+tokenAddress.toLowerCase();
+ const num=(v,d=6)=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:d});
+ const render=(data,label)=>{
+  const snap=data?.snapshot;if(!snap)return false;
+  const trades=[...(data.trades||[])].reverse();
+  const points=trades.map(t=>({price:Number(t.price_native),time:Math.floor(new Date(t.block_timestamp).getTime()/1000)})).filter(t=>Number.isFinite(t.price)&&t.price>0);
+  marketText('marketPrice',Number(snap.price_native)>0?num(snap.price_native,12)+' ETH':'—');
+  marketText('marketCap',Number(snap.market_cap_native)>0?num(snap.market_cap_native,5)+' ETH':'—');
+  marketText('marketLiquidity',num(snap.liquidity_native,5)+' ETH + '+num(snap.liquidity_token,0)+' tokens');
+  marketText('marketVolume',num(snap.volume_24h_native,5)+' ETH');
+  marketText('marketChange',snap.price_change_24h===null?'—':(Number(snap.price_change_24h)>=0?'+':'')+num(snap.price_change_24h,2)+'%');
+  marketText('marketTrades',String(snap.trades_24h??0));
+  marketText('marketUpdated',label+' · '+new Date(snap.data_updated_at||Date.now()).toLocaleTimeString());
+  drawMarketChart(points);
+  marketText('marketTradeCount',String(snap.trades_24h??0)+' trades · Supabase');
+  const host=$('marketRecentTrades'),rows=trades.slice(-8).reverse();
+  if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.side==='Buy'?'market-buy':'market-sell')+'">'+t.side+'</strong><span>'+num(t.token_amount,3)+' tokens · '+num(t.native_amount,6)+' ETH</span><a href="'+EXPLORER+'/tx/'+t.tx_hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
+  marketText('marketDataNote','Robinhood Chain Testnet · Supabase indexed confirmed on-chain events · block '+(snap.indexed_block??'—')+'.');
+  return true;
+ };
+ // Paint the last known snapshot immediately, before waiting for the network.
  try{
-  if(window.PIXORUN_REGISTRY?.getMarketData){
-   const data=await withTimeout(window.PIXORUN_REGISTRY.getMarketData(tokenAddress),'Supabase market cache',9000);
-   const snap=data.snapshot;
-   if(snap){
-    const trades=[...(data.trades||[])].reverse();
-    const points=trades.map(t=>({price:Number(t.price_native),time:Math.floor(new Date(t.block_timestamp).getTime()/1000)})).filter(t=>Number.isFinite(t.price)&&t.price>0);
-    const num=(v,d=6)=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:d});
-    marketText('marketPrice',Number(snap.price_native)>0?num(snap.price_native,12)+' ETH':'—');
-    marketText('marketCap',Number(snap.market_cap_native)>0?num(snap.market_cap_native,5)+' ETH':'—');
-    marketText('marketLiquidity',num(snap.liquidity_native,5)+' ETH + '+num(snap.liquidity_token,0)+' tokens');
-    marketText('marketVolume',num(snap.volume_24h_native,5)+' ETH');
-    marketText('marketChange',snap.price_change_24h===null?'—':(Number(snap.price_change_24h)>=0?'+':'')+num(snap.price_change_24h,2)+'%');
-    marketText('marketTrades',String(snap.trades_24h??0));
-    marketText('marketUpdated','Indexed '+new Date(snap.data_updated_at).toLocaleTimeString());
-    drawMarketChart(points);
-    marketText('marketTradeCount',String(snap.trades_24h??0)+' trades · Supabase index');
-    const host=$('marketRecentTrades'),rows=trades.slice(-8).reverse();
-    if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.side==='Buy'?'market-buy':'market-sell')+'">'+t.side+'</strong><span>'+num(t.token_amount,3)+' tokens · '+num(t.native_amount,6)+' ETH</span><a href="'+EXPLORER+'/tx/'+t.tx_hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
-    marketText('marketDataNote','Robinhood Chain Testnet · Supabase indexed confirmed on-chain events · block '+(snap.indexed_block??'—')+'.');
-    return;
-   }
-  }
- }catch(e){console.warn('Supabase market cache unavailable; using bounded RPC fallback:',e);}
- const marketCacheKey='pixorun:market:v1:'+tokenAddress.toLowerCase();
- try{
-  const saved=JSON.parse(localStorage.getItem(marketCacheKey)||'null');
-  if(saved&&Date.now()-saved.savedAt<120000){
-   marketText('marketPrice',saved.price);marketText('marketCap',saved.cap);marketText('marketLiquidity',saved.liquidity);
-   marketText('marketVolume',saved.volume);marketText('marketChange',saved.change);marketText('marketTrades',saved.trades);
-   marketText('marketUpdated','Cached · '+new Date(saved.savedAt).toLocaleTimeString());
-   drawMarketChart(saved.points||[]);
-   marketText('marketTradeCount',saved.tradeCount);
-   const cachedHost=$('marketRecentTrades');if(cachedHost)cachedHost.innerHTML=saved.rows||'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
-   marketText('marketDataNote','Cached Robinhood Chain data · refreshes automatically.');return;
-  }
+  const cached=JSON.parse(localStorage.getItem(marketCacheKey)||'null');
+  if(cached?.data)render(cached.data,'Saved snapshot');
  }catch(_){}
- const latest=await withTimeout(provider.getBlockNumber(),'Latest block',8000);
- let price=0,liquidity='—',reserveEth=0,reserveToken=0;
- if(mode==='curve'){
-  const [rn,rt,realN,realT]=await Promise.all([curve.virtualNative(),curve.virtualToken(),curve.realNative(),curve.realToken()]);
-  reserveEth=Number(ethers.formatEther(realN));reserveToken=Number(ethers.formatUnits(realT,decimals));
-  if(rt>0n&&rn>0n)price=Number(ethers.formatEther(rn))/Number(ethers.formatUnits(rt,decimals));
-  liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens (curve reserves)';
- }else{
-  const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);
-  reserveEth=Number(ethers.formatEther(rn));reserveToken=Number(ethers.formatUnits(rt,decimals));
-  if(rt>0n)price=Number(ethers.formatEther(rn))/Number(ethers.formatUnits(rt,decimals));
-  liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens (pool reserves)';
- }
- const supply=await token.totalSupply(),mcap=price*Number(ethers.formatUnits(supply,decimals));
- marketText('marketPrice',price>0?marketFmt(price,12)+' ETH':'—');
- marketText('marketCap',price>0?marketFmt(mcap,5)+' ETH':'—');
- marketText('marketLiquidity',liquidity);
- // Scan a bounded recent window; all prices and volume below come from actual emitted swap events.
- const fromBlock=await findBlockAtOrAfter(Math.floor(Date.now()/1000)-86400,latest),logs=[];
- const topics=[curveEvents.getEvent('Bought').topicHash,curveEvents.getEvent('Sold').topicHash,pairEvents.getEvent('Swap').topicHash];
- for(let start=fromBlock;start<=latest;start+=1000){
-  const end=Math.min(latest,start+999);
-  const [a,b]=await Promise.all([
-   withTimeout(provider.getLogs({address:curveAddress,fromBlock:start,toBlock:end,topics:[[topics[0],topics[1]]]}),'Curve event scan',10000),
-   mode==='swap'?withTimeout(provider.getLogs({address:pairAddress,fromBlock:start,toBlock:end,topics:[topics[2]]}),'Swap event scan',10000):Promise.resolve([])
-  ]);
-  logs.push(...a,...b);
- }
- const decoded=logs.map(log=>{try{
-  if(log.address.toLowerCase()===curveAddress.toLowerCase()){
-   const p=curveEvents.parseLog(log);
-   if(p.name==='Bought')return {type:'Buy',native:Number(ethers.formatEther(p.args.grossNative)),tokens:Number(ethers.formatUnits(p.args.tokensOut,decimals)),block:log.blockNumber,hash:log.transactionHash};
-   return {type:'Sell',native:Number(ethers.formatEther(p.args.netNative)),tokens:Number(ethers.formatUnits(p.args.tokensIn,decimals)),block:log.blockNumber,hash:log.transactionHash};
+ marketText('marketUpdated',$('marketPrice')?.textContent&&$('marketPrice').textContent!=='—'?'Refreshing…':'Loading saved market data…');
+ try{
+  if(!window.PIXORUN_REGISTRY?.getMarketData)throw Error('Supabase registry client unavailable');
+  const data=await window.PIXORUN_REGISTRY.getMarketData(tokenAddress);
+  if(data?.snapshot){
+   render(data,'Supabase');
+   try{localStorage.setItem(marketCacheKey,JSON.stringify({savedAt:Date.now(),data}));}catch(_){}
+  }else if(!$('marketPrice')?.textContent||$('marketPrice').textContent==='—'){
+   marketText('marketUpdated','Waiting for first indexed snapshot');
+   marketText('marketDataNote','Market data will appear as soon as the Robinhood Chain indexer stores the first snapshot. No RPC history scan is run in the browser.');
+   const host=$('marketRecentTrades');if(host)host.innerHTML='<p class="trade-help">No indexed trades yet.</p>';
   }
-  const p=pairEvents.parseLog(log),buy=p.args.nativeToToken;
-  return {type:buy?'Buy':'Sell',native:Number(ethers.formatEther(buy?p.args.amountIn:p.args.amountOut)),tokens:Number(ethers.formatUnits(buy?p.args.amountOut:p.args.amountIn,decimals)),block:log.blockNumber,hash:log.transactionHash};
- }catch(_){return null;}}).filter(Boolean);
- const blockNums=[...new Set(decoded.map(t=>t.block))],blockTimes={};let blockIndex=0;
- const timestampWorkers=Array.from({length:Math.min(8,blockNums.length)},async()=>{while(blockIndex<blockNums.length){const n=blockNums[blockIndex++];try{const b=await withTimeout(provider.getBlock(n),'Trade timestamp',8000);if(b)blockTimes[n]=Number(b.timestamp);}catch(_){}}});
- await Promise.all(timestampWorkers);
- const now=Math.floor(Date.now()/1000),recent=decoded.map(t=>({...t,time:blockTimes[t.block]||0,price:t.tokens>0?t.native/t.tokens:0})).filter(t=>t.time>=now-86400&&t.time>0).sort((a,b)=>a.time-b.time);
- const volume=recent.reduce((s,t)=>s+t.native,0),first=recent.find(t=>t.price>0),last=[...recent].reverse().find(t=>t.price>0);
- const change=first&&last&&first.price>0?(last.price/first.price-1)*100:null;
- marketText('marketVolume',marketFmt(volume,5)+' ETH');marketText('marketChange',change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%');
- marketText('marketTrades',String(recent.length));marketText('marketUpdated','Updated '+new Date().toLocaleTimeString());
- drawMarketChart(recent.filter(t=>t.price>0));
- const rows=recent.slice(-8).reverse();marketText('marketTradeCount',recent.length+' trades');
- const host=$('marketRecentTrades');
- if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
- marketText('marketDataNote','Robinhood Chain Testnet · confirmed curve and swap events · exact 24-hour window.');
- try{localStorage.setItem(marketCacheKey,JSON.stringify({savedAt:Date.now(),price:price>0?marketFmt(price,12)+' ETH':'—',cap:price>0?marketFmt(mcap,5)+' ETH':'—',liquidity,volume:marketFmt(volume,5)+' ETH',change:change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%',trades:String(recent.length),points:recent.filter(t=>t.price>0),tradeCount:recent.length+' trades',rows:host?host.innerHTML:''}));}catch(_){}
+ }catch(e){
+  console.warn('Supabase market read failed:',e);
+  if(!$('marketPrice')?.textContent||$('marketPrice').textContent==='—'){
+   marketText('marketUpdated','Market data temporarily unavailable');
+   marketText('marketDataNote','Could not reach the Supabase market cache. Refresh to retry; the page will not run a slow RPC history scan.');
+  }
+ }
 }
 
 async function refresh(){
