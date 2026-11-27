@@ -24,6 +24,12 @@ async function registerLaunch(txHash,payload){
  if(!r.ok||!body.success)throw Error(body.error||'Could not sync this launch to the shared registry.');
  return body.launch;
 }
+async function syncTrade(address,txHash){
+ const r=await fetch(URL+'/functions/v1/sync-trade',{method:'POST',headers,body:JSON.stringify({tokenAddress:address,txHash})});
+ const body=await r.json().catch(()=>({}));
+ if(!r.ok||!body.success)throw Error(body.error||'Instant market sync failed.');
+ return body;
+}
 async function getMarketData(address){
  if(!/^0x[a-fA-F0-9]{40}$/.test(address||''))throw Error('Invalid token address.');
  const base=URL+'/rest/v1/',token=address.toLowerCase();
@@ -41,5 +47,5 @@ async function getMarketData(address){
  }catch(e){console.warn('Supabase trades request failed:',e);}
  return {snapshot,trades};
 }
-window.PIXORUN_REGISTRY={listLaunches,getLaunch,registerLaunch,getMarketData};
+window.PIXORUN_REGISTRY={listLaunches,getLaunch,registerLaunch,getMarketData,syncTrade};
 })();
