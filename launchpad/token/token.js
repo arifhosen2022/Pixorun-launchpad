@@ -11,7 +11,7 @@ const tokenAddress=new URLSearchParams(location.search).get('address');
 const cacheKey=tokenAddress&&ethers.isAddress(tokenAddress)?'pixorun:token:v2:'+tokenAddress.toLowerCase():null;
 let cached=null;try{cached=cacheKey?JSON.parse(localStorage.getItem(cacheKey)||'null'):null;}catch(_){}
 if(cached){$('tokenName').textContent=cached.name||'Token';$('tokenSymbol').textContent=cached.symbol||'—';$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;if(cached.curveAddress){$('curveAddress').textContent=cached.curveAddress;$('curveAddress').href=EXPLORER+'/address/'+cached.curveAddress;}if(cached.creator){$('creatorAddress').textContent=cached.creator;$('creatorAddress').href=EXPLORER+'/address/'+cached.creator;}$('totalSupply').textContent=cached.totalSupply||'—';$('tradeMode').textContent=cached.tradeMode||'Refreshing market…';}
-let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n,totalSupplyRaw=0n,holderRows=[],holderOffset=0,holderCount=0,holderTop10=0,holderTop50=0,holderLoading=false;
+let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n,totalSupplyRaw=0n,holderRows=[],holderOffset=0,holderCount=0,holderTop10=0,holderTop50=0,holderLoading=false,curveSoldRaw=0n;
 const withTimeout=(promise,label,ms=12000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Error(label+' timed out. Robinhood RPC did not respond.')),ms))]);
 const fmt=(v,d=18)=>{const raw=ethers.formatUnits(v,d),parts=raw.split('.'),whole=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');const fraction=(parts[1]||'').replace(/0+$/,'');return fraction?whole+'.'+fraction:whole;};
 const setStatus=m=>{if($('tradeStatus'))$('tradeStatus').textContent=m;};
@@ -288,6 +288,23 @@ $('holdersTableHost')?.addEventListener('click',async event=>{
  const button=event.target.closest('[data-holder-copy]');if(!button)return;
  const address=button.getAttribute('data-holder-copy');try{await navigator.clipboard.writeText(address);button.textContent='Copied';setTimeout(()=>button.textContent='Copy',1300);}catch(_){button.textContent='Copy unavailable';setTimeout(()=>button.textContent='Copy',1300);}
 });
+async function loadCurveProgress(){
+ const allocation=793100000n*(10n**BigInt(decimals));
+ try{
+  const sold=await withTimeout(curve.totalSold(),'Curve sold amount');curveSoldRaw=sold;
+  const capped=sold>allocation?allocation:sold;
+  const percent=allocation>0n?Number(capped*1000000n/allocation)/10000:0;
+  const remaining=allocation>sold?allocation-sold:0n;
+  const graduatedNow=graduated||await curve.graduated();
+  const shown=graduatedNow?100:Math.min(100,percent);
+  marketText('curveProgressPercent',shown.toFixed(2)+'%');
+  marketText('curveProgressSold',fmt(sold,decimals)+' '+($('tokenSymbol')?.textContent||''));
+  marketText('curveProgressRemaining',fmt(remaining,decimals)+' '+($('tokenSymbol')?.textContent||''));
+  marketText('curveProgressAllocation',fmt(allocation,decimals)+' '+($('tokenSymbol')?.textContent||''));
+  const fill=$('curveProgressFill'),track=$('curveProgressTrack');if(fill)fill.style.width=shown+'%';if(track)track.setAttribute('aria-valuenow',String(shown));
+  marketText('curveProgressNote',graduatedNow?'Curve completed · Liftoff reached. Trading continues through the PIXORUN Swap pool.':'Live on-chain progress · '+fmt(remaining,decimals)+' tokens remaining before Liftoff.');
+ }catch(e){console.warn('Curve progress unavailable:',e);marketText('curveProgressPercent','—%');marketText('curveProgressSold','Unavailable');marketText('curveProgressRemaining','Unavailable');marketText('curveProgressNote','Curve progress could not be read from Robinhood Chain. Refresh to retry.');}
+}
 async function refresh(){
  if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Explore Missions.');
  setStatus('Reading PIXORUN Factory on Robinhood Testnet…');
@@ -311,7 +328,7 @@ async function refresh(){
  const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('Token loaded · enter an amount to see the exact on-chain fee quote.');
- await Promise.all([quoteBuy(),quoteSell(),loadMetadata(),loadTopHolders(true)]);
+ await Promise.all([quoteBuy(),quoteSell(),loadMetadata(),loadTopHolders(true),loadCurveProgress()]);
 
  if(account)await refreshBalances();
 }
