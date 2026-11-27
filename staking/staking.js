@@ -71,12 +71,12 @@ async function useSharedWallet(detail){
  signer=await browserProvider.getSigner(account);
  tokenWrite=tokenRead.connect(signer);
  stakingWrite=stakingRead.connect(signer);
- status('Using connected site wallet: '+account.slice(0,6)+'…'+account.slice(-4),'success');
+ status('Wallet connected and ready.','success');
  setButtons(true);
  await refresh();
 }
 function closeTxModal(){const modal=$('stakingTxModal');if(modal)modal.hidden=true;}
-function showTxModal(kind,title,message,action){
+function showTxModal(kind,title,message,action,txHash,amount){
  const modal=$('stakingTxModal');if(!modal)return;
  $('stakingTxIcon').textContent=kind==='success'?'✓':'!';
  $('stakingTxTitle').textContent=title;
@@ -108,7 +108,7 @@ async function runAction(action){
    status('Staking… Waiting for on-chain confirmation.','pending');
    await tx.wait();$('stakeAmount').value='';
    status('Your PIXORUN stake is confirmed on-chain.','success');
-   showTxModal('success','Staking successful','Your PIXORUN tokens have been staked successfully on Robinhood Chain Testnet.',null);
+   showTxModal('success','You’re officially staking!','Your PIXORUN is now staked on Robinhood Chain Testnet. You can track your position and rewards in the Staking Hub.',null,tx.hash,fmt(amount)+' '+symbol);
   }else if(action==='unstake'){
    const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\\d+(\\.\\d+)?$/.test(raw))throw Error('Enter the PIXORUN amount to unstake.');
    const amount=ethers.parseUnits(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
