@@ -21,9 +21,9 @@ function card(x){
  row.append(info,state);
  const addresses=document.createElement('div');addresses.className='app-status';addresses.textContent='Token '+short(x.token)+' · Curve '+short(x.curve);
  const links=document.createElement('div');links.className='app-row';links.style.marginTop='14px';
- const token=document.createElement('a');token.className='app-btn secondary';token.href=EXPLORER+'/address/'+x.token;token.target='_blank';token.rel='noopener noreferrer';token.textContent='Token explorer ↗';
+ const trade=document.createElement('a');trade.className='app-btn';trade.href='../token/?address='+encodeURIComponent(x.token);trade.textContent='Trade token ↗';const token=document.createElement('a');token.className='app-btn secondary';token.href=EXPLORER+'/address/'+x.token;token.target='_blank';token.rel='noopener noreferrer';token.textContent='Token explorer ↗';
  const curve=document.createElement('a');curve.className='app-btn secondary';curve.href=EXPLORER+'/address/'+x.curve;curve.target='_blank';curve.rel='noopener noreferrer';curve.textContent='Curve explorer ↗';
- links.append(token,curve);el.append(row,addresses,links);return el;
+ links.append(trade,token,curve);el.append(row,addresses,links);return el;
 }
 function render(){
  root.replaceChildren();
