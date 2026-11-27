@@ -188,6 +188,38 @@ async function syncConfirmedTrade(tx){
   marketText('marketUpdated','Live · block '+(result.block||'confirmed')+' · '+new Date().toLocaleTimeString());
  }catch(e){console.warn('Instant market sync failed; background indexer will retry:',e);marketText('marketUpdated','Trade confirmed · indexer syncing');}
 }
+let liveTradeWatcherStarted=false,liveTradeWatcherBusy=false,liveTradeLastBlock=0;
+const liveCurveEvents=new ethers.Interface(['event Bought(address indexed buyer,uint256 grossNative,uint256 fee,uint256 tokensOut)','event Sold(address indexed seller,uint256 tokensIn,uint256 grossNative,uint256 fee,uint256 netNative)']);
+const livePairEvents=new ethers.Interface(['event Swap(address indexed sender,bool nativeToToken,uint256 amountIn,uint256 amountOut,uint256 fee)']);
+async function scanLiveTradeBlocks(latestBlock){
+ if(liveTradeWatcherBusy)return;
+ liveTradeWatcherBusy=true;
+ try{
+  let from=liveTradeLastBlock+1,to=Number(latestBlock);
+  if(from>to)return;
+  while(from<=to){
+   const end=Math.min(to,from+9);
+   const requests=[provider.getLogs({address:curveAddress,fromBlock:from,toBlock:end,topics:[[liveCurveEvents.getEvent('Bought').topicHash,liveCurveEvents.getEvent('Sold').topicHash]]})];
+   if(pairAddress&&pairAddress!==ethers.ZeroAddress)requests.push(provider.getLogs({address:pairAddress,fromBlock:from,toBlock:end,topics:[livePairEvents.getEvent('Swap').topicHash]}));
+   const results=await Promise.all(requests);
+   const hashes=[...new Set(results.flat().map(log=>log.transactionHash))];
+   liveTradeLastBlock=end;
+   for(const hash of hashes)await syncConfirmedTrade({hash});
+   from=end+1;
+  }
+ }catch(e){console.warn('Live chain trade watcher will retry:',e);}
+ finally{liveTradeWatcherBusy=false;}
+}
+async function startLiveTradeWatcher(){
+ if(liveTradeWatcherStarted||!curveAddress)return;
+ liveTradeWatcherStarted=true;
+ try{
+  liveTradeLastBlock=await withTimeout(provider.getBlockNumber(),'Live trade watcher start');
+  provider.pollingInterval=3000;
+  provider.on('block',scanLiveTradeBlocks);
+  marketText('marketUpdated','Live chain listener connected · waiting for trades');
+ }catch(e){liveTradeWatcherStarted=false;console.warn('Could not start live trade watcher:',e);}
+}
 async function findBlockAtOrAfter(target,latest){let lo=0,hi=latest;while(lo<hi){const mid=Math.floor((lo+hi)/2),b=await withTimeout(provider.getBlock(mid),'Block timestamp');if(!b)throw Error('Could not read block timestamp.');if(Number(b.timestamp)<target)lo=mid+1;else hi=mid;}return lo;}
 async function loadMarketData(){
  const marketCacheKey='pixorun:market:v2:'+tokenAddress.toLowerCase();
@@ -335,6 +367,7 @@ async function refresh(){
  else setStatus('Token loaded · enter an amount to see the exact on-chain fee quote.');
  // Keep the primary token screen responsive; load secondary panels independently.
  Promise.allSettled([quoteBuy(),quoteSell(),loadMetadata(),loadTopHolders(true),loadCurveProgress()]);
+ startLiveTradeWatcher();
  if(account)refreshBalances().catch(e=>console.warn('Wallet balances refresh failed:',e));
 }
 
