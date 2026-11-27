@@ -106,10 +106,15 @@ function buildMarketCandles(points){
  });
  const actual=[...buckets.values()].sort((a,b)=>a.time-b.time);
  if(!actual.length)return {candles:[],volumes:[]};
+ // Keep a readable rolling window. Old trade history can span weeks; drawing
+ // every empty interval between the oldest and newest trade crushes candles.
+ const lastTime=actual[actual.length-1].time;
+ const firstVisible=Math.max(actual[0].time,lastTime-marketTimeframe*59);
+ const visible=actual.filter(c=>c.time>=firstVisible);
  // Standard no-trade bars carry the previous close and have zero volume.
- const rows=[];let previous=actual[0].open,idx=0;
- for(let t=actual[0].time;t<=actual[actual.length-1].time;t+=marketTimeframe){
-  const c=actual[idx];
+ const rows=[];let previous=visible[0].open,idx=0;
+ for(let t=visible[0].time;t<=lastTime;t+=marketTimeframe){
+  const c=visible[idx];
   if(c&&c.time===t){rows.push(c);previous=c.close;idx++;}
   else rows.push({time:t,open:previous,high:previous,low:previous,close:previous,volume:0});
  }
@@ -130,14 +135,14 @@ function updateMarketOhlc(param){
 function initMarketChart(){
  const host=$('marketChart');if(!host||!window.LightweightCharts)return false;
  host.innerHTML='';
- const chartHeight=Math.max(260,host.clientHeight||390);
+ const chartHeight=Math.max(320,host.clientHeight||360);
  marketChart=window.LightweightCharts.createChart(host,{
   width:host.clientWidth||800,height:chartHeight,
   layout:{background:{type:'solid',color:'#ffffff'},textColor:'#715b8c',fontFamily:'Inter,system-ui,sans-serif',fontSize:12},
   grid:{vertLines:{color:'#f1ebf8'},horzLines:{color:'#f1ebf8'}},
   crosshair:{mode:window.LightweightCharts.CrosshairMode.Normal,vertLine:{color:'#9872c7',width:1,style:2,labelBackgroundColor:'#7040b5'},horzLine:{color:'#9872c7',width:1,style:2,labelBackgroundColor:'#7040b5'}},
-  rightPriceScale:{borderColor:'#e8def2',scaleMargins:{top:.08,bottom:.24},entireTextOnly:true},
-  timeScale:{borderColor:'#e8def2',timeVisible:true,secondsVisible:false,rightOffset:6,barSpacing:9},
+  rightPriceScale:{borderColor:'#e8def2',scaleMargins:{top:.10,bottom:.22},entireTextOnly:true},
+  timeScale:{borderColor:'#e8def2',timeVisible:true,secondsVisible:false,rightOffset:8,barSpacing:12},
   localization:{priceFormatter:p=>marketFmt(p,12)}
  });
  marketCandleSeries=marketChart.addCandlestickSeries({
