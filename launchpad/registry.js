@@ -34,7 +34,7 @@ async function getMarketData(address){
  if(!/^0x[a-fA-F0-9]{40}$/.test(address||''))throw Error('Invalid token address.');
  const base=URL+'/rest/v1/',token=address.toLowerCase();
  const snapQ=new URLSearchParams({select:'chain_id,token_address,price_native,market_cap_native,liquidity_native,liquidity_token,volume_24h_native,price_change_24h,trades_24h,holder_count,last_trade_at,indexed_block,data_updated_at',chain_id:'eq.46630',token_address:'eq.'+token,limit:'1'});
- const tradesQ=new URLSearchParams({select:'tx_hash,log_index,block_number,block_timestamp,side,token_amount,native_amount,price_native',chain_id:'eq.46630',token_address:'eq.'+token,block_timestamp:'gte.'+new Date(Date.now()-30*86400000).toISOString(),order:'block_timestamp.desc',limit:'1000'});
+ const tradesQ=new URLSearchParams({select:'tx_hash,log_index,block_number,block_timestamp,side,token_amount,native_amount,price_native',chain_id:'eq.46630',token_address:'eq.'+token,block_timestamp:'gte.'+new Date(Date.now()-30*86400000).toISOString(),order:'block_timestamp.desc',limit:'300'});
  const [sr,tr]=await Promise.all([
   fetch(base+'market_snapshots?'+snapQ,{headers,cache:'no-store'}),
   fetch(base+'market_trades?'+tradesQ,{headers,cache:'no-store'}).catch(e=>{console.warn('Supabase trades request failed:',e);return null;})
