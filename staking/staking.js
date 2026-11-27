@@ -39,11 +39,11 @@ async function refresh(){
  if(!tokenRead||!stakingRead)return;
  const [total]=await Promise.all([stakingRead.totalStaked()]);
  $('totalStaked').textContent=fmt(total)+' '+symbol;
- if(!account){$('yourStake').textContent='Connect wallet';$('pendingRewards').textContent='—';$('walletBalance').textContent='—';$('unstakeBtn').disabled=true;$('claimBtn').disabled=true;return;}
+ if(!account){$('yourStake').textContent='0 '+symbol;$('pendingRewards').textContent='—';$('walletBalance').textContent='—';$('stakeAvailableBalance').textContent='Connect wallet from the site header';setButtons(false);return;}
  const [staked,reward,balance]=await Promise.all([stakingRead.balanceOf(account),stakingRead.earned(account),tokenRead.balanceOf(account)]);
  $('yourStake').textContent=fmt(staked)+' '+symbol;
  $('pendingRewards').textContent=fmt(reward,18)+' ETH';
- $('walletBalance').textContent=fmt(balance)+' '+symbol;
+ $('walletBalance').textContent=fmt(balance)+' '+symbol;$('stakeAvailableBalance').textContent=fmt(balance)+' '+symbol+' available';
  $('unstakeBtn').disabled=busy||staked===0n;
  $('claimBtn').disabled=busy||reward===0n;
 }
@@ -52,7 +52,7 @@ async function useSharedWallet(detail){
  const provider=detail?.provider||shared?.getProvider?.();
  const accounts=shared?await shared.getAccounts():[];
  const next=detail?.account||accounts?.[0]||null;
- const chain=String(detail?.chainId||'').toLowerCase();
+ const chain=String(detail?.chainId||(provider?await provider.request({method:'eth_chainId'}):'')).toLowerCase();
  if(!provider||!next){
   account=null;signer=null;tokenWrite=null;stakingWrite=null;
   await refresh();
@@ -71,6 +71,7 @@ async function useSharedWallet(detail){
  tokenWrite=tokenRead.connect(signer);
  stakingWrite=stakingRead.connect(signer);
  status('Using connected site wallet: '+account.slice(0,6)+'…'+account.slice(-4),'success');
+ setButtons(true);
  await refresh();
 }
 async function runAction(action){
@@ -95,13 +96,14 @@ async function runAction(action){
   }
   status('Transaction confirmed on Robinhood Chain Testnet.','success');await refresh();
  }catch(e){status(e?.shortMessage||e?.reason||e?.message||'Transaction failed.','error');}
- finally{busy=false;setButtons(!!config?.stakingRewards);if(account)await refresh().catch(()=>{});}
+ finally{busy=false;setButtons(!!signer&&!!config?.stakingRewards);if(account)await refresh().catch(()=>{});}
 }
 document.addEventListener('DOMContentLoaded',async()=>{
  setButtons(false);
  $('stakeBtn')?.addEventListener('click',()=>runAction('stake'));
  $('unstakeBtn')?.addEventListener('click',()=>runAction('unstake'));
  $('claimBtn')?.addEventListener('click',()=>runAction('claim'));
+ document.querySelectorAll('[data-stake-percent]').forEach(button=>button.addEventListener('click',async()=>{if(!account||!tokenRead)return;const balance=await tokenRead.balanceOf(account);const pct=BigInt(button.dataset.stakePercent);const amount=balance*pct/100n;$('stakeAmount').value=ethers.formatUnits(amount,decimals);}));
  try{await loadConfig();await refresh();const provider=window.PIXORUN_WALLET?.getProvider?.();const accounts=await window.PIXORUN_WALLET?.getAccounts?.();if(provider&&accounts?.[0])await useSharedWallet({provider,account:accounts[0]});else status('Connect your wallet using the main site header to use Staking.','info');}catch(e){status(e?.message||'Staking is unavailable.','error');setButtons(false);}
  window.addEventListener('pixorun:walletChanged',async e=>{try{await useSharedWallet(e.detail||{});}catch(err){account=null;signer=null;tokenWrite=null;stakingWrite=null;await refresh();status(err?.message||'Could not sync the connected site wallet.','error');}});
 });
