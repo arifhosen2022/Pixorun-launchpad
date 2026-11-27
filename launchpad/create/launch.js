@@ -214,6 +214,7 @@ async function setup(){
        localStorage.setItem(profileKey,JSON.stringify({items,lastBlock:receipt.blockNumber}));
      }catch(storageError){console.warn('Could not cache PIXORUN launch for My Profile:',storageError);}
      // Publish the confirmed transaction to the shared Supabase registry.
+     pendingRegistryTxHash=txHash;
      let globalRegistered=false;
      try{
        const profileKey='pixorun:profile:v2:'+account.toLowerCase();
