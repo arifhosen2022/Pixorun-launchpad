@@ -97,10 +97,10 @@ async function buy(){
   const signer=await new ethers.BrowserProvider(wallet()).getSigner();let minOut,contract;
   if(mode==='curve'){const q=await curve.quoteBuy(amount);minOut=minAfterSlippage(q[0]);contract=new ethers.Contract(curveAddress,curveAbi,signer);}
   else{const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const net=amount-amount*100n/10000n;const out=net*rt/(rn+net);minOut=minAfterSlippage(out);contract=new ethers.Contract(pairAddress,pairAbi,signer);}
-  const gas=await contract.buy.estimateGas(minOut,{value:amount});const feeData=await provider.getFeeData();const gasPrice=feeData.maxFeePerGas??feeData.gasPrice??0n;ethBalance=await provider.getBalance(account);
+  const gas=mode==='curve'?await contract.buy.estimateGas(minOut,{value:amount}):await contract.swapNativeForToken.estimateGas(minOut,{value:amount});const feeData=await provider.getFeeData();const gasPrice=feeData.maxFeePerGas??feeData.gasPrice??0n;ethBalance=await provider.getBalance(account);
   if(ethBalance<amount+(gas*gasPrice*12n/10n))throw Error('Insufficient ETH for this buy plus estimated gas. Reduce the buy amount or add testnet ETH.');
   setStatus('Confirm the buy in your wallet. The quote is protected by '+slippage()+'% slippage.');
-  const tx=await contract.buy(minOut,{value:amount,gasLimit:gas*12n/10n});setStatus('Buy submitted: '+tx.hash);await tx.wait();
+  const tx=mode==='curve'?await contract.buy(minOut,{value:amount,gasLimit:gas*12n/10n}):await contract.swapNativeForToken(minOut,{value:amount,gasLimit:gas*12n/10n});setStatus('Buy submitted: '+tx.hash);await tx.wait();
   setStatus('Buy confirmed on Robinhood Chain Testnet.');await refresh();
  }catch(e){setStatus(e.shortMessage||e.reason||e.message||'Buy failed.');}finally{busy=false;$('buyBtn').disabled=!canTrade;}
 }
