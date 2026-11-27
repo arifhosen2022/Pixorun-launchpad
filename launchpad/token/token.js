@@ -44,7 +44,22 @@ function showMetadata(m){
  for(const [label,url] of [['Website',m.website_url],['X / Twitter',m.x_url],['Telegram',m.telegram_url]])if(url){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=label+' ↗';links.append(a);has=true;}
  about.hidden=!has;
 }
-async function loadMetadata(){try{if(window.PIXORUN_REGISTRY){const row=await window.PIXORUN_REGISTRY.getLaunch(tokenAddress);showMetadata(row);}}catch(e){console.warn('Token metadata could not be loaded',e);}}
+function showCreatorDetails(m){
+ const set=(id,value)=>{const el=$(id);if(el)el.textContent=value||'Not provided';};
+ const link=(id,url,label)=>{const el=$(id);if(!el)return;if(url){el.href=url;el.textContent=label||url;el.hidden=false;}else{el.removeAttribute('href');el.textContent='Not provided';}};
+ if(!m){set('launchCreator','Creator record unavailable');return;}
+ const creator=m.creator_address||'';
+ link('launchCreator',creator?EXPLORER+'/address/'+creator:null,creator);
+ set('launchCreatedAt',m.created_at?new Date(m.created_at).toLocaleString():'Not provided');
+ link('launchTx',m.tx_hash?EXPLORER+'/tx/'+m.tx_hash:null,m.tx_hash||null);
+ set('launchDescription',m.description||'Not provided');
+ set('launchLogoStatus',m.image_url?'Uploaded':'Not provided');
+ set('launchBannerStatus',m.banner_url?'Uploaded':'Not provided');
+ link('launchWebsite',m.website_url,m.website_url||null);
+ link('launchX',m.x_url,m.x_url||null);
+ link('launchTelegram',m.telegram_url,m.telegram_url||null);
+}
+async function loadMetadata(){try{if(window.PIXORUN_REGISTRY){const row=await window.PIXORUN_REGISTRY.getLaunch(tokenAddress);showMetadata(row);showCreatorDetails(row);}}catch(e){console.warn('Token metadata could not be loaded',e);}}
 async function getBuyQuote(amount){
  if(mode==='swap'){const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const fee=amount*100n/10000n,net=amount-fee;return {out:net*rt/(rn+net),fee,net,acceptedGross:amount,refund:0n};}
  try{const q=await curve.quoteBuy(amount);return {out:q[0],fee:q[1],net:q[2],acceptedGross:amount,refund:0n};}
@@ -91,6 +106,30 @@ function drawMarketChart(points){
 }
 async function findBlockAtOrAfter(target,latest){let lo=0,hi=latest;while(lo<hi){const mid=Math.floor((lo+hi)/2),b=await withTimeout(provider.getBlock(mid),'Block timestamp');if(!b)throw Error('Could not read block timestamp.');if(Number(b.timestamp)<target)lo=mid+1;else hi=mid;}return lo;}
 async function loadMarketData(){
+ try{
+  if(window.PIXORUN_REGISTRY?.getMarketData){
+   const data=await withTimeout(window.PIXORUN_REGISTRY.getMarketData(tokenAddress),'Supabase market cache',9000);
+   const snap=data.snapshot;
+   if(snap){
+    const trades=[...(data.trades||[])].reverse();
+    const points=trades.map(t=>({price:Number(t.price_native),time:Math.floor(new Date(t.block_timestamp).getTime()/1000)})).filter(t=>Number.isFinite(t.price)&&t.price>0);
+    const num=(v,d=6)=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:d});
+    marketText('marketPrice',Number(snap.price_native)>0?num(snap.price_native,12)+' ETH':'—');
+    marketText('marketCap',Number(snap.market_cap_native)>0?num(snap.market_cap_native,5)+' ETH':'—');
+    marketText('marketLiquidity',num(snap.liquidity_native,5)+' ETH + '+num(snap.liquidity_token,0)+' tokens');
+    marketText('marketVolume',num(snap.volume_24h_native,5)+' ETH');
+    marketText('marketChange',snap.price_change_24h===null?'—':(Number(snap.price_change_24h)>=0?'+':'')+num(snap.price_change_24h,2)+'%');
+    marketText('marketTrades',String(snap.trades_24h??0));
+    marketText('marketUpdated','Indexed '+new Date(snap.data_updated_at).toLocaleTimeString());
+    drawMarketChart(points);
+    marketText('marketTradeCount',String(snap.trades_24h??0)+' trades · Supabase index');
+    const host=$('marketRecentTrades'),rows=trades.slice(-8).reverse();
+    if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.side==='Buy'?'market-buy':'market-sell')+'">'+t.side+'</strong><span>'+num(t.token_amount,3)+' tokens · '+num(t.native_amount,6)+' ETH</span><a href="'+EXPLORER+'/tx/'+t.tx_hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
+    marketText('marketDataNote','Robinhood Chain Testnet · Supabase indexed confirmed on-chain events · block '+(snap.indexed_block??'—')+'.');
+    return;
+   }
+  }
+ }catch(e){console.warn('Supabase market cache unavailable; using bounded RPC fallback:',e);}
  const marketCacheKey='pixorun:market:v1:'+tokenAddress.toLowerCase();
  try{
   const saved=JSON.parse(localStorage.getItem(marketCacheKey)||'null');
