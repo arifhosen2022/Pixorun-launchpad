@@ -96,25 +96,55 @@ const curveEvents=new ethers.Interface(['event Bought(address indexed buyer,uint
 const pairEvents=new ethers.Interface(['event Swap(address indexed sender,bool nativeToToken,uint256 amountIn,uint256 amountOut,uint256 fee)']);
 function marketFmt(n,max=8){const value=Number(n);return Number.isFinite(value)?value.toLocaleString('en-US',{maximumFractionDigits:max}):'—';}
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
-let marketTimeframe=300,marketChartPoints=[];
+let marketTimeframe=300,marketChartPoints=[],marketChart=null,marketCandleSeries=null,marketVolumeSeries=null,marketChartReady=false;
+function buildMarketCandles(points){
+ const buckets=new Map();
+ points.filter(p=>Number.isFinite(p.price)&&p.price>0&&Number.isFinite(p.time)).forEach(p=>{
+  const t=Math.floor(p.time/marketTimeframe)*marketTimeframe;
+  if(!buckets.has(t))buckets.set(t,{time:t,open:p.price,high:p.price,low:p.price,close:p.price,volume:0});
+  const c=buckets.get(t);c.high=Math.max(c.high,p.price);c.low=Math.min(c.low,p.price);c.close=p.price;c.volume+=Math.max(0,Number(p.volume)||0);
+ });
+ const rows=[...buckets.values()].sort((a,b)=>a.time-b.time);
+ return {candles:rows.map(({time,open,high,low,close})=>({time,open,high,low,close})),volumes:rows.map(c=>({time:c.time,value:c.volume,color:c.close>=c.open?'rgba(22,163,112,.42)':'rgba(220,72,100,.42)'}))};
+}
+function initMarketChart(){
+ const host=$('marketChart');if(!host||!window.LightweightCharts)return false;
+ host.innerHTML='';
+ marketChart=window.LightweightCharts.createChart(host,{
+  width:host.clientWidth||800,height:360,
+  layout:{background:{type:'solid',color:'#ffffff'},textColor:'#715b8c',fontFamily:'Inter,system-ui,sans-serif'},
+  grid:{vertLines:{color:'#f1ebf8'},horzLines:{color:'#f1ebf8'}},
+  crosshair:{mode:window.LightweightCharts.CrosshairMode.Normal,vertLine:{color:'#9872c7',width:1,style:2},horzLine:{color:'#9872c7',width:1,style:2}},
+  rightPriceScale:{borderColor:'#e8def2',scaleMargins:{top:.08,bottom:.24}},
+  timeScale:{borderColor:'#e8def2',timeVisible:true,secondsVisible:false,rightOffset:5,barSpacing:9},
+  localization:{priceFormatter:p=>marketFmt(p,12)}
+ });
+ marketCandleSeries=marketChart.addCandlestickSeries({
+  upColor:'#16a36f',downColor:'#dc4864',borderUpColor:'#16a36f',borderDownColor:'#dc4864',
+  wickUpColor:'#16a36f',wickDownColor:'#dc4864',priceLineVisible:true,lastValueVisible:true
+ });
+ marketVolumeSeries=marketChart.addHistogramSeries({
+  priceFormat:{type:'volume'},priceScaleId:'volume',
+  scaleMargins:{top:.82,bottom:0},lastValueVisible:false,priceLineVisible:false
+ });
+ marketChart.priceScale('volume').applyOptions({scaleMargins:{top:.82,bottom:0},visible:false});
+ marketChartReady=true;
+ if(window.ResizeObserver){new ResizeObserver(entries=>{for(const e of entries){if(marketChart)marketChart.applyOptions({width:Math.max(300,Math.floor(e.contentRect.width))});}}).observe(host);}
+ return true;
+}
 function drawMarketChart(points){
  marketChartPoints=points||[];
  const host=$('marketChart');if(!host)return;
- if(!points.length){host.innerHTML='<p class="trade-help" style="padding:14px">No confirmed trades yet. Candles will appear after the first trade.</p>';return;}
- const buckets=new Map();
- points.filter(p=>Number.isFinite(p.price)&&p.price>0).forEach(p=>{
-  const t=Math.floor(p.time/marketTimeframe)*marketTimeframe;
-  if(!buckets.has(t))buckets.set(t,{time:t,open:p.price,high:p.price,low:p.price,close:p.price});
-  else{const c=buckets.get(t);c.high=Math.max(c.high,p.price);c.low=Math.min(c.low,p.price);c.close=p.price;}
- });
- const candles=[...buckets.values()].sort((a,b)=>a.time-b.time).slice(-80);
- if(!candles.length){host.textContent='Chart unavailable';return;}
- const min=Math.min(...candles.map(c=>c.low)),max=Math.max(...candles.map(c=>c.high)),range=max-min||Math.max(max*.02,1e-12),pad=range*.12,lo=Math.max(0,min-pad),hi=max+pad;
- const y=v=>260-(v-lo)/(hi-lo||1)*220,step=940/candles.length,body=Math.max(4,Math.min(12,step*.58));
- const grid=[0,1,2,3].map(i=>{const yy=24+i*73;const val=hi-(hi-lo)*i/3;return '<line x1="52" y1="'+yy+'" x2="980" y2="'+yy+'" stroke="#eee6f8" stroke-width="1"/><text x="8" y="'+(yy-4)+'" fill="#80699b" font-size="11">'+marketFmt(val,8)+'</text>';}).join('');
- const bars=candles.map((c,i)=>{const x=58+i*step+step/2,up=c.close>=c.open,color=up?'#15966a':'#d94b67',top=y(Math.max(c.open,c.close)),bottom=y(Math.min(c.open,c.close)),h=Math.max(2,bottom-top);return '<line x1="'+x+'" y1="'+y(c.high)+'" x2="'+x+'" y2="'+y(c.low)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-body/2)+'" y="'+top+'" width="'+body+'" height="'+h+'" rx="1" fill="'+color+'"><title>'+new Date(c.time*1000).toLocaleString()+' · O '+marketFmt(c.open,8)+' · H '+marketFmt(c.high,8)+' · L '+marketFmt(c.low,8)+' · C '+marketFmt(c.close,8)+'</title></rect>';}).join('');
- const last=candles[candles.length-1],label=marketFmt(last.close,10)+' ETH';
- host.innerHTML='<svg viewBox="0 0 1000 290" preserveAspectRatio="none" role="img" aria-label="OHLC candlestick chart">'+grid+bars+'<text x="980" y="286" text-anchor="end" fill="#70558f" font-size="11">'+label+'</text></svg>';
+ if(!window.LightweightCharts){host.textContent='Loading professional chart…';return;}
+ if(!marketChartReady&&!initMarketChart())return;
+ const {candles,volumes}=buildMarketCandles(marketChartPoints);
+ if(!candles.length){
+  marketCandleSeries.setData([]);marketVolumeSeries.setData([]);
+  marketText('marketChartRange','Waiting for confirmed trades');
+  return;
+ }
+ marketCandleSeries.setData(candles);marketVolumeSeries.setData(volumes);
+ marketChart.timeScale().fitContent();
  marketText('marketChartRange',candles.length+' candles · '+({300:'5 minutes',900:'15 minutes',3600:'1 hour',14400:'4 hours',86400:'1 day'}[marketTimeframe]||'timeframe'));
 }
 document.querySelectorAll('[data-chart-range]').forEach(button=>button.addEventListener('click',()=>{
@@ -136,7 +166,7 @@ async function loadMarketData(){
  const render=(data,label)=>{
   const snap=data?.snapshot;if(!snap)return false;
   const trades=[...(data.trades||[])].sort((a,b)=>{const ta=Date.parse(a.block_timestamp)||0,tb=Date.parse(b.block_timestamp)||0;return ta-tb||Number(a.block_number||0)-Number(b.block_number||0)||Number(a.log_index||0)-Number(b.log_index||0);});
-  const points=trades.map(t=>({price:Number(t.price_native),time:Math.floor(new Date(t.block_timestamp).getTime()/1000)})).filter(t=>Number.isFinite(t.price)&&t.price>0);
+  const points=trades.map(t=>({price:Number(t.price_native),time:Math.floor(new Date(t.block_timestamp).getTime()/1000),volume:Number(t.native_amount)||0})).filter(t=>Number.isFinite(t.price)&&t.price>0);
   marketText('marketPrice',Number(snap.price_native)>0?num(snap.price_native,12)+' ETH':'—');
   marketText('marketCap',Number(snap.market_cap_native)>0?num(snap.market_cap_native,5)+' ETH':'—');
    marketText('marketChartCap','Market Cap: '+(Number(snap.market_cap_native)>0?num(snap.market_cap_native,5)+' ETH':'—'));
