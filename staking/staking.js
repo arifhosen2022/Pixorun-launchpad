@@ -41,11 +41,11 @@ async function refresh(){
  if(!tokenRead||!stakingRead)return;
  const [total]=await Promise.all([stakingRead.totalStaked()]);
  setCompactAmount('totalStaked',total,decimals,symbol);
- if(!account){setCompactAmount('yourStake',0n,decimals,symbol);$('pendingRewards').textContent='—';$('pendingRewards').removeAttribute('title');$('pendingRewards').removeAttribute('aria-label');$('walletBalance').textContent='—';$('walletBalance').removeAttribute('title');$('walletBalance').removeAttribute('aria-label');$('stakeAvailableBalance').textContent='Connect wallet from the site header';setButtons(false);return;}
+ if(!account){setCompactAmount('yourStake',0n,decimals,symbol);$('pendingRewards').textContent='—';$('pendingRewards').removeAttribute('title');$('pendingRewards').removeAttribute('aria-label');$('walletBalance').textContent='—';$('walletBalance').removeAttribute('title');$('walletBalance').removeAttribute('aria-label');$('stakeAvailableBalance').textContent='Connect wallet';$('stakeAvailableBalance').removeAttribute('title');$('stakeAvailableBalance').removeAttribute('aria-label');setButtons(false);return;}
  const [staked,reward,balance]=await Promise.all([stakingRead.balanceOf(account),stakingRead.earned(account),tokenRead.balanceOf(account)]);
  setCompactAmount('yourStake',staked,decimals,symbol);
  setCompactAmount('pendingRewards',reward,18,'ETH');
- setCompactAmount('walletBalance',balance,decimals,symbol);$('stakeAvailableBalance').textContent=fmt(balance)+' '+symbol+' available';
+ setCompactAmount('walletBalance',balance,decimals,symbol);const available=fmtCompact(balance,decimals,symbol);$('stakeAvailableBalance').textContent=available.text+' available';$('stakeAvailableBalance').title=available.title+' available';$('stakeAvailableBalance').setAttribute('aria-label',available.title+' available');
  $('unstakeBtn').disabled=busy||staked===0n;
  $('claimBtn').disabled=busy||reward===0n;
 }
