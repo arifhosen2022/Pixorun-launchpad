@@ -396,6 +396,6 @@ const p=wallet();p?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAd
 p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
 setStatus(cached?'Showing saved token details · checking the blockchain…':'Starting token data request…');
 loadMarketData().catch(e=>console.warn('Market data unavailable:',e));
-setInterval(()=>loadMarketData().catch(e=>console.warn('Market refresh failed:',e)),5000);
+setInterval(()=>loadMarketData().catch(e=>console.warn('Market refresh failed:',e)),15000);
 refresh().then(readConnectedWallet).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
 })();
