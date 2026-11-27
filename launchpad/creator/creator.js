@@ -24,7 +24,7 @@ async function load(){
  }catch(e){status('Could not load creator data: '+(e.shortMessage||e.message||'RPC error'));}
 }
 $('creatorClaim')?.addEventListener('click',async()=>{
- try{const p=window.bitkeep?.ethereum||window.ethereum;if(!p)throw Error('Open this page in your EVM wallet browser.');const a=(await p.request({method:'eth_requestAccounts'}))[0];const signer=new ethers.BrowserProvider(p).getSigner();const contract=new ethers.Contract(FEE,feeAbi,await signer);$('creatorClaim').disabled=true;status('Confirm the creator fee claim in your wallet…');const tx=await contract.claimCreatorFees();status('Claim submitted: '+tx.hash);await tx.wait();status('Creator fees claimed successfully.');await load();}catch(e){status(e.shortMessage||e.message||'Claim failed.');$('creatorClaim').disabled=false;}
+ try{const p=window.ethereum?.isMetaMask?window.ethereum:(window.bitkeep?.ethereum||window.ethereum);if(!p)throw Error('Open this page in your EVM wallet browser.');const a=(await p.request({method:'eth_requestAccounts'}))[0];const signer=new ethers.BrowserProvider(p).getSigner();const contract=new ethers.Contract(FEE,feeAbi,await signer);$('creatorClaim').disabled=true;status('Confirm the creator fee claim in your wallet…');const tx=await contract.claimCreatorFees();status('Claim submitted: '+tx.hash);await tx.wait();status('Creator fees claimed successfully.');await load();}catch(e){status(e.shortMessage||e.message||'Claim failed.');$('creatorClaim').disabled=false;}
 });
 const activeProvider=window.ethereum?.isMetaMask?window.ethereum:(window.bitkeep?.ethereum||window.ethereum);activeProvider?.on?.('accountsChanged',load);load();
 })();
