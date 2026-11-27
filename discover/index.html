@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111116"><title>Discover | PIXORUN</title><meta name="description" content="Discover for the PIXORUN launchpad on Robinhood Chain Testnet."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="../app.css?v=compact-nav-menu-20261127a"><style>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111116"><title>Discover | PIXORUN</title><meta name="description" content="Discover for the PIXORUN launchpad on Robinhood Chain Testnet."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="../app.css?v=discover-marketplace-20261127a"><style>
 .mission-launch-panel{margin:16px 0!important;padding:12px!important;background:linear-gradient(135deg,#fff 0%,#f8f4ff 100%)!important;border:1px solid #e6dcf3!important;box-shadow:0 8px 28px #43216c0b!important}
 .mission-filter-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .mission-filter{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:9px 12px;border:1px solid #e5dcef;border-radius:13px;background:#fff;color:#58466f;font:700 12px/1.2 Inter,system-ui,sans-serif;text-decoration:none;cursor:pointer;box-shadow:0 2px 5px #2b164508;transition:transform .16s,box-shadow .16s,background .16s,border-color .16s}
@@ -15,6 +15,50 @@
 .mission-progress-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#8b5bd1,#6035a5)}
 .mission-actions,.mission-socials{flex-wrap:wrap}.mission-launched{font-size:11px;color:#82778f;margin:7px 0 0}
 @media(max-width:520px){.mission-filter-bar{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.mission-filter{min-height:44px;padding:8px}.mission-token-head{align-items:flex-start;flex-wrap:wrap}.mission-state{margin-left:auto}}
+
+/* Discover marketplace layout */
+.discover-shell{padding-top:28px!important}
+.discover-intro{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 22px;margin:0 0 18px;border:1px solid #e5daf2;border-radius:18px;background:linear-gradient(115deg,#fff 0%,#f5efff 100%);box-shadow:0 10px 30px #35204f0a}
+.discover-intro-copy{display:grid;gap:5px}.discover-kicker{font-size:10px;font-weight:800;letter-spacing:.12em;color:#8056b4}.discover-subtitle{font-size:13px;line-height:1.55;color:#716580}
+.discover-cta{display:flex;gap:9px;flex-wrap:wrap}.discover-cta .app-btn{white-space:nowrap}
+.discover-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 18px}
+.discover-stat{padding:16px 17px;border:1px solid #e8e2f1;border-radius:15px;background:#fff;box-shadow:0 7px 22px #35204f08;min-width:0}
+.discover-stat-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#81758f}
+.discover-stat-value{display:block;margin-top:7px;font-size:25px;font-weight:800;letter-spacing:-.04em;color:#2c2040;font-variant-numeric:tabular-nums}
+.discover-stat-note{margin-top:3px;font-size:10px;color:#968ba3}
+.discover-ticker{display:flex;align-items:center;gap:12px;overflow:hidden;padding:12px 15px;margin:0 0 24px;border:1px solid #e8e2f1;border-radius:13px;background:#fff}
+.discover-ticker-label{flex:none;font-size:10px;font-weight:800;letter-spacing:.08em;color:#7040b5}
+.discover-ticker-items{display:flex;align-items:center;gap:9px;overflow-x:auto;scrollbar-width:none;white-space:nowrap}.discover-ticker-items::-webkit-scrollbar{display:none}
+.discover-ticker-item{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#f5f0fb;color:#514064;font-size:11px;font-weight:700}
+.discover-ticker-item small{color:#8b7b9e;font-weight:600}
+.discover-market{padding:18px!important;margin:0 0 14px!important}
+.discover-market-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.discover-market-title{font-size:18px;font-weight:800;letter-spacing:-.03em;color:#2c2040}
+.discover-search{position:relative;flex:1;min-width:min(100%,260px);max-width:390px}
+.discover-search input{width:100%;height:43px;padding:0 14px 0 40px;border:1px solid #e1d7ed;border-radius:11px;background:#fff;color:#30233f;font:500 12px Inter,system-ui,sans-serif;outline:none}
+.discover-search input:focus{border-color:#9b7bcb;box-shadow:0 0 0 3px #7040b514}
+.discover-search:before{content:'⌕';position:absolute;left:14px;top:7px;color:#9078ac;font-size:22px;pointer-events:none}
+.mission-launch-panel{margin:0!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.mission-filter-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.mission-filter{min-height:43px;padding:8px 10px;border:1px solid #e5dcef;border-radius:11px;background:#fff;color:#58466f;font:700 11px/1.2 Inter,system-ui,sans-serif;box-shadow:none}
+.mission-filter:hover{transform:translateY(-1px);border-color:#bca6dc;box-shadow:0 5px 14px #43216c10}
+.mission-filter.active{background:#7040b5;border-color:#7040b5;color:#fff;box-shadow:0 5px 14px #7040b526}
+.mission-filter-count{min-width:20px;height:20px;background:#f1ebf8;color:#67449b}
+.discover-results-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:16px 2px 12px;color:#81758f;font-size:11px}
+.discover-results-head strong{color:#4b3470;font-weight:800}
+#missionList .app-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#missionList .mission-token-card{margin:0!important;padding:18px!important;border:1px solid #e8e2f1!important;border-radius:16px!important;background:#fff!important;box-shadow:0 8px 26px #35204f08!important;transition:transform .16s,box-shadow .16s}
+#missionList .mission-token-card:hover{transform:translateY(-2px);box-shadow:0 13px 32px #35204f12!important}
+#missionList .mission-token-card h2{font-size:16px!important;font-weight:800!important;letter-spacing:-.025em}
+#missionList .mission-token-card .app-status{color:#857a92!important;font-size:11px!important}
+#missionList .mission-token-card .app-label{color:#7040b5!important;font-weight:800}
+#missionList .mission-progress{background:#faf8fd;border-color:#eee8f5}
+#missionList .mission-actions{margin-top:12px}
+#missionList .mission-actions .app-btn{min-height:39px;font-size:11px;padding:0 12px}
+.discover-empty{padding:35px 18px;text-align:center;border:1px dashed #d9cce9;border-radius:14px;background:#fff;color:#81758f;font-size:13px;line-height:1.6}
+@media(max-width:720px){.discover-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.discover-intro{align-items:flex-start;flex-direction:column}.discover-cta{width:100%}}
+@media(max-width:560px){.discover-shell{padding-top:18px!important}.discover-stats{gap:8px}.discover-stat{padding:13px}.discover-stat-value{font-size:22px}.discover-market{padding:13px!important}.discover-market-head{align-items:stretch}.discover-search{max-width:none}.mission-filter-bar{gap:7px}.mission-filter{font-size:10px;padding:7px 5px}#missionList .app-grid{grid-template-columns:1fr}#missionList .mission-token-card{padding:15px!important}.discover-ticker{margin-bottom:18px}}
+
 </style></head><body>
 <header class="app-wrap app-nav pixel-sub-nav">
 <a class="app-logo pixel-brand" href="/" aria-label="PIXORUN home"><span class="pixel-brand-mark">P</span><span>PIXORUN<b>.</b><small>LAUNCHPAD</small></span></a>
@@ -30,13 +74,28 @@
 
 <a href="/docs/">DOCUMENTATION <span>↗</span></a>
 </nav></details></div></header>
-<main class="app-wrap app-main"><div class="eyebrow">TOKEN DISCOVERY · ROBINHOOD CHAIN TESTNET</div><h1>Discover</h1>
-<p class="lead">Discover tokens launched through PIXORUN. Only verified on-chain projects will be listed here.</p>
-<div style="margin:22px 0"><span class="app-label">All verified launches · newest first</span></div>
-<div class="app-card mission-launch-panel"><div class="mission-filter-bar" role="group" aria-label="Filter token launches">
-<button class="mission-filter active" type="button" data-launch-filter="top" aria-pressed="true">Top Token <span class="mission-filter-count" data-count-for="top">0</span></button>
-<button class="mission-filter" type="button" data-launch-filter="curving" aria-pressed="false">Curving <span class="mission-filter-count" data-count-for="curving">0</span></button>
-<button class="mission-filter" type="button" data-launch-filter="curved" aria-pressed="false">Curved <span class="mission-filter-count" data-count-for="curved">0</span></button>
-<button class="mission-filter mission-new-launch" type="button" data-launch-filter="new" aria-pressed="false">New Launch <span class="mission-filter-count" data-count-for="new">0</span></button>
-</div></div><div id="missionList" style="margin-top:16px"></div></main>
-<footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer><script src="../registry.js?v=launch-audit-20261127e"></script><script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script><script src="./discover.js?v=recent-launch-tabs-20261127b"></script><script src="../app.js?v=menu-active-autoclose-20261127a"></script></body></html>
+<main class="app-wrap app-main discover-shell">
+<section class="discover-intro" aria-label="Discover PIXORUN tokens">
+ <div class="discover-intro-copy"><span class="discover-kicker">PIXORUN TOKEN ECOSYSTEM</span><div class="discover-subtitle">Explore community launches on Robinhood Chain. Track bonding progress and discover tokens as they launch.</div></div>
+ <div class="discover-cta"><a class="app-btn" href="/create/">Launch a Token ↗</a><a class="app-btn secondary" href="/docs/">How it works</a></div>
+</section>
+<section class="discover-stats" aria-label="Live launch statistics">
+ <article class="discover-stat"><div class="discover-stat-label">Total launches</div><strong class="discover-stat-value" id="statTotal">—</strong><div class="discover-stat-note">Registered on-chain launches</div></article>
+ <article class="discover-stat"><div class="discover-stat-label">Bonding</div><strong class="discover-stat-value" id="statBonding">—</strong><div class="discover-stat-note">Currently on the curve</div></article>
+ <article class="discover-stat"><div class="discover-stat-label">Graduated</div><strong class="discover-stat-value" id="statGraduated">—</strong><div class="discover-stat-note">Completed bonding curve</div></article>
+ <article class="discover-stat"><div class="discover-stat-label">New launches</div><strong class="discover-stat-value" id="statNew">—</strong><div class="discover-stat-note">Last 30 minutes</div></article>
+</section>
+<section class="discover-ticker" aria-label="Latest token launches"><span class="discover-ticker-label">LATEST LAUNCHES</span><div class="discover-ticker-items" id="discoverTicker"><span class="discover-ticker-item">Loading launches…</span></div></section>
+<section class="app-card discover-market">
+ <div class="discover-market-head"><div class="discover-market-title">Explore tokens</div><label class="discover-search"><input id="discoverSearch" type="search" placeholder="Search name, symbol or address…" autocomplete="off" aria-label="Search tokens"></label></div>
+ <div class="mission-launch-panel"><div class="mission-filter-bar" role="group" aria-label="Filter token launches">
+ <button class="mission-filter active" type="button" data-launch-filter="top" aria-pressed="true">Top Tokens <span class="mission-filter-count" data-count-for="top">0</span></button>
+ <button class="mission-filter" type="button" data-launch-filter="curving" aria-pressed="false">Bonding <span class="mission-filter-count" data-count-for="curving">0</span></button>
+ <button class="mission-filter" type="button" data-launch-filter="curved" aria-pressed="false">Graduated <span class="mission-filter-count" data-count-for="curved">0</span></button>
+ <button class="mission-filter" type="button" data-launch-filter="new" aria-pressed="false">New Launch <span class="mission-filter-count" data-count-for="new">0</span></button>
+ </div></div>
+ <div class="discover-results-head"><span id="discoverResultLabel">Loading launches…</span><strong>Robinhood Testnet</strong></div>
+ <div id="missionList"></div>
+</section>
+</main>
+<footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer><script src="../registry.js?v=launch-audit-20261127e"></script><script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script><script src="./discover.js?v=discover-marketplace-20261127a"></script><script src="../app.js?v=menu-active-autoclose-20261127a"></script></body></html>
