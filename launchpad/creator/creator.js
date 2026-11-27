@@ -9,7 +9,7 @@ const $=id=>document.getElementById(id),status=m=>{if($('creatorStatus'))$('crea
 const fmt=v=>Number(ethers.formatEther(v)).toFixed(6)+' ETH';
 async function load(){
  try{
-  const accounts=await (window.bitkeep?.ethereum||window.ethereum)?.request({method:'eth_accounts'});
+  const accounts=await ((window.ethereum?.isMetaMask?window.ethereum:(window.bitkeep?.ethereum||window.ethereum)))?.request({method:'eth_accounts'});
   const account=accounts?.[0];if(!account){status('Connect your wallet to load your creator activity.');return;}
   $('creatorWallet')&&($('creatorWallet').textContent=account);
   const fee=new ethers.Contract(FEE,feeAbi,provider),claimable=await fee.creatorClaimable(account);
@@ -26,5 +26,5 @@ async function load(){
 $('creatorClaim')?.addEventListener('click',async()=>{
  try{const p=window.bitkeep?.ethereum||window.ethereum;if(!p)throw Error('Open this page in your EVM wallet browser.');const a=(await p.request({method:'eth_requestAccounts'}))[0];const signer=new ethers.BrowserProvider(p).getSigner();const contract=new ethers.Contract(FEE,feeAbi,await signer);$('creatorClaim').disabled=true;status('Confirm the creator fee claim in your wallet…');const tx=await contract.claimCreatorFees();status('Claim submitted: '+tx.hash);await tx.wait();status('Creator fees claimed successfully.');await load();}catch(e){status(e.shortMessage||e.message||'Claim failed.');$('creatorClaim').disabled=false;}
 });
-load();
+const activeProvider=window.ethereum?.isMetaMask?window.ethereum:(window.bitkeep?.ethereum||window.ethereum);activeProvider?.on?.('accountsChanged',load);load();
 })();
