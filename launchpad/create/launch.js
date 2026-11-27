@@ -230,7 +230,7 @@ async function setup(){
      $('resultCurve').textContent=curve;$('resultCurve').href=explorer('address',curve);
      $('resultTokenLabel')&&($('resultTokenLabel').textContent='TOKEN CONTRACT');
      $('resultCurveLabel')&&($('resultCurveLabel').textContent='BONDING CURVE');
-     $('launchResult').hidden=false;
+     $('launchResult').hidden=false;if(pendingMetadataSync&&$('retryMetadata'))$('retryMetadata').hidden=false;
      status(globalRegistered?'Success! Your token and metadata are now visible across PIXORUN.':'Token deployed, but shared listing/metadata sync is pending. Use Retry metadata save below.','success');
      if(globalRegistered){form.reset();updatePreview();previewLogo();}
    }catch(e){status(errorText(e),'error');}
