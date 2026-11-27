@@ -23,13 +23,17 @@ async function setup(){
  if(!btn||!form)return;
  if(!window.ethereum){status('Open this page in Zerion, Bitget, MetaMask or another compatible EVM wallet browser.','error');btn.disabled=true;return;}
  btn.disabled=true;
- status('Checking Robinhood Chain Testnet and reading PIXORUN Factory…','pending');
- let readProvider=new ethers.JsonRpcProvider(RPC,{chainId:CHAIN_ID,name:'Robinhood Chain Testnet'},{staticNetwork:true});
- let readFactory;
+ status('Launch checker started. Preparing Robinhood Testnet RPC…','pending');
+ let readProvider,readFactory;
  try{
+   if(!window.ethers)throw new Error('Ethers library did not load. Refresh the page and try again.');
+   readProvider=new ethers.JsonRpcProvider(RPC,{chainId:CHAIN_ID,name:'Robinhood Chain Testnet'},{staticNetwork:true});
+   status('Connecting to Robinhood Chain Testnet RPC…','pending');
    const rpcNetwork=await timeout(readProvider.getNetwork(),'Robinhood Testnet RPC');
+   status('Robinhood Testnet RPC connected. Checking Launchpad Factory bytecode…','pending');
    if(Number(rpcNetwork.chainId)!==CHAIN_ID)throw new Error('The configured RPC did not return Robinhood Chain Testnet (46630).');
    const code=await timeout(readProvider.getCode(FACTORY),'Launchpad Factory lookup');
+   status('Factory bytecode found. Reading Factory settings…','pending');
    if(!code||code==='0x')throw new Error('No contract bytecode exists at the configured Launchpad Factory address on Robinhood Chain Testnet. Token creation is paused.');
    readFactory=new ethers.Contract(FACTORY,ABI,readProvider);
    const [fee,swapFactory,feeDistributor]=await timeout(Promise.all([readFactory.creationFee(),readFactory.swapFactory(),readFactory.feeDistributor()]),'Factory configuration read');
