@@ -13,6 +13,20 @@ const ABI=[
 ];
 const $=id=>document.getElementById(id);
 let readProvider,readFactory,creationFee,launchBusy=false;
+function walletProvider(){
+ const injected=window.ethereum;
+ const bitget=window.bitkeep?.ethereum;
+ // If MetaMask is explicitly injected, never let a simultaneously installed
+ // Bitget extension silently replace it.
+ if(injected?.isMetaMask)return injected;
+ if(window.bitkeep?.isBitKeep||bitget?.isBitKeep)return bitget||injected;
+ return injected||bitget;
+}
+const isBitgetProvider=provider=>!!provider&&(
+ provider===window.bitkeep?.ethereum ||
+ provider.isBitKeep===true ||
+ (window.bitkeep?.isBitKeep===true&&provider===window.ethereum)
+);
 const status=(message,type='info')=>{const el=$('launchStatus');if(el){el.textContent=message;el.dataset.type=type;}};
 const fmt=v=>Number(ethers.formatEther(v)).toLocaleString(undefined,{maximumFractionDigits:6});
 const explorer=(kind,address)=>EXPLORER+'/'+kind+'/'+address;
@@ -35,21 +49,36 @@ function updatePreview(){
  if($('tokenSymbol'))$('tokenSymbol').setAttribute('aria-invalid',String(!validSymbol&&!!symbol));
 }
 async function walletChainId(){
- if(!window.ethereum)throw new Error('No wallet detected. Open this page inside Zerion, Bitget, MetaMask or another EVM wallet browser.');
- const id=await timeout(window.ethereum.request({method:'eth_chainId'}),'Wallet network check');
+ const provider=walletProvider();
+ if(!provider)throw new Error('No wallet detected. Open this page inside Bitget Wallet or another EVM wallet browser.');
+ const id=await timeout(provider.request({method:'eth_chainId'}),'Wallet network check');
  return Number(BigInt(id));
 }
+async function refreshWalletNetwork(){
+ const config={chainId:CHAIN_HEX,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]};
+ try{
+   await timeout(walletProvider().request({method:'wallet_addEthereumChain',params:[config]}),'Wallet network RPC update',30000);
+ }catch(e){
+   // Wallets may reject re-adding a chain that is already configured. The RPC probe below decides whether it is usable.
+   if(e.code===4001||e.code===-32002)throw e;
+ }
+}
 async function switchToTestnet(){
+ const provider=walletProvider();
  let chain=await walletChainId();
- if(chain===CHAIN_ID)return;
- status('Your wallet is on the wrong network. Approve switching to Robinhood Chain Testnet (46630).','pending');
- try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN_HEX}]});}
- catch(e){
-   if(e.code!==4902)throw e;
-   await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN_HEX,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]});
+ if(chain!==CHAIN_ID){
+   status('Your wallet is on the wrong network. Approve switching to Robinhood Chain Testnet (46630).','pending');
+   try{await provider.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN_HEX}]});}
+   catch(e){
+     if(e.code!==4902)throw e;
+     await provider.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN_HEX,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]});
+   }
  }
  chain=await walletChainId();
  if(chain!==CHAIN_ID)throw new Error('Robinhood Chain Testnet was not selected. Switch the network in your wallet and try again.');
+ // Do not use eth_blockNumber through the wallet provider here. Some mobile wallets
+ // fail this read even while they can still sign and submit a transaction.
+ // All chain reads are performed through the independent readProvider.
 }
 async function setup(){
  const form=$('launchForm'),btn=$('launchBtn');
@@ -93,30 +122,34 @@ async function setup(){
      if(!/^[A-Za-z0-9]{1,10}$/.test(symbol))throw new Error('Ticker must be 1–10 English letters or numbers, without spaces or symbols.');
      await switchToTestnet();
      status('Requesting wallet connection…','pending');
-     const accounts=await timeout(window.ethereum.request({method:'eth_requestAccounts'}),'Wallet connection',60000);
+     const provider=walletProvider();
+     if(!provider)throw new Error('Bitget Wallet provider was not detected. Reopen PIXORUN in the Bitget DApp browser.');
+     const accounts=await timeout(provider.request({method:'eth_requestAccounts'}),'Wallet connection',60000);
      if(!accounts?.length)throw new Error('Wallet connection was not approved.');
      const account=ethers.getAddress(accounts[0]);
-     const walletProvider=new ethers.BrowserProvider(window.ethereum,'any');
-     const signer=await timeout(walletProvider.getSigner(account),'Wallet signer');
      const fee=creationFee??await readFactory.creationFee();
      const balance=await timeout(readProvider.getBalance(account),'Wallet balance');
      if(balance<fee)throw new Error('Insufficient testnet ETH. You need at least '+fmt(fee)+' ETH for the creation fee, plus gas.');
-     const factory=new ethers.Contract(FACTORY,ABI,signer);
      status('Simulating the exact launch transaction. Your wallet will not be charged during this check…','pending');
      await timeout(readFactory.createLaunch.staticCall(name,symbol,{from:account,value:fee}),'Launch simulation',45000);
-     const request=await timeout(factory.createLaunch.populateTransaction(name,symbol,{value:fee}),'Transaction preparation');
+     const request=await timeout(readFactory.createLaunch.populateTransaction(name,symbol,{value:fee}),'Transaction preparation');
      const gas=await timeout(readProvider.estimateGas({...request,from:account}),'Gas estimation',45000);
      const gasLimit=gas*120n/100n;
      const feeData=await readProvider.getFeeData();
-     const gasPrice=feeData.maxFeePerGas??feeData.gasPrice??0n;
+     const gasPrice=feeData.gasPrice??feeData.maxFeePerGas??0n;
      if(gasPrice&&balance<fee+(gasLimit*gasPrice))throw new Error('Your balance covers the creation fee but not the estimated network gas. Add more testnet ETH and retry.');
+     const bitget=isBitgetProvider(provider);
+     const nonce=bitget?null:await timeout(readProvider.getTransactionCount(account,'pending'),'Wallet nonce',30000);
+     const txRequest={from:account,to:request.to,data:request.data,value:ethers.toQuantity(fee),gas:ethers.toQuantity(gasLimit)};
+     if(!bitget){txRequest.nonce=ethers.toQuantity(nonce);txRequest.chainId=ethers.toQuantity(CHAIN_ID);}
+     if(gasPrice)txRequest.gasPrice=ethers.toQuantity(gasPrice);
      status('Simulation passed. Confirm the token launch in your wallet. Fee: '+fmt(fee)+' ETH plus estimated network gas.','success');
      setButton('WAITING FOR WALLET APPROVAL…',true);
-     const tx=await timeout(signer.sendTransaction({...request,gasLimit}),'Wallet transaction approval',90000);
+     const txHash=await timeout(provider.request({method:'eth_sendTransaction',params:[txRequest]}),'Wallet transaction approval',90000);
      status('Transaction submitted. Waiting for Robinhood Testnet confirmation…','pending');
-     const txLink=explorer('tx',tx.hash);
-     if($('resultTx')){$('resultTx').href=txLink;$('resultTx').textContent='View transaction '+tx.hash.slice(0,12)+'… ↗';}
-     const receipt=await timeout(tx.wait(), 'Transaction confirmation',180000);
+     const txLink=explorer('tx',txHash);
+     if($('resultTx')){$('resultTx').href=txLink;$('resultTx').textContent='View transaction '+txHash.slice(0,12)+'… ↗';}
+     const receipt=await timeout(readProvider.waitForTransaction(txHash,1,180000), 'Transaction confirmation',190000);
      if(!receipt||receipt.status!==1)throw new Error('The launch transaction failed on-chain. Review the transaction: '+txLink);
      let token='',curve='';
      for(const log of receipt.logs){try{const parsed=readFactory.interface.parseLog(log);if(parsed?.name==='LaunchCreated'){token=parsed.args.token;curve=parsed.args.curve;break;}}catch(_){}}
