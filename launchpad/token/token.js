@@ -328,9 +328,9 @@ async function refresh(){
  const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('Token loaded · enter an amount to see the exact on-chain fee quote.');
- await Promise.all([quoteBuy(),quoteSell(),loadMetadata(),loadTopHolders(true),loadCurveProgress()]);
-
- if(account)await refreshBalances();
+ // Keep the primary token screen responsive; load secondary panels independently.
+ Promise.allSettled([quoteBuy(),quoteSell(),loadMetadata(),loadTopHolders(true),loadCurveProgress()]);
+ if(account)refreshBalances().catch(e=>console.warn('Wallet balances refresh failed:',e));
 }
 
 async function setTradePercent(side,percent){
