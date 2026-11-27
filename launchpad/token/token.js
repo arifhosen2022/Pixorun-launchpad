@@ -98,26 +98,23 @@ function marketFmt(n,max=8){const value=Number(n);return Number.isFinite(value)?
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
 let marketTimeframe=300,marketChartPoints=[],marketChart=null,marketCandleSeries=null,marketVolumeSeries=null,marketChartReady=false,marketChartHasFitted=false;
 function buildMarketCandles(points){
+ // Each candle covers exactly the selected timeframe. Only intervals with
+ // confirmed trades are rendered; empty intervals must not create fake bars.
  const buckets=new Map();
- points.filter(p=>Number.isFinite(p.price)&&p.price>0&&Number.isFinite(p.time)).sort((a,b)=>a.time-b.time).forEach(p=>{
-  const t=Math.floor(p.time/marketTimeframe)*marketTimeframe;
-  if(!buckets.has(t))buckets.set(t,{time:t,open:p.price,high:p.price,low:p.price,close:p.price,volume:0});
-  const c=buckets.get(t);c.high=Math.max(c.high,p.price);c.low=Math.min(c.low,p.price);c.close=p.price;c.volume+=Math.max(0,Number(p.volume)||0);
- });
- const actual=[...buckets.values()].sort((a,b)=>a.time-b.time);
- if(!actual.length)return {candles:[],volumes:[]};
- // Keep a readable rolling window. Old trade history can span weeks; drawing
- // every empty interval between the oldest and newest trade crushes candles.
- const lastTime=actual[actual.length-1].time;
- const firstVisible=Math.max(actual[0].time,lastTime-marketTimeframe*59);
- const visible=actual.filter(c=>c.time>=firstVisible);
- // Standard no-trade bars carry the previous close and have zero volume.
- const rows=[];let previous=visible[0].open,idx=0;
- for(let t=visible[0].time;t<=lastTime;t+=marketTimeframe){
-  const c=visible[idx];
-  if(c&&c.time===t){rows.push(c);previous=c.close;idx++;}
-  else rows.push({time:t,open:previous,high:previous,low:previous,close:previous,volume:0});
- }
+ points
+  .filter(p=>Number.isFinite(p.price)&&p.price>0&&Number.isFinite(p.time))
+  .sort((a,b)=>a.time-b.time)
+  .forEach(p=>{
+   const t=Math.floor(p.time/marketTimeframe)*marketTimeframe;
+   if(!buckets.has(t))buckets.set(t,{time:t,open:p.price,high:p.price,low:p.price,close:p.price,volume:0});
+   const candle=buckets.get(t);
+   candle.high=Math.max(candle.high,p.price);
+   candle.low=Math.min(candle.low,p.price);
+   candle.close=p.price;
+   candle.volume+=Math.max(0,Number(p.volume)||0);
+  });
+ // Keep the latest 60 actual trading intervals, not 60 clock intervals.
+ const rows=[...buckets.values()].sort((a,b)=>a.time-b.time).slice(-60);
  return {
   candles:rows.map(({time,open,high,low,close})=>({time,open,high,low,close})),
   volumes:rows.map(c=>({time:c.time,value:c.volume,color:c.close>=c.open?'rgba(22,163,112,.38)':'rgba(220,72,100,.38)'}))
