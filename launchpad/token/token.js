@@ -99,24 +99,45 @@ function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
 let marketTimeframe=300,marketChartPoints=[],marketChart=null,marketCandleSeries=null,marketVolumeSeries=null,marketChartReady=false,marketChartHasFitted=false;
 function buildMarketCandles(points){
  const buckets=new Map();
- points.filter(p=>Number.isFinite(p.price)&&p.price>0&&Number.isFinite(p.time)).forEach(p=>{
+ points.filter(p=>Number.isFinite(p.price)&&p.price>0&&Number.isFinite(p.time)).sort((a,b)=>a.time-b.time).forEach(p=>{
   const t=Math.floor(p.time/marketTimeframe)*marketTimeframe;
   if(!buckets.has(t))buckets.set(t,{time:t,open:p.price,high:p.price,low:p.price,close:p.price,volume:0});
   const c=buckets.get(t);c.high=Math.max(c.high,p.price);c.low=Math.min(c.low,p.price);c.close=p.price;c.volume+=Math.max(0,Number(p.volume)||0);
  });
- const rows=[...buckets.values()].sort((a,b)=>a.time-b.time);
- return {candles:rows.map(({time,open,high,low,close})=>({time,open,high,low,close})),volumes:rows.map(c=>({time:c.time,value:c.volume,color:c.close>=c.open?'rgba(22,163,112,.42)':'rgba(220,72,100,.42)'}))};
+ const actual=[...buckets.values()].sort((a,b)=>a.time-b.time);
+ if(!actual.length)return {candles:[],volumes:[]};
+ // Standard no-trade bars carry the previous close and have zero volume.
+ const rows=[];let previous=actual[0].open,idx=0;
+ for(let t=actual[0].time;t<=actual[actual.length-1].time;t+=marketTimeframe){
+  const c=actual[idx];
+  if(c&&c.time===t){rows.push(c);previous=c.close;idx++;}
+  else rows.push({time:t,open:previous,high:previous,low:previous,close:previous,volume:0});
+ }
+ return {
+  candles:rows.map(({time,open,high,low,close})=>({time,open,high,low,close})),
+  volumes:rows.map(c=>({time:c.time,value:c.volume,color:c.close>=c.open?'rgba(22,163,112,.38)':'rgba(220,72,100,.38)'}))
+ };
+}
+function updateMarketOhlc(param){
+ const box=$('marketOhlc');if(!box)return;
+ const candle=param?.seriesData?.get(marketCandleSeries);
+ if(!candle){box.innerHTML='<span>O <b>—</b></span><span>H <b>—</b></span><span>L <b>—</b></span><span>C <b>—</b></span><span>VOL <b>—</b></span>';return;}
+ const volume=param.seriesData.get(marketVolumeSeries);
+ const fmt=v=>marketFmt(Number(v),12);
+ const cls=candle.close>=candle.open?'up':'down';
+ box.innerHTML='<span>O <b>'+fmt(candle.open)+'</b></span><span>H <b>'+fmt(candle.high)+'</b></span><span>L <b>'+fmt(candle.low)+'</b></span><span>C <b class="'+cls+'">'+fmt(candle.close)+'</b></span><span>VOL <b>'+(volume?marketFmt(volume.value,5):'0')+' ETH</b></span>';
 }
 function initMarketChart(){
  const host=$('marketChart');if(!host||!window.LightweightCharts)return false;
  host.innerHTML='';
+ const chartHeight=Math.max(260,host.clientHeight||390);
  marketChart=window.LightweightCharts.createChart(host,{
-  width:host.clientWidth||800,height:360,
-  layout:{background:{type:'solid',color:'#ffffff'},textColor:'#715b8c',fontFamily:'Inter,system-ui,sans-serif'},
+  width:host.clientWidth||800,height:chartHeight,
+  layout:{background:{type:'solid',color:'#ffffff'},textColor:'#715b8c',fontFamily:'Inter,system-ui,sans-serif',fontSize:12},
   grid:{vertLines:{color:'#f1ebf8'},horzLines:{color:'#f1ebf8'}},
-  crosshair:{mode:window.LightweightCharts.CrosshairMode.Normal,vertLine:{color:'#9872c7',width:1,style:2},horzLine:{color:'#9872c7',width:1,style:2}},
-  rightPriceScale:{borderColor:'#e8def2',scaleMargins:{top:.08,bottom:.24}},
-  timeScale:{borderColor:'#e8def2',timeVisible:true,secondsVisible:false,rightOffset:5,barSpacing:9},
+  crosshair:{mode:window.LightweightCharts.CrosshairMode.Normal,vertLine:{color:'#9872c7',width:1,style:2,labelBackgroundColor:'#7040b5'},horzLine:{color:'#9872c7',width:1,style:2,labelBackgroundColor:'#7040b5'}},
+  rightPriceScale:{borderColor:'#e8def2',scaleMargins:{top:.08,bottom:.24},entireTextOnly:true},
+  timeScale:{borderColor:'#e8def2',timeVisible:true,secondsVisible:false,rightOffset:6,barSpacing:9},
   localization:{priceFormatter:p=>marketFmt(p,12)}
  });
  marketCandleSeries=marketChart.addCandlestickSeries({
@@ -128,8 +149,9 @@ function initMarketChart(){
   scaleMargins:{top:.82,bottom:0},lastValueVisible:false,priceLineVisible:false
  });
  marketChart.priceScale('volume').applyOptions({scaleMargins:{top:.82,bottom:0},visible:false});
+ marketChart.subscribeCrosshairMove(updateMarketOhlc);
  marketChartReady=true;
- if(window.ResizeObserver){new ResizeObserver(entries=>{for(const e of entries){if(marketChart)marketChart.applyOptions({width:Math.max(300,Math.floor(e.contentRect.width))});}}).observe(host);}
+ if(window.ResizeObserver){new ResizeObserver(entries=>{for(const e of entries){if(marketChart)marketChart.applyOptions({width:Math.max(300,Math.floor(e.contentRect.width)),height:Math.max(260,Math.floor(e.contentRect.height))});}}).observe(host);}
  return true;
 }
 function drawMarketChart(points){
@@ -140,13 +162,15 @@ function drawMarketChart(points){
  const {candles,volumes}=buildMarketCandles(marketChartPoints);
  if(!candles.length){
   marketCandleSeries.setData([]);marketVolumeSeries.setData([]);
-  marketText('marketChartRange','Waiting for confirmed trades');
+  marketText('marketChartRange','Waiting for confirmed trades');updateMarketOhlc(null);
   return;
  }
  marketCandleSeries.setData(candles);marketVolumeSeries.setData(volumes);
  if(!marketChartHasFitted){marketChart.timeScale().fitContent();marketChartHasFitted=true;}
  marketText('marketChartRange',candles.length+' candles · '+({300:'5 minutes',900:'15 minutes',3600:'1 hour',14400:'4 hours',86400:'1 day'}[marketTimeframe]||'timeframe'));
+ updateMarketOhlc({seriesData:new Map([[marketCandleSeries,candles[candles.length-1]],[marketVolumeSeries,volumes[volumes.length-1]]])});
 }
+$('marketChartFit')?.addEventListener('click',()=>{if(marketChart){marketChart.timeScale().fitContent();marketChart.priceScale('right').applyOptions({autoScale:true});}});
 document.querySelectorAll('[data-chart-range]').forEach(button=>button.addEventListener('click',()=>{
  document.querySelectorAll('[data-chart-range]').forEach(b=>b.classList.toggle('active',b===button));
  marketTimeframe=Number(button.dataset.chartRange)||300;marketChartHasFitted=false;drawMarketChart(marketChartPoints);
