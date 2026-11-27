@@ -138,3 +138,46 @@ body .app-nav .app-menu nav a:hover,body .app-nav .app-menu nav a[aria-current="
 body .app-nav .app-menu nav a span{color:#8d70bd!important}
 body .app-nav .wallet-trigger{min-height:40px!important;padding:0 13px!important;border:1px solid #d8c7f1!important;border-radius:999px!important;background:#f0edfa!important;color:#5e40c0!important;font:700 11px/1 Inter,system-ui,sans-serif!important}
 @media(max-width:650px){body .app-nav{gap:8px!important;min-height:60px!important}body .app-nav .network-pill{display:none!important}body .app-nav .pixel-brand,body .app-nav .app-logo{font-size:16px!important}body .app-nav .pixel-brand-mark{width:34px!important;height:34px!important}body .app-nav .app-menu summary{width:39px!important;height:39px!important}body .app-nav .app-menu nav{min-width:205px!important}}
+
+
+/* PIXORUN professional light-purple system: global typography and surfaces */
+:root{--bg:#faf9fd;--panel:#fff;--line:#e8e2f1;--muted:#746d80;--white:#241b32;--violet:#7040b5;--lime:#7040b5;color-scheme:light}
+html,body{background:#faf9fd!important;color:#241b32!important}
+body,body button,body input,body select,body textarea{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
+body{background:radial-gradient(ellipse at 78% 0%,#8054c515,transparent 40%),#faf9fd!important}
+h1,h2,h3,h4,p,label,small,strong,span,a,button,input,select,textarea{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.pixel-hero h1,.pixel-kicker,.pixel-brand,.pixel-brand small,.pixel-scroll,.pixel-wallet small,.pixel-wallet a,.pixel-menu-hint b,.hint-icon,.pixel-home .pixel-cta,.pixel-home .pixel-docs{font-family:Inter,system-ui,sans-serif!important;letter-spacing:normal!important;text-shadow:none!important}
+.pixel-hero h1{font-size:clamp(38px,7vw,72px)!important;line-height:1.04!important;font-weight:800!important}
+.pixel-kicker{font-size:11px!important;font-weight:800!important;letter-spacing:.12em!important}
+.pixel-brand{font-size:18px!important;font-weight:800!important}
+.pixel-brand small{font-size:9px!important}
+.pixel-wallet small{font-size:10px!important}
+.pixel-wallet a{font-size:12px!important}
+.pixel-scroll{font-size:10px!important}
+.pixel-menu-hint b{font-size:13px!important;font-weight:800!important}
+.hint-icon{font-size:20px!important}
+.pixel-home .pixel-cta,.pixel-home .pixel-docs{font-size:12px!important;font-weight:700!important;letter-spacing:.02em!important}
+.app-card,.tool-card,.step,.pass-card,.pixel-menu-hint,.hero-panel,.pixel-hero{background:#fff!important;border:1px solid #e8e2f1!important;border-radius:18px!important;box-shadow:0 10px 32px #35204f0b!important}
+.app-card h1,.app-card h2,.app-card h3,.tool-card h3,.app-main h1,.page-main h1{color:#241b32!important}
+.app-label,.app-value,.app-field label{color:#40364e!important}
+.app-field input,.app-field textarea,.trade-field input,.trade-field select{background:#fff!important;color:#241b32!important;border:1px solid #ded5eb!important;border-radius:10px!important}
+.app-note,.beta-note{background:#f2edfb!important;border:1px solid #e4daf4!important;color:#5d526d!important}
+.app-btn,.primary-btn,.pixel-cta,.pixel-connect{background:#7040b5!important;border-color:#7040b5!important;color:#fff!important}
+.app-btn.secondary,.secondary-btn,.pixel-docs{background:#fff!important;color:#4b3470!important;border:1px solid #dcd1ec!important}
+.app-footer{color:#746d80!important}
+.market-stat,.balance-box{background:#fbfaff!important;border:1px solid #e8e2f1!important;border-radius:12px!important}
+.market-stat small,.balance-box small{color:#746d80!important}
+.market-chart{height:300px!important;min-height:300px!important;background:#fff!important;border:1px solid #e8e2f1!important;border-radius:12px!important}
+.market-chart svg{width:100%;height:100%;display:block}
+.market-chart-head h3,.market-trades-head h3{color:#241b32!important}
+.market-trade-row{border-color:#e8e2f1!important;background:#fff!important}
+.market-trade-row a,.social-links a{color:#7040b5!important}
+.trade-help{color:#746d80!important}
+.trade-percent{background:#f4effb!important;border-color:#ded3ed!important;color:#4b3470!important}
+.trade-percent:hover,.trade-percent:focus{background:#eae0f8!important;border-color:#9b7bcb!important}
+.max-btn{background:#f4effb!important;border-color:#ded3ed!important;color:#4b3470!important}
+#curveProgressCard{background:linear-gradient(135deg,#fff 0%,#f7f2ff 100%)!important;border:1px solid #e2d7f2!important}
+.curve-progress-track{height:11px;overflow:hidden;border-radius:999px;background:#e9e1f3}
+.curve-progress-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#8b5bd1,#6035a5);transition:width .35s ease}
+.curve-progress-meta{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+@media(max-width:650px){.market-chart{height:260px!important;min-height:260px!important}}

@@ -83,11 +83,35 @@ const marketFmt=(n,max=6)=>Number(n).toLocaleString('en-US',{maximumFractionDigi
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
 function drawMarketChart(points){
  const host=$('marketChart');if(!host)return;
- if(points.length<2){host.innerHTML='<p class="trade-help" style="padding:14px">Not enough confirmed trades in the last 24 hours to draw a chart.</p>';return;}
- const vals=points.map(p=>p.price).filter(Number.isFinite);if(vals.length<2){host.textContent='Chart unavailable';return;}
- const min=Math.min(...vals),max=Math.max(...vals),range=max-min||Math.max(max*0.01,1e-12);
- const coords=points.map((p,i)=>{const x=12+i*976/Math.max(1,points.length-1),y=164-(p.price-min)/range*145;return x.toFixed(1)+','+y.toFixed(1)}).join(' ');
- host.innerHTML='<svg viewBox="0 0 1000 180" preserveAspectRatio="none" role="img" aria-label="Price chart from confirmed on-chain trades"><polyline points="'+coords+'" fill="none" stroke="#a78bfa" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+ const valid=points.filter(p=>Number.isFinite(Number(p.price))&&Number(p.price)>0&&Number(p.time)>0);
+ if(valid.length<2){host.innerHTML='<p class="trade-help" style="padding:16px">Not enough confirmed trades in the last 24 hours to draw a candlestick chart.</p>';return;}
+ // One candle per hour; each candle is built only from confirmed on-chain trades.
+ const buckets=new Map();
+ for(const p of valid){const key=Math.floor(Number(p.time)/3600)*3600;let c=buckets.get(key);if(!c){c={time:key,open:Number(p.price),high:Number(p.price),low:Number(p.price),close:Number(p.price),count:0};buckets.set(key,c);}c.high=Math.max(c.high,Number(p.price));c.low=Math.min(c.low,Number(p.price));c.close=Number(p.price);c.count++;}
+ const candles=[...buckets.values()].sort((a,b)=>a.time-b.time);
+ if(candles.length<2){host.innerHTML='<p class="trade-help" style="padding:16px">Trades are confirmed, but at least two hourly candles are needed for this chart.</p>';return;}
+ const W=1000,H=300,left=76,right=18,top=18,bottom=34,plotW=W-left-right,plotH=H-top-bottom;
+ const values=candles.flatMap(c=>[c.high,c.low]),rawMin=Math.min(...values),rawMax=Math.max(...values),pad=(rawMax-rawMin)||Math.max(rawMax*.04,1e-12),min=Math.max(0,rawMin-pad*.12),max=rawMax+pad*.12,range=max-min||1;
+ const y=v=>top+(max-v)/range*plotH,step=plotW/candles.length,cw=Math.max(5,Math.min(22,step*.56));
+ let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Hourly candlestick price chart from confirmed on-chain trades">';
+ for(let i=0;i<=4;i++){const yy=top+i*plotH/4,val=max-i*range/4;svg+='<line x1="'+left+'" y1="'+yy.toFixed(1)+'" x2="'+(W-right)+'" y2="'+yy.toFixed(1)+'" stroke="#eee8f5" stroke-width="1"/><text x="'+(left-9)+'" y="'+(yy+4).toFixed(1)+'" text-anchor="end" fill="#82778f" font-size="11">'+marketFmt(val,6)+'</text>';}
+ candles.forEach((c,i)=>{const x=left+step*(i+.5),up=c.close>=c.open,color=up?'#159b72':'#dc596b',yo=y(c.open),yc=y(c.close),bodyY=Math.min(yo,yc),bodyH=Math.max(2,Math.abs(yc-yo));svg+='<line x1="'+x.toFixed(1)+'" y1="'+y(c.high).toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+y(c.low).toFixed(1)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-cw/2).toFixed(1)+'" y="'+bodyY.toFixed(1)+'" width="'+cw.toFixed(1)+'" height="'+bodyH.toFixed(1)+'" rx="1" fill="'+color+'"><title>'+new Date(c.time*1000).toLocaleString()+' · O '+marketFmt(c.open,8)+' · H '+marketFmt(c.high,8)+' · L '+marketFmt(c.low,8)+' · C '+marketFmt(c.close,8)+' · '+c.count+' trades</title></rect>';});
+ const labelIdx=[0,Math.floor((candles.length-1)/2),candles.length-1];labelIdx.forEach(i=>{const x=left+step*(i+.5);svg+='<text x="'+x.toFixed(1)+'" y="'+(H-10)+'" text-anchor="middle" fill="#82778f" font-size="11">'+new Date(candles[i].time*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</text>';});
+ svg+='</svg>';host.innerHTML=svg;
+}
+async function updateCurveProgress(){
+ const card=$('curveProgressCard');if(!card||!curve)return;
+ try{
+  const [sold,remaining]=await Promise.all([curve.totalSold(),curve.realToken()]);
+  const allocation=793100000n*10n**BigInt(decimals);
+  const pct=Number(sold*10000n/allocation)/100;
+  const bounded=Math.max(0,Math.min(100,pct));
+  $('curveProgressPercent').textContent=graduated?'100% · Liftoff complete':bounded.toFixed(2)+'%';
+  $('curveProgressFill').style.width=(graduated?100:bounded)+'%';
+  $('curveTokensSold').textContent=fmt(sold,decimals);
+  $('curveTokensRemaining').textContent=fmt(remaining,decimals);
+  $('curveProgressNote').textContent=graduated?'The bonding curve is complete. This token has moved to its PIXORUN Swap pool.':'Progress = tokens sold ÷ 793,100,000-token curve allocation. Values are read directly from the bonding curve contract.';
+ }catch(e){$('curveProgressPercent').textContent='Unavailable';$('curveProgressNote').textContent='Could not read curve progress from Robinhood Chain Testnet. Tap Retry to refresh.';}
 }
 async function findBlockAtOrAfter(target,latest){let lo=0,hi=latest;while(lo<hi){const mid=Math.floor((lo+hi)/2),b=await withTimeout(provider.getBlock(mid),'Block timestamp');if(!b)throw Error('Could not read block timestamp.');if(Number(b.timestamp)<target)lo=mid+1;else hi=mid;}return lo;}
 async function loadMarketData(){
@@ -180,7 +204,7 @@ async function refresh(){
  const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('Token loaded · enter an amount to see the exact on-chain fee quote.');
- await Promise.all([quoteBuy(),quoteSell(),loadMetadata()]);
+ await Promise.all([quoteBuy(),quoteSell(),loadMetadata(),updateCurveProgress()]);
  loadMarketData().catch(e=>{console.warn('Market data unavailable:',e);marketText('marketUpdated','Market data temporarily unavailable');marketText('marketDataNote','Robinhood Chain RPC is slow or rate-limited. Token details and trading remain available; tap Retry to refresh.');});
  if(account)await refreshBalances();
 }
