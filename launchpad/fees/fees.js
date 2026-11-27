@@ -7,12 +7,12 @@ async function load(){
  try{const c=new ethers.Contract(FEE,abi,provider),[staking,totalCreator,totalTeam]=await Promise.all([c.stakingRewards(),c.totalCreatorAccrued(),c.totalTeamAccrued()]);
  $('feeContract')&&($('feeContract').textContent=FEE);$('feeContract')&&($('feeContract').href=EXPLORER+'/address/'+FEE);
  $('feeStaking')&&($('feeStaking').textContent=staking);$('feeCreatorTotal')&&($('feeCreatorTotal').textContent=fmt(totalCreator));$('feeTeamTotal')&&($('feeTeamTotal').textContent=fmt(totalTeam));
- const p=window.bitkeep?.ethereum||window.ethereum,accounts=p?await p.request({method:'eth_accounts'}):[],account=accounts?.[0];
+ const p=(window.ethereum?.isMetaMask?window.ethereum:(window.bitkeep?.ethereum||window.ethereum)),accounts=p?await p.request({method:'eth_accounts'}):[],account=accounts?.[0];
  if(!account){$('feeClaimable')&&($('feeClaimable').textContent='Connect wallet to view');$('feeClaim')&&($('feeClaim').disabled=true);return;}
  $('feeWallet')&&($('feeWallet').textContent=account);const amount=await c.creatorClaimable(account);$('feeClaimable')&&($('feeClaimable').textContent=fmt(amount));$('feeClaim')&&($('feeClaim').disabled=amount===0n);
  $('feeStatus')&&($('feeStatus').textContent=amount>0n?'Creator fees are available to claim.':'No creator trading fees are claimable for this wallet yet.');
  }catch(e){$('feeStatus')&&($('feeStatus').textContent='Could not read fee contract: '+(e.shortMessage||e.message||'RPC error'));}
 }
 $('feeClaim')?.addEventListener('click',async()=>{try{const p=window.bitkeep?.ethereum||window.ethereum;if(!p)throw Error('Open this page in your EVM wallet browser.');await p.request({method:'eth_requestAccounts'});const signer=await new ethers.BrowserProvider(p).getSigner(),c=new ethers.Contract(FEE,abi,signer);$('feeClaim').disabled=true;$('feeStatus').textContent='Confirm the claim in your wallet…';const tx=await c.claimCreatorFees();$('feeStatus').textContent='Claim submitted: '+tx.hash;await tx.wait();$('feeStatus').textContent='Creator fees claimed successfully.';await load();}catch(e){$('feeStatus').textContent=e.shortMessage||e.message||'Claim failed.';$('feeClaim').disabled=false;}});
-load();
+const activeProvider=window.ethereum?.isMetaMask?window.ethereum:(window.bitkeep?.ethereum||window.ethereum);activeProvider?.on?.('accountsChanged',load);load();
 })();
