@@ -3,7 +3,7 @@
 const FACTORY='0xD3B77BaA03b128f348fc45c133248b0070C1b7bc',SWAP_FACTORY='0xCC423d983E12f044F9F930463ADe7Ce150a8A644',RPC='https://rpc.testnet.chain.robinhood.com',EXPLORER='https://explorer.testnet.chain.robinhood.com',CHAIN='0xb626';
 const factoryAbi=['function curveOf(address) view returns(address)','function creatorOf(address) view returns(address)','function liftoffCompleted(address) view returns(bool)'];
 const tokenAbi=['function name() view returns(string)','function symbol() view returns(string)','function decimals() view returns(uint8)','function totalSupply() view returns(uint256)','function balanceOf(address) view returns(uint256)','function allowance(address,address) view returns(uint256)','function approve(address,uint256) returns(bool)'];
-const curveAbi=['function graduated() view returns(bool)','function totalSold() view returns(uint256)','function realNative() view returns(uint256)','function realToken() view returns(uint256)','function quoteBuy(uint256) view returns(uint256,uint256,uint256)','function quoteSell(uint256) view returns(uint256,uint256,uint256)','function buy(uint256) payable returns(uint256)','function sell(uint256,uint256) returns(uint256)'];
+const curveAbi=['function graduated() view returns(bool)','function totalSold() view returns(uint256)','function realNative() view returns(uint256)','function realToken() view returns(uint256)','function virtualNative() view returns(uint256)','function virtualToken() view returns(uint256)','function quoteBuy(uint256) view returns(uint256,uint256,uint256)','function quoteSell(uint256) view returns(uint256,uint256,uint256)','function buy(uint256) payable returns(uint256)','function sell(uint256,uint256) returns(uint256)'];
 const swapFactoryAbi=['function getPair(address) view returns(address)'];
 const pairAbi=['function reserveNative() view returns(uint112)','function reserveToken() view returns(uint112)','function swapNativeForToken(uint256) payable returns(uint256)','function swapTokenForNative(uint256,uint256) returns(uint256)'];
 const $=id=>document.getElementById(id),provider=new ethers.JsonRpcProvider(RPC,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true,batchMaxCount:1});
@@ -45,13 +45,26 @@ function showMetadata(m){
  about.hidden=!has;
 }
 async function loadMetadata(){try{if(window.PIXORUN_REGISTRY){const row=await window.PIXORUN_REGISTRY.getLaunch(tokenAddress);showMetadata(row);}}catch(e){console.warn('Token metadata could not be loaded',e);}}
+async function getBuyQuote(amount){
+ if(mode==='swap'){const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const fee=amount*100n/10000n,net=amount-fee;return {out:net*rt/(rn+net),fee,net,acceptedGross:amount,refund:0n};}
+ try{const q=await curve.quoteBuy(amount);return {out:q[0],fee:q[1],net:q[2],acceptedGross:amount,refund:0n};}
+ catch(original){
+  const [remaining,vn,vt]=await Promise.all([curve.realToken(),curve.virtualNative(),curve.virtualToken()]);
+  if(remaining===0n||vt<=remaining)throw original;
+  const numerator=vn*remaining,denominator=vt-remaining;
+  const requiredNet=(numerator+denominator-1n)/denominator;
+  let gross=(requiredNet*10000n+9899n)/9900n;
+  while(gross-gross*100n/10000n<requiredNet)gross++;
+  if(amount<gross)throw original;
+  const fee=gross*100n/10000n,net=gross-fee;
+  return {out:remaining,fee,net,acceptedGross:gross,refund:amount-gross};
+ }
+}
 async function quoteBuy(){
  const value=$('buyAmount')?.value||'';if(!value||!Number.isFinite(Number(value))||Number(value)<=0){$('buyQuote').textContent='Enter an ETH amount to get a live quote.';$('buyFee').textContent='';return;}
- try{const amount=ethers.parseEther(value);let out,fee,net;
- if(mode==='curve'){const q=await curve.quoteBuy(amount);out=q[0];fee=q[1];net=q[2];}
- else{const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);fee=amount*100n/10000n;net=amount-fee;out=net*rt/(rn+net);}
- $('buyQuote').textContent='Estimated receive: '+fmt(out,decimals)+' '+$('tokenSymbol').textContent;
- $('buyFee').textContent='Trade fee: '+fmt(fee)+' ETH (1%) · Net ETH to market: '+fmt(net)+' ETH · Network gas is separate.';
+ try{const amount=ethers.parseEther(value);const q=await getBuyQuote(amount);
+ $('buyQuote').textContent='Estimated receive: '+fmt(q.out,decimals)+' '+$('tokenSymbol').textContent+(q.refund?' · Estimated refund: '+fmt(q.refund)+' ETH':'');
+ $('buyFee').textContent='Trade fee: '+fmt(q.fee)+' ETH (1%) · Net ETH to market: '+fmt(q.net)+' ETH · Network gas is separate.';
  }catch(e){$('buyQuote').textContent=e.shortMessage||e.reason||e.message||'Quote unavailable';$('buyFee').textContent='';}
 }
 async function quoteSell(){
@@ -95,8 +108,8 @@ async function buy(){
   if(!account)await connect();await ensureNetwork();
   const amount=ethers.parseEther($('buyAmount').value||'0');if(amount<=0n)throw Error('Enter an ETH amount greater than zero.');
   const signer=await new ethers.BrowserProvider(wallet()).getSigner();let minOut,contract;
-  if(mode==='curve'){const q=await curve.quoteBuy(amount);minOut=minAfterSlippage(q[0]);contract=new ethers.Contract(curveAddress,curveAbi,signer);}
-  else{const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const net=amount-amount*100n/10000n;const out=net*rt/(rn+net);minOut=minAfterSlippage(out);contract=new ethers.Contract(pairAddress,pairAbi,signer);}
+  if(mode==='curve'){const q=await getBuyQuote(amount);minOut=minAfterSlippage(q.out);contract=new ethers.Contract(curveAddress,curveAbi,signer);}
+  else{const q=await getBuyQuote(amount);minOut=minAfterSlippage(q.out);contract=new ethers.Contract(pairAddress,pairAbi,signer);}
   const gas=mode==='curve'?await contract.buy.estimateGas(minOut,{value:amount}):await contract.swapNativeForToken.estimateGas(minOut,{value:amount});const feeData=await provider.getFeeData();const gasPrice=feeData.maxFeePerGas??feeData.gasPrice??0n;ethBalance=await provider.getBalance(account);
   if(ethBalance<amount+(gas*gasPrice*12n/10n))throw Error('Insufficient ETH for this buy plus estimated gas. Reduce the buy amount or add testnet ETH.');
   setStatus('Confirm the buy in your wallet. The quote is protected by '+slippage()+'% slippage.');
