@@ -47,5 +47,23 @@ async function getMarketData(address){
  }catch(e){console.warn('Supabase trades request failed:',e);}
  return {snapshot,trades};
 }
-window.PIXORUN_REGISTRY={listLaunches,getLaunch,registerLaunch,getMarketData,syncTrade};
+async function getTopHolders(address,offset=0,limit=50){
+ if(!/^0x[a-fA-F0-9]{40}$/.test(address||''))throw Error('Invalid token address.');
+ const base=URL+'/rest/v1/',token=address.toLowerCase();
+ const sq=new URLSearchParams({select:'holder_count',chain_id:'eq.46630',token_address:'eq.'+token,limit:'1'});
+ const sr=await fetch(base+'market_snapshots?'+sq,{headers,cache:'no-store'});
+ if(!sr.ok)throw Error('Holder status request failed ('+sr.status+').');
+ const snaps=await sr.json(),count=snaps[0]?.holder_count;
+ if(count===null||count===undefined)return {complete:false,holderCount:null,holders:[],offset,hasMore:false};
+ const stateQ=new URLSearchParams({select:'last_scanned_block,updated_at',chain_id:'eq.46630',token_address:'eq.'+token,limit:'1'});
+ const stateR=await fetch(base+'token_holder_indexer_state?'+stateQ,{headers,cache:'no-store'});
+ if(!stateR.ok)throw Error('Holder index status unavailable ('+stateR.status+').');
+ const states=await stateR.json(),state=states[0]||null;
+ const q=new URLSearchParams({select:'wallet_address,balance_raw,updated_at',chain_id:'eq.46630',token_address:'eq.'+token,balance_raw:'gt.0',order:'balance_raw.desc,wallet_address.asc',limit:String(limit),offset:String(offset)});
+ const r=await fetch(base+'token_holder_balances?'+q,{headers,cache:'no-store'});
+ if(!r.ok)throw Error('Holder list request failed ('+r.status+').');
+ const holders=await r.json();
+ return {complete:true,holderCount:Number(count),holders:Array.isArray(holders)?holders:[],offset,hasMore:offset+(holders?.length||0)<Number(count),indexedBlock:state?.last_scanned_block??null,updatedAt:state?.updated_at??null};
+}
+window.PIXORUN_REGISTRY={listLaunches,getLaunch,registerLaunch,getMarketData,getTopHolders,syncTrade};
 })();
