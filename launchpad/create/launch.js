@@ -60,13 +60,9 @@ async function switchToTestnet(){
  }
  chain=await walletChainId();
  if(chain!==CHAIN_ID)throw new Error('Robinhood Chain Testnet was not selected. Switch the network in your wallet and try again.');
- try{
-   await timeout(window.ethereum.request({method:'eth_blockNumber',params:[]}), 'Wallet RPC block check',15000);
- }catch(firstError){
-   status('Your wallet is on Robinhood Testnet but its saved RPC is not responding. Updating the network RPC…','pending');
-   await refreshWalletNetwork();
-   await timeout(window.ethereum.request({method:'eth_blockNumber',params:[]}), 'Wallet RPC still unavailable',20000);
- }
+ // Do not use eth_blockNumber through the wallet provider here. Some mobile wallets
+ // fail this read even while they can still sign and submit a transaction.
+ // All chain reads are performed through the independent readProvider.
 }
 async function setup(){
  const form=$('launchForm'),btn=$('launchBtn');
@@ -113,27 +109,27 @@ async function setup(){
      const accounts=await timeout(window.ethereum.request({method:'eth_requestAccounts'}),'Wallet connection',60000);
      if(!accounts?.length)throw new Error('Wallet connection was not approved.');
      const account=ethers.getAddress(accounts[0]);
-     const walletProvider=new ethers.BrowserProvider(window.ethereum,'any');
-     const signer=await timeout(walletProvider.getSigner(account),'Wallet signer');
      const fee=creationFee??await readFactory.creationFee();
      const balance=await timeout(readProvider.getBalance(account),'Wallet balance');
      if(balance<fee)throw new Error('Insufficient testnet ETH. You need at least '+fmt(fee)+' ETH for the creation fee, plus gas.');
-     const factory=new ethers.Contract(FACTORY,ABI,signer);
      status('Simulating the exact launch transaction. Your wallet will not be charged during this check…','pending');
      await timeout(readFactory.createLaunch.staticCall(name,symbol,{from:account,value:fee}),'Launch simulation',45000);
-     const request=await timeout(factory.createLaunch.populateTransaction(name,symbol,{value:fee}),'Transaction preparation');
+     const request=await timeout(readFactory.createLaunch.populateTransaction(name,symbol,{value:fee}),'Transaction preparation');
      const gas=await timeout(readProvider.estimateGas({...request,from:account}),'Gas estimation',45000);
      const gasLimit=gas*120n/100n;
      const feeData=await readProvider.getFeeData();
-     const gasPrice=feeData.maxFeePerGas??feeData.gasPrice??0n;
+     const gasPrice=feeData.gasPrice??feeData.maxFeePerGas??0n;
      if(gasPrice&&balance<fee+(gasLimit*gasPrice))throw new Error('Your balance covers the creation fee but not the estimated network gas. Add more testnet ETH and retry.');
+     const nonce=await timeout(readProvider.getTransactionCount(account,'pending'),'Wallet nonce',30000);
+     const txRequest={from:account,to:request.to,data:request.data,value:ethers.toQuantity(fee),gas:ethers.toQuantity(gasLimit),nonce:ethers.toQuantity(nonce),chainId:ethers.toQuantity(CHAIN_ID)};
+     if(gasPrice)txRequest.gasPrice=ethers.toQuantity(gasPrice);
      status('Simulation passed. Confirm the token launch in your wallet. Fee: '+fmt(fee)+' ETH plus estimated network gas.','success');
      setButton('WAITING FOR WALLET APPROVAL…',true);
-     const tx=await timeout(signer.sendTransaction({...request,gasLimit}),'Wallet transaction approval',90000);
+     const txHash=await timeout(window.ethereum.request({method:'eth_sendTransaction',params:[txRequest]}),'Wallet transaction approval',90000);
      status('Transaction submitted. Waiting for Robinhood Testnet confirmation…','pending');
-     const txLink=explorer('tx',tx.hash);
-     if($('resultTx')){$('resultTx').href=txLink;$('resultTx').textContent='View transaction '+tx.hash.slice(0,12)+'… ↗';}
-     const receipt=await timeout(tx.wait(), 'Transaction confirmation',180000);
+     const txLink=explorer('tx',txHash);
+     if($('resultTx')){$('resultTx').href=txLink;$('resultTx').textContent='View transaction '+txHash.slice(0,12)+'… ↗';}
+     const receipt=await timeout(readProvider.waitForTransaction(txHash,1,180000), 'Transaction confirmation',190000);
      if(!receipt||receipt.status!==1)throw new Error('The launch transaction failed on-chain. Review the transaction: '+txLink);
      let token='',curve='';
      for(const log of receipt.logs){try{const parsed=readFactory.interface.parseLog(log);if(parsed?.name==='LaunchCreated'){token=parsed.args.token;curve=parsed.args.curve;break;}}catch(_){}}
