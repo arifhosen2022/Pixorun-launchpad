@@ -96,13 +96,38 @@ const curveEvents=new ethers.Interface(['event Bought(address indexed buyer,uint
 const pairEvents=new ethers.Interface(['event Swap(address indexed sender,bool nativeToToken,uint256 amountIn,uint256 amountOut,uint256 fee)']);
 const marketFmt=(n,max=6)=>Number(n).toLocaleString('en-US',{maximumFractionDigits:max});
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
+let marketTimeframe=300,marketChartPoints=[];
 function drawMarketChart(points){
+ marketChartPoints=points||[];
  const host=$('marketChart');if(!host)return;
- if(points.length<2){host.innerHTML='<p class="trade-help" style="padding:14px">Not enough confirmed trades in the last 24 hours to draw a chart.</p>';return;}
- const vals=points.map(p=>p.price).filter(Number.isFinite);if(vals.length<2){host.textContent='Chart unavailable';return;}
- const min=Math.min(...vals),max=Math.max(...vals),range=max-min||Math.max(max*0.01,1e-12);
- const coords=points.map((p,i)=>{const x=12+i*976/Math.max(1,points.length-1),y=164-(p.price-min)/range*145;return x.toFixed(1)+','+y.toFixed(1)}).join(' ');
- host.innerHTML='<svg viewBox="0 0 1000 180" preserveAspectRatio="none" role="img" aria-label="Price chart from confirmed on-chain trades"><polyline points="'+coords+'" fill="none" stroke="#a78bfa" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+ if(!points.length){host.innerHTML='<p class="trade-help" style="padding:14px">No confirmed trades yet. Candles will appear after the first trade.</p>';return;}
+ const buckets=new Map();
+ points.filter(p=>Number.isFinite(p.price)&&p.price>0).forEach(p=>{
+  const t=Math.floor(p.time/marketTimeframe)*marketTimeframe;
+  if(!buckets.has(t))buckets.set(t,{time:t,open:p.price,high:p.price,low:p.price,close:p.price});
+  else{const c=buckets.get(t);c.high=Math.max(c.high,p.price);c.low=Math.min(c.low,p.price);c.close=p.price;}
+ });
+ const candles=[...buckets.values()].sort((a,b)=>a.time-b.time).slice(-80);
+ if(!candles.length){host.textContent='Chart unavailable';return;}
+ const min=Math.min(...candles.map(c=>c.low)),max=Math.max(...candles.map(c=>c.high)),range=max-min||Math.max(max*.02,1e-12),pad=range*.12,lo=Math.max(0,min-pad),hi=max+pad;
+ const y=v=>260-(v-lo)/(hi-lo||1)*220,step=940/candles.length,body=Math.max(4,Math.min(12,step*.58));
+ const grid=[0,1,2,3].map(i=>{const yy=24+i*73;const val=hi-(hi-lo)*i/3;return '<line x1="52" y1="'+yy+'" x2="980" y2="'+yy+'" stroke="#eee6f8" stroke-width="1"/><text x="8" y="'+(yy-4)+'" fill="#80699b" font-size="11">'+marketFmt(val,8)+'</text>';}).join('');
+ const bars=candles.map((c,i)=>{const x=58+i*step+step/2,up=c.close>=c.open,color=up?'#15966a':'#d94b67',top=y(Math.max(c.open,c.close)),bottom=y(Math.min(c.open,c.close)),h=Math.max(2,bottom-top);return '<line x1="'+x+'" y1="'+y(c.high)+'" x2="'+x+'" y2="'+y(c.low)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-body/2)+'" y="'+top+'" width="'+body+'" height="'+h+'" rx="1" fill="'+color+'"><title>'+new Date(c.time*1000).toLocaleString()+' · O '+marketFmt(c.open,8)+' · H '+marketFmt(c.high,8)+' · L '+marketFmt(c.low,8)+' · C '+marketFmt(c.close,8)+'</title></rect>';}).join('');
+ const last=candles[candles.length-1],label=marketFmt(last.close,10)+' ETH';
+ host.innerHTML='<svg viewBox="0 0 1000 290" preserveAspectRatio="none" role="img" aria-label="OHLC candlestick chart">'+grid+bars+'<text x="980" y="286" text-anchor="end" fill="#70558f" font-size="11">'+label+'</text></svg>';
+ marketText('marketChartRange',candles.length+' candles · '+({300:'5 minutes',900:'15 minutes',3600:'1 hour',14400:'4 hours',86400:'1 day'}[marketTimeframe]||'timeframe'));
+}
+document.querySelectorAll('[data-chart-range]').forEach(button=>button.addEventListener('click',()=>{
+ document.querySelectorAll('[data-chart-range]').forEach(b=>b.classList.toggle('active',b===button));
+ marketTimeframe=Number(button.dataset.chartRange)||300;drawMarketChart(marketChartPoints);
+}));
+async function syncConfirmedTrade(tx){
+ try{
+  marketText('marketUpdated','Trade confirmed · syncing now…');
+  const result=await window.PIXORUN_REGISTRY.syncTrade(tokenAddress,tx.hash);
+  await loadMarketData();
+  marketText('marketUpdated','Live · block '+(result.block||'confirmed')+' · '+new Date().toLocaleTimeString());
+ }catch(e){console.warn('Instant market sync failed; background indexer will retry:',e);marketText('marketUpdated','Trade confirmed · indexer syncing');}
 }
 async function findBlockAtOrAfter(target,latest){let lo=0,hi=latest;while(lo<hi){const mid=Math.floor((lo+hi)/2),b=await withTimeout(provider.getBlock(mid),'Block timestamp');if(!b)throw Error('Could not read block timestamp.');if(Number(b.timestamp)<target)lo=mid+1;else hi=mid;}return lo;}
 async function loadMarketData(){
@@ -221,7 +246,7 @@ async function buy(){
   if(ethBalance<amount+(gas*gasPrice*12n/10n))throw Error('Insufficient ETH for this buy plus estimated gas. Reduce the buy amount or add testnet ETH.');
   setStatus('Confirm the buy in your wallet. The quote is protected by '+slippage()+'% slippage.');
   const tx=mode==='curve'?await contract.buy(minOut,{value:amount,gasLimit:gas*12n/10n}):await contract.swapNativeForToken(minOut,{value:amount,gasLimit:gas*12n/10n});setStatus('Buy submitted: '+tx.hash);await tx.wait();
-  setStatus('Buy confirmed on Robinhood Chain Testnet.');await refresh();
+  setStatus('Buy confirmed on Robinhood Chain Testnet.');await syncConfirmedTrade(tx);await refresh();
  }catch(e){setStatus(e.shortMessage||e.reason||e.message||'Buy failed.');}finally{busy=false;$('buyBtn').disabled=!canTrade;}
 }
 async function sell(){
@@ -238,7 +263,7 @@ async function sell(){
   else{const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const gross=amount*rn/(rt+amount),out=gross-gross*100n/10000n;minOut=minAfterSlippage(out);contract=new ethers.Contract(pairAddress,pairAbi,signer);}
   setStatus('Confirm the sell in your wallet. The minimum receive amount includes '+slippage()+'% slippage protection.');
   const tx=mode==='curve'?await contract.sell(amount,minOut):await contract.swapTokenForNative(amount,minOut);
-  setStatus('Sell submitted: '+tx.hash);await tx.wait();setStatus('Sell confirmed on Robinhood Chain Testnet.');await refresh();
+  setStatus('Sell submitted: '+tx.hash);await tx.wait();setStatus('Sell confirmed on Robinhood Chain Testnet.');await syncConfirmedTrade(tx);await refresh();
  }catch(e){setStatus(e.shortMessage||e.reason||e.message||'Sell failed.');}finally{busy=false;$('sellBtn').disabled=!canTrade;}
 }
 $('buyAmount')?.addEventListener('input',quoteBuy);$('sellAmount')?.addEventListener('input',quoteSell);$('slippage')?.addEventListener('change',()=>{quoteBuy();quoteSell();});
@@ -252,5 +277,6 @@ const p=wallet();p?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAd
 p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
 setStatus(cached?'Showing saved token details · checking the blockchain…':'Starting token data request…');
 loadMarketData().catch(e=>console.warn('Supabase market data unavailable:',e));
+setInterval(()=>loadMarketData().catch(e=>console.warn('Market refresh failed:',e)),5000);
 refresh().then(readConnectedWallet).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
 })();
