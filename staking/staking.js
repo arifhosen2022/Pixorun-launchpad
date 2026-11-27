@@ -10,6 +10,8 @@ const stakingAbi=['function stakingToken() view returns(address)','function tota
 let config=null,readProvider=null,tokenRead=null,stakingRead=null,decimals=18,symbol='PIXORUN',busy=false,account=null,signer=null,tokenWrite=null,stakingWrite=null,configReady=false,lastWalletDetail=null;
 const status=(message,type='info')=>{const el=$('stakingStatus');if(el){el.textContent=message;el.dataset.type=type;}};
 const fmt=(value,d=decimals)=>{try{return Number(ethers.formatUnits(value,d)).toLocaleString(undefined,{maximumFractionDigits:6});}catch(_){return '—';}};
+const fmtCompact=(value,d=decimals,unit=symbol)=>{try{const exact=fmt(value,d),n=Number(ethers.formatUnits(value,d));let shown;if(!Number.isFinite(n))shown='—';else if(n>=1e9)shown=(n/1e9).toFixed(2).replace(/\.00$/,'')+'B';else if(n>=1e6)shown=(n/1e6).toFixed(2).replace(/\.00$/,'')+'M';else if(n>=1e3)shown=(n/1e3).toFixed(2).replace(/\.00$/,'')+'K';else shown=n.toLocaleString(undefined,{maximumFractionDigits:2});return {text:shown+' '+unit,title:exact+' '+unit};}catch(_){return {text:'—',title:'—'};}};
+const setCompactAmount=(id,value,d=decimals,unit=symbol)=>{const el=$(id);if(!el)return;const result=fmtCompact(value,d,unit);el.textContent=result.text;el.title=result.title;el.setAttribute('aria-label',result.title);};
 const explorerAddress=a=>EXPLORER+'/address/'+a;
 const setButtons=enabled=>['stakeBtn','unstakeBtn','claimBtn'].forEach(id=>{if($(id))$(id).disabled=!enabled;});
 async function loadConfig(){
@@ -38,12 +40,12 @@ async function loadConfig(){
 async function refresh(){
  if(!tokenRead||!stakingRead)return;
  const [total]=await Promise.all([stakingRead.totalStaked()]);
- $('totalStaked').textContent=fmt(total)+' '+symbol;
- if(!account){$('yourStake').textContent='0 '+symbol;$('pendingRewards').textContent='—';$('walletBalance').textContent='—';$('stakeAvailableBalance').textContent='Connect wallet from the site header';setButtons(false);return;}
+ setCompactAmount('totalStaked',total,decimals,symbol);
+ if(!account){setCompactAmount('yourStake',0n,decimals,symbol);$('pendingRewards').textContent='—';$('pendingRewards').removeAttribute('title');$('pendingRewards').removeAttribute('aria-label');$('walletBalance').textContent='—';$('walletBalance').removeAttribute('title');$('walletBalance').removeAttribute('aria-label');$('stakeAvailableBalance').textContent='Connect wallet from the site header';setButtons(false);return;}
  const [staked,reward,balance]=await Promise.all([stakingRead.balanceOf(account),stakingRead.earned(account),tokenRead.balanceOf(account)]);
- $('yourStake').textContent=fmt(staked)+' '+symbol;
- $('pendingRewards').textContent=fmt(reward,18)+' ETH';
- $('walletBalance').textContent=fmt(balance)+' '+symbol;$('stakeAvailableBalance').textContent=fmt(balance)+' '+symbol+' available';
+ setCompactAmount('yourStake',staked,decimals,symbol);
+ setCompactAmount('pendingRewards',reward,18,'ETH');
+ setCompactAmount('walletBalance',balance,decimals,symbol);$('stakeAvailableBalance').textContent=fmt(balance)+' '+symbol+' available';
  $('unstakeBtn').disabled=busy||staked===0n;
  $('claimBtn').disabled=busy||reward===0n;
 }
