@@ -33,7 +33,7 @@ async function syncTrade(address,txHash){
 async function getMarketData(address){
  if(!/^0x[a-fA-F0-9]{40}$/.test(address||''))throw Error('Invalid token address.');
  const base=URL+'/rest/v1/',token=address.toLowerCase();
- const snapQ=new URLSearchParams({select:'chain_id,token_address,price_native,market_cap_native,liquidity_native,liquidity_token,volume_24h_native,price_change_24h,trades_24h,last_trade_at,indexed_block,data_updated_at',chain_id:'eq.46630',token_address:'eq.'+token,limit:'1'});
+ const snapQ=new URLSearchParams({select:'chain_id,token_address,price_native,market_cap_native,liquidity_native,liquidity_token,volume_24h_native,price_change_24h,trades_24h,holder_count,last_trade_at,indexed_block,data_updated_at',chain_id:'eq.46630',token_address:'eq.'+token,limit:'1'});
  const sr=await fetch(base+'market_snapshots?'+snapQ,{headers,cache:'no-store'});
  if(!sr.ok)throw Error('Supabase snapshot request failed ('+sr.status+').');
  const snaps=await sr.json(),snapshot=snaps[0]||null;
