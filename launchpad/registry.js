@@ -32,7 +32,7 @@ async function getMarketData(address){
  if(!sr.ok)throw Error('Supabase snapshot request failed ('+sr.status+').');
  const snaps=await sr.json(),snapshot=snaps[0]||null;
  if(!snapshot)return {snapshot:null,trades:[]};
- const tradesQ=new URLSearchParams({select:'tx_hash,log_index,block_number,block_timestamp,side,token_amount,native_amount,price_native',chain_id:'eq.46630',token_address:'eq.'+token,block_timestamp:'gte.'+new Date(Date.now()-86400000).toISOString(),order:'block_timestamp.desc',limit:'100'});
+ const tradesQ=new URLSearchParams({select:'tx_hash,log_index,block_number,block_timestamp,side,token_amount,native_amount,price_native',chain_id:'eq.46630',token_address:'eq.'+token,block_timestamp:'gte.'+new Date(Date.now()-86400000).toISOString(),order:'block_timestamp.desc',limit:'500'});
  let trades=[];
  try{
   const tr=await fetch(base+'market_trades?'+tradesQ,{headers,cache:'no-store'});
