@@ -174,6 +174,7 @@ async function loadMarketData(){
   marketText('marketVolume',num(snap.volume_24h_native,5)+' ETH');
   marketText('marketChange',snap.price_change_24h===null?'—':(Number(snap.price_change_24h)>=0?'+':'')+num(snap.price_change_24h,2)+'%');
   marketText('marketTrades',String(snap.trades_24h??0));
+  marketText('marketHolders',snap.holder_count===null||snap.holder_count===undefined?'Indexing…':Number(snap.holder_count).toLocaleString('en-US'));
   marketText('marketUpdated',label+' · '+new Date(snap.data_updated_at||Date.now()).toLocaleTimeString());
   drawMarketChart(points);
   marketText('marketTradeCount',String(snap.trades_24h??0)+' trades in 24h');
