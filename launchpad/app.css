@@ -175,3 +175,10 @@ p,.lead,.pixel-lead,.hero-panel>p,.app-status,.app-note,.beta-note{font-size:17p
  .app-main,.page-main{padding-top:20px!important;padding-bottom:28px!important}
  .app-btn,.primary-btn,.secondary-btn,.pixel-cta,.pixel-docs,.pixel-connect,.wallet-trigger{font-size:17px!important}
 }
+
+/* PIXORUN typography refresh: remove pixel font from interface copy */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+html,body,button,input,select,textarea,h1,h2,h3,h4,p,a,label,small,strong,span,summary,.app-label,.app-value,.app-btn,.primary-btn,.secondary-btn,.wallet-trigger,.pixel-brand,.pixel-brand small,.pixel-brand-mark,.app-menu nav a,.app-menu nav button,.network-pill{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif!important;letter-spacing:normal!important;line-height:1.45}
+body{font-size:14px;line-height:1.6}
+h1,h2,h3,h4{font-weight:750!important;line-height:1.2!important}
+.app-btn,.primary-btn,.secondary-btn,.wallet-trigger,.app-menu summary{font-weight:650!important}
