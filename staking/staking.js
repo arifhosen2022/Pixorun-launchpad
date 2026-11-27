@@ -13,6 +13,8 @@ const fmt=(value,d=decimals)=>{try{return Number(ethers.formatUnits(value,d)).to
 const fmtCompact=(value,d=decimals,unit=symbol)=>{try{const exact=fmt(value,d),n=Number(ethers.formatUnits(value,d));let shown;if(!Number.isFinite(n))shown='—';else if(n>=1e9)shown=(n/1e9).toFixed(2).replace(/\.00$/,'')+'B';else if(n>=1e6)shown=(n/1e6).toFixed(2).replace(/\.00$/,'')+'M';else if(n>=1e3)shown=(n/1e3).toFixed(2).replace(/\.00$/,'')+'K';else shown=n.toLocaleString(undefined,{maximumFractionDigits:2});return {text:shown+' '+unit,title:exact+' '+unit};}catch(_){return {text:'—',title:'—'};}};
 const setCompactAmount=(id,value,d=decimals,unit=symbol)=>{const el=$(id);if(!el)return;const result=fmtCompact(value,d,unit);el.textContent=result.text;el.title=result.title;el.setAttribute('aria-label',result.title);};
 const explorerAddress=a=>EXPLORER+'/address/'+a;
+const compactInputAmount=(raw)=>{const n=Number(raw);if(!Number.isFinite(n)||n===0)return '0';for(const [suffix,divisor] of [['M',1e6],['L',1e5],['K',1e3]])if(n>=divisor)return (n/divisor).toFixed(6).replace(/\.?0+$/,'')+suffix;return raw;};
+const parseAmountInput=(raw,d=decimals)=>{const value=String(raw||'').trim().replace(/,/g,'');const match=value.match(/^(\d+(?:\.\d+)?)([kKlLmM]?)$/);if(!match)throw Error('Enter a valid amount. Use K, L or M for compact amounts.');const suffix=match[2].toUpperCase(),power=suffix==='K'?3:suffix==='L'?5:suffix==='M'?6:0;const [whole,fraction='']=match[1].split('.');const digits=(whole+fraction).replace(/^0+(?=\d)/,'');const point=whole.length+power;const padded=digits.padEnd(point,'0');const integer=padded.slice(0,point)||'0';const decimal=padded.slice(point);if(decimal.length>d&&decimal.slice(d).replace(/0/g,''))throw Error('Amount has too many decimal places for PIXORUN.');return ethers.parseUnits(integer+(decimal?'.'+decimal.slice(0,d):''),d);};
 const setButtons=enabled=>['stakeBtn','unstakeBtn','claimBtn'].forEach(id=>{if($(id))$(id).disabled=!enabled;});
 async function loadConfig(){
  const url=new URL('../contracts/deployments/robinhood-testnet.json',location.href);
@@ -94,8 +96,8 @@ async function runAction(action){
  try{
   if(!signer)throw Error('Connect your wallet from the main site header first, then return to Staking.');
   if(action==='stake'){
-   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\d+(\.\d+)?$/.test(raw))throw Error('Enter a valid PIXORUN amount.');
-   const amount=ethers.parseUnits(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
+   const raw=String($('stakeAmount').value||'').trim();if(!raw)throw Error('Enter a valid PIXORUN amount.');
+   const amount=parseAmountInput(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
    const balance=await tokenRead.balanceOf(account);if(balance<amount)throw Error('Insufficient PIXORUN balance.');
    const allowance=await tokenRead.allowance(account,config.stakingRewards);
    if(allowance<amount){
@@ -114,8 +116,8 @@ async function runAction(action){
    status('Your PIXORUN stake is confirmed on-chain.','success');
    showTxModal('success','You’re officially staking!','Your PIXORUN is now staked on Robinhood Chain Testnet. You can track your position and rewards in the Staking Hub.',null,tx.hash,fmt(amount)+' '+symbol);
   }else if(action==='unstake'){
-   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\d+(\.\d+)?$/.test(raw))throw Error('Enter the PIXORUN amount to unstake.');
-   const amount=ethers.parseUnits(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
+   const raw=String($('stakeAmount').value||'').trim();if(!raw)throw Error('Enter the PIXORUN amount to unstake.');
+   const amount=parseAmountInput(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
    const staked=await stakingRead.balanceOf(account);if(staked<amount)throw Error('You cannot unstake more than your current stake.');
    status('Confirm the unstaking transaction in MetaMask…','pending');
    const tx=await stakingWrite.withdraw(amount);status('Unstaking… Waiting for on-chain confirmation.','pending');await tx.wait();$('stakeAmount').value='';
@@ -139,7 +141,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
  $('stakeBtn')?.addEventListener('click',()=>runAction('stake'));
  $('unstakeBtn')?.addEventListener('click',()=>runAction('unstake'));
  $('claimBtn')?.addEventListener('click',()=>runAction('claim'));
- document.querySelectorAll('[data-stake-percent]').forEach(button=>button.addEventListener('click',async()=>{if(!account||!tokenRead)return;const balance=await tokenRead.balanceOf(account);const pct=BigInt(button.dataset.stakePercent);const amount=balance*pct/100n;$('stakeAmount').value=ethers.formatUnits(amount,decimals);}));
+ document.querySelectorAll('[data-stake-percent]').forEach(button=>button.addEventListener('click',async()=>{if(!account||!tokenRead)return;const balance=await tokenRead.balanceOf(account);const pct=BigInt(button.dataset.stakePercent);const amount=balance*pct/100n;$('stakeAmount').value=compactInputAmount(ethers.formatUnits(amount,decimals));}));
  try{await loadConfig();configReady=true;await refresh();const state=await window.PIXORUN_WALLET?.getState?.();if(state?.provider&&state?.account)await useSharedWallet(state);else if(lastWalletDetail?.provider&&lastWalletDetail?.account)await useSharedWallet(lastWalletDetail);else status('Connect your wallet using the main site header to use Staking.','info');}catch(e){status(e?.message||'Staking is unavailable.','error');setButtons(false);}
 });
 })();
