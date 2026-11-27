@@ -2,7 +2,7 @@
 'use strict';
 const EXPLORER='https://explorer.testnet.chain.robinhood.com',$=id=>document.getElementById(id),status=$('profileLaunchStatusText');
 function say(s){if(status)status.textContent=s;}
-function wallet(){const p=window.ethereum,b=window.bitkeep?.ethereum;if(p?.isMetaMask)return p;if(b?.isBitKeep||window.bitkeep?.isBitKeep)return b;return p||b||null;}
+function wallet(){return window.PIXORUN_WALLET?.getProvider()||null;}
 function addMetadata(card,x){
  if(x.banner_url){const b=document.createElement('img');b.src=x.banner_url;b.alt=x.token_name+' banner';b.loading='lazy';b.style.cssText='width:100%;max-height:110px;object-fit:cover;border-radius:10px;margin:10px 0';card.append(b);}
  if(x.description){const d=document.createElement('p');d.className='app-status';d.textContent=x.description;card.append(d);}

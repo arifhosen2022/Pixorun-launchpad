@@ -13,15 +13,7 @@ const ABI=[
 ];
 const $=id=>document.getElementById(id);
 let readProvider,readFactory,creationFee,launchBusy=false,pendingMetadataSync=null,pendingRegistryTxHash=null;
-function walletProvider(){
- const injected=window.ethereum;
- const bitget=window.bitkeep?.ethereum;
- // If MetaMask is explicitly injected, never let a simultaneously installed
- // Bitget extension silently replace it.
- if(injected?.isMetaMask)return injected;
- if(window.bitkeep?.isBitKeep||bitget?.isBitKeep)return bitget||injected;
- return injected||bitget;
-}
+function walletProvider(){return window.PIXORUN_WALLET?.getProvider()||null;}
 const isBitgetProvider=provider=>!!provider&&(
  provider===window.bitkeep?.ethereum ||
  provider.isBitKeep===true ||
@@ -194,11 +186,11 @@ async function setup(){
      const logo=await readImage($('tokenLogo')?.files?.[0],'Token logo');
      const banner=await readImage($('tokenBanner')?.files?.[0],'Banner image');
      const hasMetadata=Object.values(metadata).some(Boolean)||!!logo||!!banner;
+     status('Choose your wallet and approve the connection…','pending');
+     const chosen=await timeout(window.PIXORUN_WALLET.connect(),'Wallet connection',60000);
+     const provider=chosen.provider;
      await switchToTestnet();
-     status('Requesting wallet connection…','pending');
-     const provider=walletProvider();
-     if(!provider)throw new Error('Bitget Wallet provider was not detected. Reopen PIXORUN in the Bitget DApp browser.');
-     const accounts=await timeout(provider.request({method:'eth_requestAccounts'}),'Wallet connection',60000);
+     const accounts=[chosen.account];
      if(!accounts?.length)throw new Error('Wallet connection was not approved.');
      const account=ethers.getAddress(accounts[0]);
      const fee=creationFee??await readFactory.creationFee();
