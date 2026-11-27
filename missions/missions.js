@@ -5,12 +5,17 @@ const RPC='https://rpc.testnet.chain.robinhood.com';
 const root=document.getElementById('missionList');
 if(!root)return;
 let records=[],refreshing=false,activeFilter='top';
+const NEW_LAUNCH_WINDOW_MS=30*60*1000;
+const REFRESH_INTERVAL_MS=30000;
 const statusText=document.getElementById('missionStatusText');
 const retry=document.getElementById('missionRetry');
 const count=document.getElementById('missionCount');
 const say=s=>{if(statusText)statusText.textContent=s;};
 const short=a=>typeof a==='string'&&a.length>12?a.slice(0,6)+'…'+a.slice(-4):(a||'—');
 const validAddress=a=>/^0x[a-fA-F0-9]{40}$/.test(a||'');
+const launchedAt=x=>{const t=Date.parse(x.created_at||'');return Number.isFinite(t)?t:0;};
+const isNew=x=>{const t=launchedAt(x),age=Date.now()-t;return t>0&&age>=0&&age<=NEW_LAUNCH_WINDOW_MS;};
+const ageLabel=x=>{const age=Math.max(0,Date.now()-launchedAt(x));const mins=Math.floor(age/60000);return mins<1?'Just launched':mins<60?mins+'m ago':Math.floor(mins/60)+'h ago';};
 const allocation=793100000n*10n**18n;
 let provider=null;
 function getProvider(){
@@ -47,6 +52,7 @@ function card(x){
  info.append(title,ticker,meta);row.append(info);
  const state=document.createElement('span');state.className='mission-state '+(x.curveState||'unknown');
  state.textContent=x.curveState==='curving'?'CURVING':x.curveState==='curved'?'CURVED':'STATUS N/A';row.append(state);el.append(row);
+ if(isNew(x)){const fresh=document.createElement('p');fresh.className='mission-launched';fresh.textContent='✦ New launch · '+ageLabel(x);el.append(fresh);}
  if(x.banner_url){const b=document.createElement('img');b.src=x.banner_url;b.alt=(x.token_name||'Token')+' banner';b.loading='lazy';b.style.cssText='width:100%;max-height:120px;object-fit:cover;border-radius:10px;margin:10px 0';el.append(b);}
  if(x.description){const d=document.createElement('p');d.className='app-status';d.textContent=x.description;el.append(d);}
  if(x.curveProgress!==null&&x.curveProgress!==undefined){
@@ -67,14 +73,17 @@ function filtered(){
  const list=[...records];
  if(activeFilter==='curving')return list.filter(x=>x.curveState==='curving');
  if(activeFilter==='curved')return list.filter(x=>x.curveState==='curved');
+ if(activeFilter==='new')return list.filter(isNew).sort((a,b)=>launchedAt(b)-launchedAt(a));
  if(activeFilter==='top')return list.sort((a,b)=>(b.curveProgress??-1)-(a.curveProgress??-1));
  return list;
 }
 function render(){
  root.replaceChildren();const list=filtered();
- if(!list.length){const p=document.createElement('p');p.className='lead';p.textContent=activeFilter==='curving'?'No tokens are currently trading on their bonding curves.':activeFilter==='curved'?'No tokens have completed Liftoff yet.':'No PIXORUN launches have been registered yet.';root.append(p);}
+ if(!list.length){const p=document.createElement('p');p.className='lead';p.textContent=activeFilter==='curving'?'No tokens are currently trading on their bonding curves.':activeFilter==='curved'?'No tokens have completed Liftoff yet.':activeFilter==='new'?'No tokens were launched in the last 30 minutes.':'No PIXORUN launches have been registered yet.';root.append(p);}
  else{const grid=document.createElement('div');grid.className='app-grid';list.forEach(x=>grid.append(card(x)));root.append(grid);}
- if(count)count.textContent=activeFilter==='top'?records.length+' verified launches':list.length+' '+(activeFilter==='curving'?'curving':activeFilter==='curved'?'curved':'')+' token'+(list.length===1?'':'s');
+ if(count)count.textContent=list.length+' '+(activeFilter==='new'?'recent launch':activeFilter==='curving'?'curving':activeFilter==='curved'?'curved':'verified launch')+(list.length===1?'':'es');
+ const totals={top:records.length,curving:records.filter(x=>x.curveState==='curving').length,curved:records.filter(x=>x.curveState==='curved').length,new:records.filter(isNew).length};
+ document.querySelectorAll('[data-count-for]').forEach(el=>{el.textContent=String(totals[el.dataset.countFor]??0);});
  document.querySelectorAll('[data-launch-filter]').forEach(b=>{const on=b.dataset.launchFilter===activeFilter;b.setAttribute('aria-pressed',String(on));b.classList.toggle('active',on);});
 }
 async function load(){
@@ -85,4 +94,6 @@ async function load(){
 }
 document.querySelectorAll('[data-launch-filter]').forEach(b=>b.addEventListener('click',()=>{activeFilter=b.dataset.launchFilter;render();}));
 retry?.addEventListener('click',load);render();load();
+setInterval(()=>{if(!document.hidden)load();},REFRESH_INTERVAL_MS);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
 })();
