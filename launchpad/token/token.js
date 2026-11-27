@@ -135,11 +135,11 @@ function initMarketChart(){
  const chartHeight=Math.max(320,host.clientHeight||360);
  marketChart=window.LightweightCharts.createChart(host,{
   width:host.clientWidth||800,height:chartHeight,
-  layout:{background:{type:'solid',color:'#ffffff'},textColor:'#715b8c',fontFamily:'Inter,system-ui,sans-serif',fontSize:12},
+  layout:{background:{type:'solid',color:'#ffffff'},textColor:'#5f4b78',fontFamily:'Inter,system-ui,sans-serif',fontSize:12},
   grid:{vertLines:{color:'#f1ebf8'},horzLines:{color:'#f1ebf8'}},
   crosshair:{mode:window.LightweightCharts.CrosshairMode.Normal,vertLine:{color:'#9872c7',width:1,style:2,labelBackgroundColor:'#7040b5'},horzLine:{color:'#9872c7',width:1,style:2,labelBackgroundColor:'#7040b5'}},
-  rightPriceScale:{borderColor:'#e8def2',scaleMargins:{top:.10,bottom:.22},entireTextOnly:true},
-  timeScale:{borderColor:'#e8def2',timeVisible:true,secondsVisible:false,rightOffset:8,barSpacing:12},
+  rightPriceScale:{borderColor:'#e8def2',scaleMargins:{top:.08,bottom:.25},entireTextOnly:true},
+  timeScale:{borderColor:'#e8def2',timeVisible:true,secondsVisible:false,rightOffset:8,barSpacing:9},
   localization:{priceFormatter:p=>marketFmt(p,12)}
  });
  marketCandleSeries=marketChart.addCandlestickSeries({
