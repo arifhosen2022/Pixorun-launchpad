@@ -47,27 +47,36 @@ async function refresh(){
  $('unstakeBtn').disabled=busy||staked===0n;
  $('claimBtn').disabled=busy||reward===0n;
 }
-async function connect(){
- const result=await window.PIXORUN_WALLET.connect();
- const provider=result.provider;
- let chain=(await provider.request({method:'eth_chainId'})).toLowerCase();
- if(chain!==CHAIN_HEX){
-  try{await provider.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN_HEX}]});}
-  catch(e){if(e.code!==4902)throw e;await provider.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN_HEX,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]});}
+async function useSharedWallet(detail){
+ const shared=window.PIXORUN_WALLET;
+ const provider=detail?.provider||shared?.getProvider?.();
+ const accounts=shared?await shared.getAccounts():[];
+ const next=detail?.account||accounts?.[0]||null;
+ const chain=String(detail?.chainId||'').toLowerCase();
+ if(!provider||!next){
+  account=null;signer=null;tokenWrite=null;stakingWrite=null;
+  await refresh();
+  status('Connect your wallet using the main site header to use Staking.','info');
+  return;
  }
- chain=(await provider.request({method:'eth_chainId'})).toLowerCase();
- if(chain!==CHAIN_HEX)throw Error('Switch to Robinhood Chain Testnet (46630) to stake.');
- account=ethers.getAddress(result.account);
+ if(chain!==CHAIN_HEX){
+  account=null;signer=null;tokenWrite=null;stakingWrite=null;
+  await refresh();
+  status('Switch the network using the main site wallet menu: Robinhood Chain Testnet.','error');
+  return;
+ }
+ account=ethers.getAddress(next);
  const browserProvider=new ethers.BrowserProvider(provider);
  signer=await browserProvider.getSigner(account);
- tokenWrite=tokenRead.connect(signer);stakingWrite=stakingRead.connect(signer);
- status('Wallet connected: '+account.slice(0,6)+'…'+account.slice(-4),'success');
+ tokenWrite=tokenRead.connect(signer);
+ stakingWrite=stakingRead.connect(signer);
+ status('Using connected site wallet: '+account.slice(0,6)+'…'+account.slice(-4),'success');
  await refresh();
 }
 async function runAction(action){
  if(busy)return;busy=true;setButtons(false);
  try{
-  if(!signer)await connect();
+  if(!signer)throw Error('Connect your wallet from the main site header first, then return to Staking.');
   if(action==='stake'){
    const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\d+(\.\d+)?$/.test(raw))throw Error('Enter a valid PIXORUN amount.');
    const amount=ethers.parseUnits(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
@@ -90,11 +99,10 @@ async function runAction(action){
 }
 document.addEventListener('DOMContentLoaded',async()=>{
  setButtons(false);
- $('connectStakeWallet')?.addEventListener('click',async()=>{try{await connect();}catch(e){status(e?.message||'Wallet connection failed.','error');}});
  $('stakeBtn')?.addEventListener('click',()=>runAction('stake'));
  $('unstakeBtn')?.addEventListener('click',()=>runAction('unstake'));
  $('claimBtn')?.addEventListener('click',()=>runAction('claim'));
- try{await loadConfig();await refresh();}catch(e){status(e?.message||'Staking is unavailable.','error');setButtons(false);}
- window.addEventListener('pixorun:walletChanged',async e=>{const next=e.detail?.account||null;const nextChain=String(e.detail?.chainId||'').toLowerCase();if(!next||!account||next.toLowerCase()!==account.toLowerCase()||nextChain!==CHAIN_HEX){account=null;signer=null;tokenWrite=null;stakingWrite=null;await refresh();if(next&&nextChain!==CHAIN_HEX)status('Switch to Robinhood Chain Testnet and reconnect your wallet.','error');}});
+ try{await loadConfig();await refresh();const provider=window.PIXORUN_WALLET?.getProvider?.();const accounts=await window.PIXORUN_WALLET?.getAccounts?.();if(provider&&accounts?.[0])await useSharedWallet({provider,account:accounts[0]});else status('Connect your wallet using the main site header to use Staking.','info');}catch(e){status(e?.message||'Staking is unavailable.','error');setButtons(false);}
+ window.addEventListener('pixorun:walletChanged',async e=>{try{await useSharedWallet(e.detail||{});}catch(err){account=null;signer=null;tokenWrite=null;stakingWrite=null;await refresh();status(err?.message||'Could not sync the connected site wallet.','error');}});
 });
 })();
