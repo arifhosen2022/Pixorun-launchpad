@@ -53,5 +53,21 @@ function render(){window.dispatchEvent(new CustomEvent('pixorun:walletChanged',{
 async function switchNetwork(){const p=await choose();try{await p.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN}]});}catch(e){if(e.code!==4902)throw e;await p.request({method:'wallet_addEthereumChain',params:[network]});}await read();render();if(chainId!==CHAIN)throw Error('Robinhood Chain Testnet was not selected.');}
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-trigger], [data-wallet-trigger]');if(t){if(!account){if(connecting)return;connecting=true;t.disabled=true;try{await connect();await read();render();status('Wallet connected.');}catch(x){status(x.message||'Wallet connection failed.');}finally{connecting=false;t.disabled=false;}}else{const dd=$('[data-dropdown], [data-wallet-dropdown]');if(dd)dd.hidden=!dd.hidden;}return;}if(e.target.closest('[data-switch], [data-network-switch]')){try{await switchNetwork();}catch(x){status(x.message||'Network switch failed.');}return;}if(e.target.closest('[data-disconnect]')){locallyDisconnected=true;localStorage.setItem('pixorun:wallet-disconnected','1');account=null;render();status('Disconnected from this PIXORUN page.');const dd=$('[data-dropdown], [data-wallet-dropdown]');if(dd)dd.hidden=true;return;}if(e.target.closest('[data-copy-wallet]')){if(!account){status('Connect your wallet first.');return;}try{await navigator.clipboard.writeText(account);status('Wallet address copied.');}catch(_){status('Could not copy automatically.');}}});
 function listen(p){p?.on?.('accountsChanged',async a=>{if(a?.length){locallyDisconnected=false;localStorage.removeItem('pixorun:wallet-disconnected');}await read();render();});p?.on?.('chainChanged',async()=>{await read();render();});}
+// Shared navigation: identify the current page and dismiss the menu after selection or outside clicks.
+function syncActiveMenu(){
+ const current=location.pathname.replace(/\/+$/, '')||'/';
+ document.querySelectorAll('.app-menu').forEach(menu=>{
+  menu.querySelectorAll('nav a[href]').forEach(link=>{
+   let target;try{target=new URL(link.href,location.href).pathname.replace(/\/+$/, '')||'/';}catch(_){return;}
+   if(target===current)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
+  });
+ });
+}
+syncActiveMenu();
+document.addEventListener('click',e=>{
+ const inside=e.target.closest('.app-menu');
+ if(!inside)document.querySelectorAll('.app-menu[open]').forEach(menu=>menu.removeAttribute('open'));
+ else if(e.target.closest('nav a'))inside.removeAttribute('open');
+});
 discover();for(const x of providers.values())listen(x.provider);read().then(render);
 })();
