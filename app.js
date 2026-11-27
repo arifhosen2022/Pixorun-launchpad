@@ -1,7 +1,8 @@
 (()=>{
 'use strict';
 const CHAIN='0xb626',RPC='https://rpc.testnet.chain.robinhood.com',EXPLORER='https://explorer.testnet.chain.robinhood.com',network={chainId:CHAIN,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]};
-const $=(s,r=document)=>r.querySelector(s);let account=null,chainId=null,connecting=false,locallyDisconnected=localStorage.getItem('pixorun:wallet-disconnected')==='1',selectedId=localStorage.getItem('pixorun:selected-wallet')||'';const providers=new Map();
+const $=(s,r=document)=>r.querySelector(s);let account=null,chainId=null,connecting=false,locallyDisconnected=localStorage.getItem('pixorun:wallet-disconnected')==='1',selectedId=localStorage.getItem('pixorun:selected-wallet')||'',selectedRdns=localStorage.getItem('pixorun:selected-wallet-rdns')||'';const providers=new Map();
+function remember(id){selectedId=id;const item=providers.get(id);if(item?.info?.rdns){selectedRdns=item.info.rdns;localStorage.setItem('pixorun:selected-wallet-rdns',selectedRdns);}localStorage.setItem('pixorun:selected-wallet',selectedId);}
 function add(info,p){
  if(!p)return;
  const label=(info?.name|| (p.isZerion?'Zerion':p.isRabby?'Rabby':p.isCoinbaseWallet?'Coinbase Wallet':p.isMetaMask?'MetaMask':'Browser Wallet')).trim();
@@ -11,7 +12,7 @@ function add(info,p){
    if(info?.uuid && (!x.info?.uuid || x.info.uuid===id)){
     providers.delete(id);
     providers.set(info.uuid,{info:{...info,name:label},provider:p,nameKey:name});
-    if(selectedId===id){selectedId=info.uuid;localStorage.setItem('pixorun:selected-wallet',selectedId);}
+    if(selectedId===id||selectedRdns&&selectedRdns===info.rdns){selectedId=info.uuid;localStorage.setItem('pixorun:selected-wallet',selectedId);}
    }
    return;
   }
@@ -19,6 +20,7 @@ function add(info,p){
  }
  const id=info?.uuid||('legacy-'+providers.size);
  providers.set(id,{info:{...info,name:label},provider:p,nameKey:name});
+ if(info?.rdns&&selectedRdns===info.rdns){selectedId=id;localStorage.setItem('pixorun:selected-wallet',id);}
 }
 function discover(){
  try{
@@ -35,9 +37,9 @@ window.addEventListener('eip6963:announceProvider',async e=>{
  if(!info?.uuid||!p)return;
  add(info,p);listen(p);
  if(redrawPicker)redrawPicker();
- if(selectedId.startsWith('legacy-')&&!providers.has(selectedId)&&providers.size===1){selectedId=info.uuid;localStorage.setItem('pixorun:selected-wallet',selectedId);}if(selectedId===info.uuid||selectedId.startsWith('legacy-')){await read();render();}
-});const selected=()=>providers.get(selectedId)?.provider||null;
-function picker(){return new Promise(resolve=>{discover();let box=document.getElementById('pixorun-wallet-picker');if(!box){box=document.createElement('div');box.id='pixorun-wallet-picker';box.innerHTML='<div class="pw-backdrop" data-close></div><section class="pw-panel" role="dialog" aria-modal="true"><button class="pw-close" data-close>×</button><div class="pw-mark">P</div><h2>Connect a wallet</h2><p>Choose an installed wallet extension.</p><div class="pw-list"></div><div class="pw-empty" hidden>No injected wallets detected. Install MetaMask or Zerion and reload.</div></section>';document.body.append(box);box.addEventListener('click',e=>{if(e.target.closest('[data-close]')){box.remove();redrawPicker=null;resolve(null);return;}const b=e.target.closest('[data-id]');if(b){selectedId=b.dataset.id;localStorage.setItem('pixorun:selected-wallet',selectedId);const p=selected();box.remove();redrawPicker=null;resolve(p);}});}
+ if(selectedId.startsWith('legacy-')&&!providers.has(selectedId)&&providers.size===1){selectedId=info.uuid;localStorage.setItem('pixorun:selected-wallet',selectedId);}if(selectedId===info.uuid||selectedId.startsWith('legacy-')||selectedRdns&&selectedRdns===info.rdns){await read();render();}
+});const selected=()=>{let item=providers.get(selectedId);if(!item&&selectedRdns){for(const [id,x] of providers){if(x.info?.rdns===selectedRdns){selectedId=id;localStorage.setItem('pixorun:selected-wallet',id);item=x;break;}}}if(!item&&selectedId.startsWith('legacy-')&&providers.size===1){const [id,x]=providers.entries().next().value;selectedId=id;localStorage.setItem('pixorun:selected-wallet',id);item=x;}return item?.provider||null;};
+function picker(){return new Promise(resolve=>{discover();let box=document.getElementById('pixorun-wallet-picker');if(!box){box=document.createElement('div');box.id='pixorun-wallet-picker';box.innerHTML='<div class="pw-backdrop" data-close></div><section class="pw-panel" role="dialog" aria-modal="true"><button class="pw-close" data-close>×</button><div class="pw-mark">P</div><h2>Connect a wallet</h2><p>Choose an installed wallet extension.</p><div class="pw-list"></div><div class="pw-empty" hidden>No injected wallets detected. Install MetaMask or Zerion and reload.</div></section>';document.body.append(box);box.addEventListener('click',e=>{if(e.target.closest('[data-close]')){box.remove();redrawPicker=null;resolve(null);return;}const b=e.target.closest('[data-id]');if(b){remember(b.dataset.id);const p=selected();box.remove();redrawPicker=null;resolve(p);}});}
 const draw=()=>{if(!box.isConnected)return;const list=box.querySelector('.pw-list');list.replaceChildren();for(const [id,x] of providers){const b=document.createElement('button');b.className='pw-option';b.dataset.id=id;const n=x.info.name||'EVM Wallet';b.innerHTML='<span class="pw-icon">'+(n==='MetaMask'?'🦊':n==='Zerion'?'◈':'◇')+'</span><span><strong></strong><small>Detected extension</small></span><span class="pw-arrow">›</span>';b.querySelector('strong').textContent=n;list.append(b);}box.querySelector('.pw-empty').hidden=providers.size>0;};redrawPicker=draw;draw();setTimeout(draw,1200);});}
 async function choose(){let p=selected();if(!p)p=await picker();if(!p)throw Error('Wallet selection cancelled.');return p;}
 async function connect(){const provider=await choose();let a=await provider.request({method:'eth_accounts'});if(!a?.length)a=await provider.request({method:'eth_requestAccounts'});if(!a?.length)throw Error('No wallet account selected.');account=a[0];chainId=(await provider.request({method:'eth_chainId'})).toLowerCase();locallyDisconnected=false;localStorage.removeItem('pixorun:wallet-disconnected');return {provider,account,chainId};}
