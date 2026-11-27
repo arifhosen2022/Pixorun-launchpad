@@ -96,7 +96,7 @@ const curveEvents=new ethers.Interface(['event Bought(address indexed buyer,uint
 const pairEvents=new ethers.Interface(['event Swap(address indexed sender,bool nativeToToken,uint256 amountIn,uint256 amountOut,uint256 fee)']);
 function marketFmt(n,max=8){const value=Number(n);return Number.isFinite(value)?value.toLocaleString('en-US',{maximumFractionDigits:max}):'—';}
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
-let marketTimeframe=300,marketChartPoints=[],marketChart=null,marketCandleSeries=null,marketVolumeSeries=null,marketChartReady=false;
+let marketTimeframe=300,marketChartPoints=[],marketChart=null,marketCandleSeries=null,marketVolumeSeries=null,marketChartReady=false,marketChartHasFitted=false;
 function buildMarketCandles(points){
  const buckets=new Map();
  points.filter(p=>Number.isFinite(p.price)&&p.price>0&&Number.isFinite(p.time)).forEach(p=>{
@@ -144,12 +144,12 @@ function drawMarketChart(points){
   return;
  }
  marketCandleSeries.setData(candles);marketVolumeSeries.setData(volumes);
- marketChart.timeScale().fitContent();
+ if(!marketChartHasFitted){marketChart.timeScale().fitContent();marketChartHasFitted=true;}
  marketText('marketChartRange',candles.length+' candles · '+({300:'5 minutes',900:'15 minutes',3600:'1 hour',14400:'4 hours',86400:'1 day'}[marketTimeframe]||'timeframe'));
 }
 document.querySelectorAll('[data-chart-range]').forEach(button=>button.addEventListener('click',()=>{
  document.querySelectorAll('[data-chart-range]').forEach(b=>b.classList.toggle('active',b===button));
- marketTimeframe=Number(button.dataset.chartRange)||300;drawMarketChart(marketChartPoints);
+ marketTimeframe=Number(button.dataset.chartRange)||300;marketChartHasFitted=false;drawMarketChart(marketChartPoints);
 }));
 async function syncConfirmedTrade(tx){
  try{
