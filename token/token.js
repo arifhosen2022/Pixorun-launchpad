@@ -27,13 +27,13 @@ async function connect(){
  const chosen=await window.PIXORUN_WALLET.connect(),p=chosen.provider,a=[chosen.account];
  account=ethers.getAddress(a[0]);const chain=(await p.request({method:'eth_chainId'})).toLowerCase();
  p.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;await readConnectedWallet();});p.on?.('chainChanged',readConnectedWallet);
- $('tokenConnect').textContent=account.slice(0,6)+'…'+account.slice(-4);
+ 
  $('walletNetworkNote').textContent=chain===CHAIN?'Wallet connected to Robinhood Chain Testnet.':'Wallet connected on another network. Switch to Robinhood Chain Testnet when trading.';
  await refreshBalances();return account;
 }
 async function readConnectedWallet(){
  const p=wallet();if(!p)return;
- try{const [a,chain]=await Promise.all([p.request({method:'eth_accounts'}),p.request({method:'eth_chainId'})]);account=a?.[0]?ethers.getAddress(a[0]):null;if(account){$('tokenConnect').textContent=account.slice(0,6)+'…'+account.slice(-4);$('walletNetworkNote').textContent=chain.toLowerCase()===CHAIN?'Connected · Robinhood Chain Testnet':'Connected · wrong network; switch only when you trade.';await refreshBalances();}else{$('tokenConnect').textContent='Connect wallet';$('walletEthBalance').textContent='Not connected';$('walletTokenBalance').textContent='Not connected';}}catch(e){console.warn('Wallet state unavailable',e);}
+ try{const [a,chain]=await Promise.all([p.request({method:'eth_accounts'}),p.request({method:'eth_chainId'})]);account=a?.[0]?ethers.getAddress(a[0]):null;if(account){$('tokenConnect').textContent=account.slice(0,6)+'…'+account.slice(-4);$('walletNetworkNote').textContent=chain.toLowerCase()===CHAIN?'Connected · Robinhood Chain Testnet':'Connected · wrong network; switch only when you trade.';await refreshBalances();}else{$('walletEthBalance').textContent='Not connected';$('walletTokenBalance').textContent='Not connected';}}catch(e){console.warn('Wallet state unavailable',e);}
 }
 function showMetadata(m){
  if(!m)return;const about=$('tokenAbout');let has=false;
@@ -263,7 +263,7 @@ async function sell(){
 }
 $('buyAmount')?.addEventListener('input',quoteBuy);$('sellAmount')?.addEventListener('input',quoteSell);$('slippage')?.addEventListener('change',()=>{quoteBuy();quoteSell();});
 $('buyBtn')?.addEventListener('click',buy);$('sellBtn')?.addEventListener('click',sell);
-$('tokenConnect')?.addEventListener('click',async()=>{try{await connect();setStatus('Wallet connected. Balances refreshed.');}catch(e){setStatus(e.shortMessage||e.message||'Wallet connection failed.');}});
+
 $('buyMax')?.addEventListener('click',()=>setTradePercent('buy',100).catch(e=>setStatus(e.shortMessage||e.message||'Could not read ETH balance.')));
 $('sellMax')?.addEventListener('click',()=>setTradePercent('sell',100).catch(e=>setStatus(e.shortMessage||e.message||'Could not read token balance.')));
 document.querySelectorAll('[data-trade-side][data-trade-percent]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await setTradePercent(button.dataset.tradeSide,Number(button.dataset.tradePercent));}catch(e){setStatus(e.shortMessage||e.reason||e.message||'Could not calculate percentage.');}finally{button.disabled=false;}}));
