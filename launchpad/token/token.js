@@ -6,8 +6,11 @@ const tokenAbi=['function name() view returns(string)','function symbol() view r
 const curveAbi=['function graduated() view returns(bool)','function totalSold() view returns(uint256)','function realNative() view returns(uint256)','function realToken() view returns(uint256)','function quoteBuy(uint256) view returns(uint256,uint256,uint256)','function quoteSell(uint256) view returns(uint256,uint256,uint256)','function buy(uint256) payable returns(uint256)','function sell(uint256,uint256) returns(uint256)'];
 const swapFactoryAbi=['function getPair(address) view returns(address)'];
 const pairAbi=['function reserveNative() view returns(uint112)','function reserveToken() view returns(uint112)','function swapNativeForToken(uint256) payable returns(uint256)','function swapTokenForNative(uint256,uint256) returns(uint256)'];
-const $=id=>document.getElementById(id),provider=new ethers.JsonRpcProvider(RPC,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true});
+const $=id=>document.getElementById(id),provider=new ethers.JsonRpcProvider(RPC,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true,batchMaxCount:1});
 const tokenAddress=new URLSearchParams(location.search).get('address');
+const cacheKey=tokenAddress&&ethers.isAddress(tokenAddress)?'pixorun:token:v2:'+tokenAddress.toLowerCase():null;
+let cached=null;try{cached=cacheKey?JSON.parse(localStorage.getItem(cacheKey)||'null'):null;}catch(_){}
+if(cached){if($('tokenName'))$('tokenName').textContent=cached.name||'Token';if($('tokenSymbol'))$('tokenSymbol').textContent=cached.symbol||'—';if($('tokenAddress')){$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;}if($('curveAddress')&&cached.curveAddress){$('curveAddress').textContent=cached.curveAddress;$('curveAddress').href=EXPLORER+'/address/'+cached.curveAddress;}if($('creatorAddress')&&cached.creator){$('creatorAddress').textContent=cached.creator;$('creatorAddress').href=EXPLORER+'/address/'+cached.creator;}if($('totalSupply'))$('totalSupply').textContent=cached.totalSupply||'—';if($('tradeMode'))$('tradeMode').textContent=cached.tradeMode||'Refreshing market…';}
 let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false;
 const fmt=(v,d=5)=>Number(ethers.formatUnits(v,d)).toLocaleString(undefined,{maximumFractionDigits:6});
 const setStatus=m=>{if($('tradeStatus'))$('tradeStatus').textContent=m;};
@@ -33,14 +36,14 @@ async function quoteSell(){
  }catch(e){$('sellQuote').textContent=e.shortMessage||e.reason||e.message||'Quote unavailable';}
 }
 async function refresh(){
- const activeWallet=wallet();const connected=activeWallet?await activeWallet.request({method:'eth_accounts'}):[];account=activeWallet?(connected?.[0]||null):account;
+ const activeWallet=wallet();try{const connected=activeWallet?await activeWallet.request({method:'eth_accounts'}):[];account=connected?.[0]||null;}catch(_){account=null;}
  if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Explore Missions.');
  const factory=new ethers.Contract(FACTORY,factoryAbi,provider);
- [curveAddress,account]=await Promise.all([factory.curveOf(tokenAddress),Promise.resolve(account)]);
+ curveAddress=await factory.curveOf(tokenAddress);
  if(curveAddress===ethers.ZeroAddress)throw Error('This address is not registered in the PIXORUN Launchpad Factory.');
  token=new ethers.Contract(tokenAddress,tokenAbi,provider);curve=new ethers.Contract(curveAddress,curveAbi,provider);
  const swapFactory=new ethers.Contract(SWAP_FACTORY,swapFactoryAbi,provider);
- const [name,symbol,supply,creator,done,graduatedState,pairAddr]=await Promise.all([token.name(),token.symbol(),token.totalSupply(),factory.creatorOf(tokenAddress),factory.liftoffCompleted(tokenAddress),curve.graduated(),swapFactory.getPair(tokenAddress)]);
+ const [name,symbol,tokenDecimals,supply,creator,done,graduatedState,pairAddr]=await Promise.all([token.name(),token.symbol(),token.decimals(),token.totalSupply(),factory.creatorOf(tokenAddress),factory.liftoffCompleted(tokenAddress),curve.graduated(),swapFactory.getPair(tokenAddress)]);decimals=Number(tokenDecimals);
  graduated=done||graduatedState;pairAddress=pairAddr;mode=graduated&&pairAddr!==ethers.ZeroAddress?'swap':'curve';
  $('tokenName').textContent=name;$('tokenSymbol').textContent=symbol;$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;
  $('curveAddress').textContent=curveAddress;$('curveAddress').href=EXPLORER+'/address/'+curveAddress;
@@ -50,6 +53,7 @@ async function refresh(){
  if(mode==='swap'){$('pairAddress').textContent=pairAddress;$('pairAddress').href=EXPLORER+'/address/'+pairAddress;pair=new ethers.Contract(pairAddress,pairAbi,provider);$('graduationNote').textContent='This token completed Liftoff. Trading uses its PIXORUN Swap pool.';}
  else {$('pairAddress').textContent='Not created yet';$('graduationNote').textContent='This token is still on its bonding curve. When the curve sells out, Liftoff seeds the PIXORUN Swap pool atomically.';}
  $('graduationNote').hidden=false;
+ try{localStorage.setItem(cacheKey,JSON.stringify({name,symbol,creator,curveAddress,totalSupply:fmt(supply,decimals)+' '+symbol,tradeMode:mode==='swap'?'PIXORUN Swap pool':'Bonding curve'}));}catch(_){}
  if(account){const bal=await token.balanceOf(account);$('walletTokenBalance').textContent=fmt(bal,decimals)+' '+symbol;}else $('walletTokenBalance').textContent='Connect wallet to view';
  const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
@@ -78,5 +82,7 @@ async function sell(){
 }
 $('buyAmount')?.addEventListener('input',quoteBuy);$('sellAmount')?.addEventListener('input',quoteSell);$('slippage')?.addEventListener('change',()=>{quoteBuy();quoteSell();});
 $('buyBtn')?.addEventListener('click',buy);$('sellBtn')?.addEventListener('click',sell);
-try{refresh().catch(e=>setStatus(e.shortMessage||e.message||'Token data could not be loaded.'));}catch(e){setStatus(e.message);}
+const retry=$('tokenRetry');if(retry)retry.addEventListener('click',()=>{retry.disabled=true;refresh().catch(e=>setStatus('Load failed: '+(e.shortMessage||e.reason||e.message||'RPC error'))).finally(()=>retry.disabled=false);});
+setStatus(cached?'Showing saved token details · refreshing from chain…':'Connecting to Robinhood Chain Testnet…');
+refresh().catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
 })();
