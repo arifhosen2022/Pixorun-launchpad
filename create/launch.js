@@ -133,7 +133,7 @@ async function setup(){
  $('tokenLogo')?.addEventListener('change',previewLogo);
  $('tokenBanner')?.addEventListener('change',()=>{const file=$('tokenBanner').files?.[0];if(file&&file.size>2*1024*1024){$('tokenBanner').value='';status('Banner image must be 2 MB or smaller.','error');}});
  updatePreview();previewLogo();
- $('retryMetadata')?.addEventListener('click',async()=>{const b=$('retryMetadata');b.disabled=true;try{await syncPendingMetadata();status('Token and metadata are now synced across PIXORUN.','success');}catch(e){status('Metadata save failed: '+errorText(e),'error');}finally{b.disabled=false;}});
+ $('retryMetadata')?.addEventListener('click',async()=>{const b=$('retryMetadata');b.disabled=true;try{await syncPendingMetadata();status('Token and shared listing are now synced across PIXORUN.','success');}catch(e){status('Metadata save failed: '+errorText(e),'error');}finally{b.disabled=false;}});
  setButton('CHECKING LAUNCHPAD…',true);
  status('Connecting to Robinhood Chain Testnet and verifying the launch contracts…','pending');
  try{
@@ -234,7 +234,7 @@ async function setup(){
      $('resultTokenLabel')&&($('resultTokenLabel').textContent='TOKEN CONTRACT');
      $('resultCurveLabel')&&($('resultCurveLabel').textContent='BONDING CURVE');
      $('launchResult').hidden=false;if((pendingMetadataSync||pendingRegistryTxHash)&&$('retryMetadata'))$('retryMetadata').hidden=false;
-     status(globalRegistered?'Success! Your token and metadata are now visible across PIXORUN.':'Token deployed, but shared listing/metadata sync is pending. Use Retry metadata save below.','success');
+     status(globalRegistered?(hasMetadata?'Success! Your token and metadata are now visible across PIXORUN.':'Success! Your token is now visible across PIXORUN.'):'Token deployed, but shared listing/metadata sync is pending. Use Retry shared sync below.','success');
      if(globalRegistered){form.reset();updatePreview();previewLogo();}
    }catch(e){status(errorText(e),'error');}
    finally{launchBusy=false;setButton('CONNECT WALLET & LAUNCH TOKEN',false);}
