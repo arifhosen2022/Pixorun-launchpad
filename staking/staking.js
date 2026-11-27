@@ -18,17 +18,18 @@ async function loadConfig(){
  if(!response.ok)throw Error('Could not load the Testnet deployment registry.');
  config=await response.json();
  if(Number(config.chainId)!==CHAIN_ID)throw Error('Deployment registry is not for Robinhood Chain Testnet.');
+ if(!config.stakingRewards||!config.feeDistributor)throw Error('Staking contract has not been deployed yet. Buttons remain locked.');
  if(String(config.officialToken||'').toLowerCase()!==OFFICIAL_TOKEN.toLowerCase())throw Error('Registry token does not match the official PIXORUN token. Staking is locked.');
- if(!ethers.isAddress(config.stakingRewards)||!ethers.isAddress(config.feeDistributor))throw Error('Staking contract has not been deployed yet. Buttons remain locked.');
+ if(!ethers.isAddress(config.stakingRewards)||!ethers.isAddress(config.feeDistributor))throw Error('Invalid staking deployment address. Staking is locked.');
  readProvider=new ethers.JsonRpcProvider(RPC,{chainId:CHAIN_ID,name:'Robinhood Chain Testnet'},{staticNetwork:true});
  const [network,tokenCode,stakingCode,feeCode]=await Promise.all([readProvider.getNetwork(),readProvider.getCode(OFFICIAL_TOKEN),readProvider.getCode(config.stakingRewards),readProvider.getCode(config.feeDistributor)]);
  if(Number(network.chainId)!==CHAIN_ID||tokenCode==='0x'||stakingCode==='0x'||feeCode==='0x')throw Error('The official token or staking deployment could not be verified on Testnet.');
  tokenRead=new ethers.Contract(OFFICIAL_TOKEN,tokenAbi,readProvider);
  stakingRead=new ethers.Contract(config.stakingRewards,stakingAbi,readProvider);
- const [linkedToken,linkedStaking,feeStaking]=await Promise.all([stakingRead.stakingToken(),readProvider.call({to:config.feeDistributor,data:new ethers.Interface(['function stakingRewards() view returns(address)']).encodeFunctionData('stakingRewards')}).then(v=>new ethers.Interface(['function stakingRewards() view returns(address)']).decodeFunctionResult('stakingRewards',v)[0]),tokenRead.decimals()]);
- if(linkedToken.toLowerCase()!==OFFICIAL_TOKEN.toLowerCase()||feeStaking.toLowerCase()!==config.stakingRewards.toLowerCase())throw Error('On-chain staking links do not match the official PIXORUN token and registry.');
- decimals=Number(linkedStaking); // linkedStaking is the FeeDistributor staking address; token decimals are assigned below.
- decimals=Number(await tokenRead.decimals());
+ const stakingLinkInterface=new ethers.Interface(['function stakingRewards() view returns(address)']);
+ const [linkedToken,linkedStaking,tokenDecimals]=await Promise.all([stakingRead.stakingToken(),readProvider.call({to:config.feeDistributor,data:stakingLinkInterface.encodeFunctionData('stakingRewards')}).then(v=>stakingLinkInterface.decodeFunctionResult('stakingRewards',v)[0]),tokenRead.decimals()]);
+ if(linkedToken.toLowerCase()!==OFFICIAL_TOKEN.toLowerCase()||linkedStaking.toLowerCase()!==config.stakingRewards.toLowerCase())throw Error('On-chain staking links do not match the official PIXORUN token and registry.');
+ decimals=Number(tokenDecimals);
  try{symbol=await tokenRead.symbol();}catch(_){}
  const link=$('stakingTokenAddress');if(link){link.href=explorerAddress(OFFICIAL_TOKEN);link.textContent=OFFICIAL_TOKEN;}
  status('Staking contracts verified on Robinhood Chain Testnet.','success');
@@ -38,7 +39,7 @@ async function refresh(){
  if(!tokenRead||!stakingRead)return;
  const [total]=await Promise.all([stakingRead.totalStaked()]);
  $('totalStaked').textContent=fmt(total)+' '+symbol;
- if(!account){$('yourStake').textContent='Connect wallet';$('pendingRewards').textContent='—';$('walletBalance').textContent='—';return;}
+ if(!account){$('yourStake').textContent='Connect wallet';$('pendingRewards').textContent='—';$('walletBalance').textContent='—';$('unstakeBtn').disabled=true;$('claimBtn').disabled=true;return;}
  const [staked,reward,balance]=await Promise.all([stakingRead.balanceOf(account),stakingRead.earned(account),tokenRead.balanceOf(account)]);
  $('yourStake').textContent=fmt(staked)+' '+symbol;
  $('pendingRewards').textContent=fmt(reward,18)+' ETH';
