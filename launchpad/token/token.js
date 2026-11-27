@@ -96,6 +96,7 @@ const curveEvents=new ethers.Interface(['event Bought(address indexed buyer,uint
 const pairEvents=new ethers.Interface(['event Swap(address indexed sender,bool nativeToToken,uint256 amountIn,uint256 amountOut,uint256 fee)']);
 const marketFmt=(n,max=6)=>Number(n).toLocaleString('en-US',{maximumFractionDigits:max});
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
+function marketFmt(value,digits=8){const n=Number(value);return Number.isFinite(n)?n.toLocaleString('en-US',{maximumFractionDigits:digits}):'—';}
 let marketTimeframe=300,marketChartPoints=[];
 function drawMarketChart(points){
  marketChartPoints=points||[];
