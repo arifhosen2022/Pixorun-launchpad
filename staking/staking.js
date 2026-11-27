@@ -81,6 +81,8 @@ function showTxModal(kind,title,message,action,txHash,amount){
  $('stakingTxIcon').textContent=kind==='success'?'✓':'!';
  $('stakingTxTitle').textContent=title;
  $('stakingTxMessage').textContent=message;
+ const amountEl=$('stakingTxAmount');if(amountEl){amountEl.hidden=!amount;amountEl.textContent=amount||'';}
+ const txLink=$('stakingTxExplorer');if(txLink){txLink.hidden=!txHash;txLink.href=txHash?EXPLORER+'/tx/'+txHash:'#';}
  const retry=$('stakingTxRetry');retry.hidden=kind!=='error';
  retry.onclick=()=>{closeTxModal();if(action)runAction(action);};
  modal.hidden=false;
