@@ -208,7 +208,7 @@ async function setup(){
        const profileKey='pixorun:profile:v2:'+account.toLowerCase();
        const saved=JSON.parse(localStorage.getItem(profileKey)||'null');
        const items=Array.isArray(saved?.items)?saved.items:[];
-       if(!items.some(item=>item.token?.toLowerCase()===token.toLowerCase()))items.unshift({token,name,symbol,blockNumber:receipt.blockNumber,txHash});
+       if(!items.some(item=>item.token?.toLowerCase()===token.toLowerCase()))items.unshift({token,name,symbol,curve,creator:account,blockNumber:receipt.blockNumber,txHash});
        localStorage.setItem(profileKey,JSON.stringify({items,lastBlock:receipt.blockNumber}));
      }catch(storageError){console.warn('Could not cache PIXORUN launch for My Profile:',storageError);}
      // Publish the confirmed transaction to the shared Supabase registry.
