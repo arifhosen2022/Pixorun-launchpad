@@ -122,3 +122,21 @@ body{background:radial-gradient(ellipse at 78% 0%,#7555d91a,transparent 38%),#f7
 .pixel-home .app-menu nav .menu-connect:hover{background:#7555d9!important}
 
 .home-wallet{position:relative;display:flex;align-items:center}.wallet-trigger{min-height:42px;padding:0 14px;border:1px solid #d9d1f3;border-radius:999px;background:#f0edfa;color:#5e40c0;font-weight:700;font-size:12px;cursor:pointer}.wallet-dropdown{position:absolute;z-index:1200;right:0;top:50px;min-width:190px;padding:7px;border:1px solid #e7e7e2;border-radius:12px;background:#fff;box-shadow:0 18px 50px #17171a25}.wallet-dropdown[hidden]{display:none}.wallet-dropdown button{display:block;width:100%;padding:11px 12px;border:0;border-radius:8px;background:#fff;color:#171717;text-align:left;font-size:13px;cursor:pointer}.wallet-dropdown button:hover{background:#f0edfa;color:#5e40c0}.wallet-dropdown button[hidden]{display:none}@media(max-width:700px){.home-wallet{gap:5px}.wallet-trigger{min-height:38px;padding:0 9px;font-size:10px}.wallet-dropdown{top:45px}}
+/* Token detail page: accessible violet market and trading surfaces */
+.market-stat,.balance-box{background:#f2edff!important;border:1px solid #d9cdfb!important;color:#24183e!important}
+.market-stat small,.balance-box small{color:#66558a!important}
+.market-stat strong,.balance-box strong{color:#24183e!important}
+.market-chart{background:#f7f3ff!important;border:1px solid #d9cdfb!important}
+.market-chart .trade-help,.market-recent .trade-help{color:#66558a!important}
+.market-trade-row{background:#f2edff!important;border-color:#d9cdfb!important;color:#24183e!important}
+.market-trade-row span{color:#51436d!important}
+.market-trade-row a{color:#6840c8!important}
+.trade-field input,.trade-field select{background:#f7f3ff!important;color:#24183e!important;border:1px solid #cbbbea!important}
+.trade-field input::placeholder{color:#8c80a5!important}
+.trade-field label{color:#34264f!important}
+.trade-percent,.max-btn{background:#eee7ff!important;color:#5030a6!important;border:1px solid #cbbbea!important}
+.trade-percent:hover,.trade-percent:focus{background:#ded1ff!important;color:#32176f!important}
+#slippage{background:#eee7ff!important;color:#34264f!important;border-color:#cbbbea!important}
+#marketUpdated,#marketChartRange,#marketTradeCount{color:#66558a!important}
+#marketOverview .trade-help{color:#66558a!important}
+#marketOverview h2,#marketOverview h3{color:#24183e!important}
