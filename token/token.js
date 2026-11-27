@@ -8,7 +8,7 @@ const swapFactoryAbi=['function getPair(address) view returns(address)'];
 const pairAbi=['function reserveNative() view returns(uint112)','function reserveToken() view returns(uint112)','function swapNativeForToken(uint256) payable returns(uint256)','function swapTokenForNative(uint256,uint256) returns(uint256)'];
 const $=id=>document.getElementById(id),provider=new ethers.JsonRpcProvider(RPC,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true});
 const tokenAddress=new URLSearchParams(location.search).get('address');
-let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null;
+let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false;
 const fmt=(v,d=5)=>Number(ethers.formatUnits(v,d)).toLocaleString(undefined,{maximumFractionDigits:6});
 const setStatus=m=>{if($('tradeStatus'))$('tradeStatus').textContent=m;};
 function wallet(){return window.ethereum?.isMetaMask?window.ethereum:(window.bitkeep?.ethereum||window.ethereum);}
@@ -32,6 +32,7 @@ async function quoteSell(){
  }catch(e){$('sellQuote').textContent=e.shortMessage||e.reason||e.message||'Quote unavailable';}
 }
 async function refresh(){
+ const activeWallet=wallet();const connected=activeWallet?await activeWallet.request({method:'eth_accounts'}):[];account=connected?.[0]||account||null;
  if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Explore Missions.');
  const factory=new ethers.Contract(FACTORY,factoryAbi,provider);
  [curveAddress,account]=await Promise.all([factory.curveOf(tokenAddress),Promise.resolve(account)]);
@@ -49,7 +50,7 @@ async function refresh(){
  else {$('pairAddress').textContent='Not created yet';$('graduationNote').textContent='This token is still on its bonding curve. When the curve sells out, Liftoff seeds the PIXORUN Swap pool atomically.';}
  $('graduationNote').hidden=false;
  if(account){const bal=await token.balanceOf(account);$('walletTokenBalance').textContent=fmt(bal,decimals)+' '+symbol;}else $('walletTokenBalance').textContent='Connect wallet to view';
- const tradeDisabled=graduated&&mode!=='swap';$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
+ const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('Token data loaded from Robinhood Chain Testnet. Select an amount to see a live quote.');
  await Promise.all([quoteBuy(),quoteSell()]);
@@ -60,7 +61,7 @@ async function buy(){
  let minOut;if(mode==='curve'){const q=await curve.quoteBuy(amount);minOut=q[0]*BigInt(Math.floor((100-slippage())*100))/10000n;const c=new ethers.Contract(curveAddress,curveAbi,await new ethers.BrowserProvider(wallet()).getSigner());setStatus('Confirm the bonding-curve buy in your wallet…');const tx=await c.buy(minOut,{value:amount});setStatus('Buy submitted: '+tx.hash);await tx.wait();}
  else{const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const after=amount-amount*100n/10000n;const out=after*rt/(rn+after);minOut=out*BigInt(Math.floor((100-slippage())*100))/10000n;const c=new ethers.Contract(pairAddress,pairAbi,await new ethers.BrowserProvider(wallet()).getSigner());setStatus('Confirm the Swap buy in your wallet…');const tx=await c.swapNativeForToken(minOut,{value:amount});setStatus('Buy submitted: '+tx.hash);await tx.wait();}
  setStatus('Buy confirmed on Robinhood Chain Testnet.');await refresh();
- }catch(e){setStatus(e.shortMessage||e.reason||e.message||'Buy failed.');}finally{busy=false;$('buyBtn').disabled=false;}
+ }catch(e){setStatus(e.shortMessage||e.reason||e.message||'Buy failed.');}finally{busy=false;$('buyBtn').disabled=!canTrade;}
 }
 async function sell(){
  if(busy)return;busy=true;$('sellBtn').disabled=true;
@@ -72,7 +73,7 @@ async function sell(){
  const signed=mode==='curve'?new ethers.Contract(curveAddress,curveAbi,signer):new ethers.Contract(pairAddress,pairAbi,signer);
  setStatus('Confirm the token sell in your wallet…');const tx=mode==='curve'?await signed.sell(amount,minOut):await signed.swapTokenForNative(amount,minOut);
  setStatus('Sell submitted: '+tx.hash);await tx.wait();setStatus('Sell confirmed on Robinhood Chain Testnet.');await refresh();
- }catch(e){setStatus(e.shortMessage||e.reason||e.message||'Sell failed.');}finally{busy=false;$('sellBtn').disabled=false;}
+ }catch(e){setStatus(e.shortMessage||e.reason||e.message||'Sell failed.');}finally{busy=false;$('sellBtn').disabled=!canTrade;}
 }
 $('buyAmount')?.addEventListener('input',quoteBuy);$('sellAmount')?.addEventListener('input',quoteSell);$('slippage')?.addEventListener('change',()=>{quoteBuy();quoteSell();});
 $('buyBtn')?.addEventListener('click',buy);$('sellBtn')?.addEventListener('click',sell);
