@@ -75,29 +75,59 @@ async function useSharedWallet(detail){
  setButtons(true);
  await refresh();
 }
+function closeTxModal(){const modal=$('stakingTxModal');if(modal)modal.hidden=true;}
+function showTxModal(kind,title,message,action){
+ const modal=$('stakingTxModal');if(!modal)return;
+ $('stakingTxIcon').textContent=kind==='success'?'✓':'!';
+ $('stakingTxTitle').textContent=title;
+ $('stakingTxMessage').textContent=message;
+ const retry=$('stakingTxRetry');retry.hidden=kind!=='error';
+ retry.onclick=()=>{closeTxModal();if(action)runAction(action);};
+ modal.hidden=false;
+}
 async function runAction(action){
  if(busy)return;busy=true;setButtons(false);
  try{
   if(!signer)throw Error('Connect your wallet from the main site header first, then return to Staking.');
   if(action==='stake'){
-   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\d+(\.\d+)?$/.test(raw))throw Error('Enter a valid PIXORUN amount.');
+   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\\d+(\\.\\d+)?$/.test(raw))throw Error('Enter a valid PIXORUN amount.');
    const amount=ethers.parseUnits(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
    const balance=await tokenRead.balanceOf(account);if(balance<amount)throw Error('Insufficient PIXORUN balance.');
-   let allowance=await tokenRead.allowance(account,config.stakingRewards);
-   if(allowance<amount){status('Approve PIXORUN spending in your wallet…','pending');const approval=await tokenWrite.approve(config.stakingRewards,amount);await approval.wait();status('Approval confirmed. Confirm the staking transaction…','pending');}
-   const tx=await stakingWrite.stake(amount);status('Stake submitted. Waiting for confirmation…','pending');await tx.wait();$('stakeAmount').value='';
+   const allowance=await tokenRead.allowance(account,config.stakingRewards);
+   if(allowance<amount){
+    status('Confirm PIXORUN approval in MetaMask…','pending');
+    const approval=await tokenWrite.approve(config.stakingRewards,amount);
+    status('Approving PIXORUN… Waiting for on-chain confirmation.','pending');
+    await approval.wait();
+    status('PIXORUN approval confirmed. Click Stake PIXORUN to continue.','success');
+    showTxModal('success','Approved successfully','Your PIXORUN spending approval is confirmed on Robinhood Chain Testnet. Click Stake PIXORUN to submit your stake.',null);
+    return;
+   }
+   status('Confirm the staking transaction in MetaMask…','pending');
+   const tx=await stakingWrite.stake(amount);
+   status('Staking… Waiting for on-chain confirmation.','pending');
+   await tx.wait();$('stakeAmount').value='';
+   status('Your PIXORUN stake is confirmed on-chain.','success');
+   showTxModal('success','Staking successful','Your PIXORUN tokens have been staked successfully on Robinhood Chain Testnet.',null);
   }else if(action==='unstake'){
-   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\d+(\.\d+)?$/.test(raw))throw Error('Enter the PIXORUN amount to unstake.');
+   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\\d+(\\.\\d+)?$/.test(raw))throw Error('Enter the PIXORUN amount to unstake.');
    const amount=ethers.parseUnits(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
    const staked=await stakingRead.balanceOf(account);if(staked<amount)throw Error('You cannot unstake more than your current stake.');
-   const tx=await stakingWrite.withdraw(amount);status('Unstake submitted. Waiting for confirmation…','pending');await tx.wait();$('stakeAmount').value='';
+   status('Confirm the unstaking transaction in MetaMask…','pending');
+   const tx=await stakingWrite.withdraw(amount);status('Unstaking… Waiting for on-chain confirmation.','pending');await tx.wait();$('stakeAmount').value='';
+   status('Unstake confirmed on-chain.','success');showTxModal('success','Unstaking successful','Your unstaking transaction has been confirmed on Robinhood Chain Testnet.',null);
   }else if(action==='claim'){
    const reward=await stakingRead.earned(account);if(reward===0n)throw Error('There are no rewards available to claim.');
-   const tx=await stakingWrite.claimReward();status('Reward claim submitted. Waiting for confirmation…','pending');await tx.wait();
+   status('Confirm the reward claim in MetaMask…','pending');
+   const tx=await stakingWrite.claimReward();status('Claiming rewards… Waiting for on-chain confirmation.','pending');await tx.wait();
+   status('Reward claim confirmed on-chain.','success');showTxModal('success','Rewards claimed','Your reward claim has been confirmed on Robinhood Chain Testnet.',null);
   }
-  status('Transaction confirmed on Robinhood Chain Testnet.','success');await refresh();
- }catch(e){status(e?.shortMessage||e?.reason||e?.message||'Transaction failed.','error');}
- finally{busy=false;setButtons(!!signer&&!!config?.stakingRewards);if(account)await refresh().catch(()=>{});}
+  await refresh();
+ }catch(e){
+  const rejected=e?.code===4001||e?.code==='ACTION_REJECTED'||e?.shortMessage?.toLowerCase?.().includes('user rejected');
+  const message=rejected?'You cancelled the request in MetaMask. No transaction was completed.':(e?.shortMessage||e?.reason||e?.message||'Transaction failed. Please try again.');
+  status(message,'error');showTxModal('error',rejected?'Request cancelled':'Transaction failed',message,action);
+ }finally{busy=false;setButtons(!!signer&&!!config?.stakingRewards);if(account)await refresh().catch(()=>{});}
 }
 window.addEventListener('pixorun:walletChanged',e=>{lastWalletDetail=e.detail||{};if(configReady)useSharedWallet(lastWalletDetail).catch(err=>{account=null;signer=null;tokenWrite=null;stakingWrite=null;refresh();status(err?.message||'Could not sync the connected site wallet.','error');});});
 document.addEventListener('DOMContentLoaded',async()=>{
