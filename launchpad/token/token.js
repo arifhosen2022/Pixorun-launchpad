@@ -12,6 +12,7 @@ let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='
 const fmt=(v,d=5)=>Number(ethers.formatUnits(v,d)).toLocaleString(undefined,{maximumFractionDigits:6});
 const setStatus=m=>{if($('tradeStatus'))$('tradeStatus').textContent=m;};
 function wallet(){return window.ethereum?.isMetaMask?window.ethereum:(window.bitkeep?.ethereum||window.ethereum);}
+async function ensureNetwork(){const p=wallet();if(!p)throw Error('No compatible EVM wallet found.');let chain=(await p.request({method:'eth_chainId'})).toLowerCase();if(chain!==CHAIN){try{await p.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN}]});}catch(e){if(e.code!==4902)throw e;await p.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]});}chain=(await p.request({method:'eth_chainId'})).toLowerCase();}if(chain!==CHAIN)throw Error('Switch to Robinhood Chain Testnet and try again.');}
 async function connect(){
  const p=wallet();if(!p)throw Error('Open PIXORUN in MetaMask or Bitget Wallet browser.');
  const a=await p.request({method:'eth_requestAccounts'});if(!a?.length)throw Error('Wallet connection was not approved.');
@@ -57,7 +58,7 @@ async function refresh(){
 }
 async function buy(){
  if(busy)return;busy=true;$('buyBtn').disabled=true;
- try{if(!account)await connect();const amount=ethers.parseEther($('buyAmount').value||'0');if(amount<=0n)throw Error('Enter an ETH amount greater than zero.');
+ try{if(!account)await connect();await ensureNetwork();const amount=ethers.parseEther($('buyAmount').value||'0');if(amount<=0n)throw Error('Enter an ETH amount greater than zero.');
  let minOut;if(mode==='curve'){const q=await curve.quoteBuy(amount);minOut=q[0]*BigInt(Math.floor((100-slippage())*100))/10000n;const c=new ethers.Contract(curveAddress,curveAbi,await new ethers.BrowserProvider(wallet()).getSigner());setStatus('Confirm the bonding-curve buy in your wallet…');const tx=await c.buy(minOut,{value:amount});setStatus('Buy submitted: '+tx.hash);await tx.wait();}
  else{const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const after=amount-amount*100n/10000n;const out=after*rt/(rn+after);minOut=out*BigInt(Math.floor((100-slippage())*100))/10000n;const c=new ethers.Contract(pairAddress,pairAbi,await new ethers.BrowserProvider(wallet()).getSigner());setStatus('Confirm the Swap buy in your wallet…');const tx=await c.swapNativeForToken(minOut,{value:amount});setStatus('Buy submitted: '+tx.hash);await tx.wait();}
  setStatus('Buy confirmed on Robinhood Chain Testnet.');await refresh();
@@ -65,7 +66,7 @@ async function buy(){
 }
 async function sell(){
  if(busy)return;busy=true;$('sellBtn').disabled=true;
- try{if(!account)await connect();const amount=ethers.parseUnits($('sellAmount').value||'0',decimals);if(amount<=0n)throw Error('Enter a token amount greater than zero.');
+ try{if(!account)await connect();await ensureNetwork();const amount=ethers.parseUnits($('sellAmount').value||'0',decimals);if(amount<=0n)throw Error('Enter a token amount greater than zero.');
  let minOut,spender=mode==='curve'?curveAddress:pairAddress;
  if(mode==='curve'){const q=await curve.quoteSell(amount);minOut=q[2]*BigInt(Math.floor((100-slippage())*100))/10000n;}else{const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const gross=amount*rn/(rt+amount),out=gross-gross*100n/10000n;minOut=out*BigInt(Math.floor((100-slippage())*100))/10000n;}
  const signer=await new ethers.BrowserProvider(wallet()).getSigner(),signedToken=token.connect(signer),allowance=await token.allowance(account,spender);
