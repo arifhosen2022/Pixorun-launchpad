@@ -213,3 +213,20 @@ body.pixel-home{background:#f7f4fc!important;background-image:linear-gradient(#7
 .pixel-home .pixel-spark{font-family:Inter,system-ui,sans-serif!important;color:#8c65c7!important;text-shadow:none!important}
 .pixel-home .pixel-home-section,.pixel-home .pixel-feature,.pixel-home .pixel-card{color:#281744!important}
 @media(max-width:650px){.pixel-home .pixel-hero{background:linear-gradient(135deg,#fff 0%,#f1eaff 100%)!important}.pixel-home .pixel-hero h1{font-size:clamp(36px,11vw,56px)!important}}
+
+
+/* Shared navigation + typography: consistent UI on every PIXORUN page. */
+body .app-nav{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;min-height:68px!important;padding:12px 0!important;background:transparent!important;border-bottom:1px solid #e6ddf1!important}
+body .app-nav .pixel-brand,body .app-nav .app-logo{display:flex!important;align-items:center!important;gap:10px!important;color:#281744!important;font:800 18px/1.2 Inter,system-ui,sans-serif!important;letter-spacing:-.03em!important}
+body .app-nav .pixel-brand small{display:block!important;color:#806c9a!important;font:600 9px/1.2 Inter,system-ui,sans-serif!important;letter-spacing:.12em!important;margin-top:3px!important}
+body .app-nav .pixel-brand-mark{display:grid!important;place-items:center!important;width:38px!important;height:38px!important;border-radius:11px!important;background:#7040b5!important;color:#fff!important;border:1px solid #7040b5!important;box-shadow:none!important;font:800 20px/1 Inter,system-ui,sans-serif!important}
+body .app-nav .nav-right{display:flex!important;align-items:center!important;gap:10px!important}
+body .app-nav .network-pill{display:inline-flex!important;align-items:center!important;min-height:30px!important;padding:0 10px!important;border-radius:999px!important;background:#eee7ff!important;color:#593493!important;border:1px solid #d8c7f1!important;font:700 10px/1 Inter,system-ui,sans-serif!important}
+body .app-nav .app-menu{position:relative!important}
+body .app-nav .app-menu summary{display:grid!important;place-items:center!important;width:42px!important;height:42px!important;padding:0!important;border:1px solid #d8c7f1!important;border-radius:11px!important;background:#7040b5!important;color:#fff!important;box-shadow:none!important;font:600 21px/1 Inter,system-ui,sans-serif!important;cursor:pointer!important}
+body .app-nav .app-menu nav{position:absolute!important;z-index:1500!important;top:calc(100% + 10px)!important;right:0!important;display:grid!important;gap:3px!important;min-width:220px!important;padding:8px!important;border:1px solid #e3d8f1!important;border-radius:13px!important;background:#fff!important;box-shadow:0 16px 40px #321c511c!important}
+body .app-nav .app-menu nav a,body .app-nav .app-menu nav button{display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:39px!important;padding:9px 11px!important;border:0!important;border-radius:8px!important;background:#fff!important;color:#321c51!important;text-decoration:none!important;font:600 12px/1.3 Inter,system-ui,sans-serif!important;letter-spacing:0!important}
+body .app-nav .app-menu nav a:hover,body .app-nav .app-menu nav a[aria-current="page"]{background:#f2ebff!important;color:#7040b5!important}
+body .app-nav .app-menu nav a span{color:#8d70bd!important}
+body .app-nav .wallet-trigger{min-height:40px!important;padding:0 13px!important;border:1px solid #d8c7f1!important;border-radius:999px!important;background:#f0edfa!important;color:#5e40c0!important;font:700 11px/1 Inter,system-ui,sans-serif!important}
+@media(max-width:650px){body .app-nav{gap:8px!important;min-height:60px!important}body .app-nav .network-pill{display:none!important}body .app-nav .pixel-brand,body .app-nav .app-logo{font-size:16px!important}body .app-nav .pixel-brand-mark{width:34px!important;height:34px!important}body .app-nav .app-menu summary{width:39px!important;height:39px!important}body .app-nav .app-menu nav{min-width:205px!important}}
