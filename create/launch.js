@@ -1,8 +1,7 @@
 (()=> {
 'use strict';
 const FACTORY='0xD3B77BaA03b128f348fc45c133248b0070C1b7bc';
-const CHAIN_ID=46630;
-const CHAIN_HEX='0xb626';
+const CHAIN_ID=46630, CHAIN_HEX='0xb626';
 const RPC='https://rpc.testnet.chain.robinhood.com';
 const EXPLORER='https://explorer.testnet.chain.robinhood.com';
 const ABI=[
@@ -13,86 +12,124 @@ const ABI=[
  'event LaunchCreated(address indexed creator,address indexed token,address indexed curve,string name,string symbol)'
 ];
 const $=id=>document.getElementById(id);
+let readProvider,readFactory,creationFee,launchBusy=false;
 const status=(message,type='info')=>{const el=$('launchStatus');if(el){el.textContent=message;el.dataset.type=type;}};
-const explorer=(kind,address)=>EXPLORER+'/'+kind+'/'+address;
 const fmt=v=>Number(ethers.formatEther(v)).toLocaleString(undefined,{maximumFractionDigits:6});
-const timeout=(promise,label,ms=15000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' timed out. Check the Robinhood Testnet RPC connection and reload.')),ms))]);
-async function walletChainId(){const id=await timeout(window.ethereum.request({method:'eth_chainId'}),'Wallet network check');return Number(BigInt(id));}
+const explorer=(kind,address)=>EXPLORER+'/'+kind+'/'+address;
+const timeout=(promise,label,ms=20000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' timed out. Check your connection and reload.')),ms))]);
+function errorText(e){
+ const parts=[e?.shortMessage,e?.reason,e?.info?.error?.message,e?.error?.message,e?.data?.message,e?.message,e?.code&&('Wallet error code: '+e.code)];
+ const msg=[...new Set(parts.filter(x=>typeof x==='string'&&x.trim()))].join(' — ');
+ return (msg||'Token launch failed. Please try again.').slice(0,650);
+}
+function setButton(label,disabled){const b=$('launchBtn');if(b){b.textContent=label;b.disabled=!!disabled;}}
+function updatePreview(){
+ const name=$('tokenName')?.value.trim(),symbol=$('tokenSymbol')?.value.trim();
+ if($('previewName'))$('previewName').textContent=name||'Your token name';
+ if($('previewSymbol'))$('previewSymbol').textContent=symbol?('$'+symbol.toUpperCase()):'$TICKER';
+ const nameCount=$('nameCount');if(nameCount)nameCount.textContent=(new TextEncoder().encode($('tokenName')?.value||'').length)+'/32 bytes';
+ const symbolCount=$('symbolCount');if(symbolCount)symbolCount.textContent=(symbol||'').length+'/10';
+ const validName=!!name&&new TextEncoder().encode(name).length<=32;
+ const validSymbol=/^[A-Za-z0-9]{1,10}$/.test(symbol||'');
+ if($('tokenName'))$('tokenName').setAttribute('aria-invalid',String(!validName&&!!name));
+ if($('tokenSymbol'))$('tokenSymbol').setAttribute('aria-invalid',String(!validSymbol&&!!symbol));
+}
+async function walletChainId(){
+ if(!window.ethereum)throw new Error('No wallet detected. Open this page inside Zerion, Bitget, MetaMask or another EVM wallet browser.');
+ const id=await timeout(window.ethereum.request({method:'eth_chainId'}),'Wallet network check');
+ return Number(BigInt(id));
+}
+async function switchToTestnet(){
+ let chain=await walletChainId();
+ if(chain===CHAIN_ID)return;
+ status('Your wallet is on the wrong network. Approve switching to Robinhood Chain Testnet (46630).','pending');
+ try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN_HEX}]});}
+ catch(e){
+   if(e.code!==4902)throw e;
+   await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN_HEX,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]});
+ }
+ chain=await walletChainId();
+ if(chain!==CHAIN_ID)throw new Error('Robinhood Chain Testnet was not selected. Switch the network in your wallet and try again.');
+}
 async function setup(){
- const btn=$('launchBtn'),form=$('launchForm');
- if(!btn||!form)return;
- if(!window.ethereum){status('Open this page in Zerion, Bitget, MetaMask or another compatible EVM wallet browser.','error');btn.disabled=true;return;}
- btn.disabled=true;
- status('Launch checker started. Preparing Robinhood Testnet RPC…','pending');
- let readProvider,readFactory;
+ const form=$('launchForm'),btn=$('launchBtn');
+ if(!form||!btn)return;
+ $('factoryAddress').textContent=FACTORY;$('factoryAddress').href=explorer('address',FACTORY);
+ $('factoryAddress').title=FACTORY;
+ $('tokenName')?.addEventListener('input',updatePreview);
+ $('tokenSymbol')?.addEventListener('input',updatePreview);
+ updatePreview();
+ setButton('CHECKING LAUNCHPAD…',true);
+ status('Connecting to Robinhood Chain Testnet and verifying the launch contracts…','pending');
  try{
-   if(!window.ethers)throw new Error('Ethers library did not load. Refresh the page and try again.');
+   if(!window.ethers)throw new Error('The ethers wallet library did not load. Refresh this page and try again.');
    readProvider=new ethers.JsonRpcProvider(RPC,{chainId:CHAIN_ID,name:'Robinhood Chain Testnet'},{staticNetwork:true});
-   status('Connecting to Robinhood Chain Testnet RPC…','pending');
-   const rpcNetwork=await timeout(readProvider.getNetwork(),'Robinhood Testnet RPC');
-   status('Robinhood Testnet RPC connected. Checking Launchpad Factory bytecode…','pending');
-   if(Number(rpcNetwork.chainId)!==CHAIN_ID)throw new Error('The configured RPC did not return Robinhood Chain Testnet (46630).');
-   const code=await timeout(readProvider.getCode(FACTORY),'Launchpad Factory lookup');
-   status('Factory bytecode found. Reading Factory settings…','pending');
-   if(!code||code==='0x')throw new Error('No contract bytecode exists at the configured Launchpad Factory address on Robinhood Chain Testnet. Token creation is paused.');
+   const network=await timeout(readProvider.getNetwork(),'Robinhood Testnet RPC');
+   if(Number(network.chainId)!==CHAIN_ID)throw new Error('RPC network mismatch. Expected Robinhood Chain Testnet (46630).');
+   const code=await timeout(readProvider.getCode(FACTORY),'Launchpad Factory verification');
+   if(!code||code==='0x')throw new Error('Launchpad Factory bytecode was not found at the configured address. Token launch is paused until deployment is fixed.');
    readFactory=new ethers.Contract(FACTORY,ABI,readProvider);
-   const [fee,swapFactory,feeDistributor]=await timeout(Promise.all([readFactory.creationFee(),readFactory.swapFactory(),readFactory.feeDistributor()]),'Factory configuration read');
-   if(swapFactory===ethers.ZeroAddress)throw new Error('Launchpad Factory is not linked to PIXORUN Swap Factory. Token creation is paused.');
+   const [fee,swap,distributor]=await timeout(Promise.all([readFactory.creationFee(),readFactory.swapFactory(),readFactory.feeDistributor()]),'Launchpad configuration');
+   if(swap===ethers.ZeroAddress)throw new Error('Launchpad Factory has no Swap Factory linked. Please fix the on-chain configuration before launching.');
+   if(distributor===ethers.ZeroAddress)throw new Error('Launchpad Factory has no Fee Distributor linked. Token launch is paused.');
+   creationFee=fee;
    $('creationFee').textContent=fmt(fee)+' ETH';
-   $('factoryAddress').textContent=FACTORY;$('factoryAddress').href=explorer('address',FACTORY);
-   $('swapAddress').textContent=swapFactory;$('swapAddress').href=explorer('address',swapFactory);
-   $('feeAddress').textContent=feeDistributor;$('feeAddress').href=explorer('address',feeDistributor);
-   const walletChain=await walletChainId();
-   btn.disabled=false;
-   if(walletChain!==CHAIN_ID){btn.textContent='SWITCH NETWORK TO CONTINUE';status('Factory verified. Switch your wallet to Robinhood Chain Testnet (46630) to launch.','success');}
-   else{btn.textContent='CONNECT WALLET TO LAUNCH';status('Factory verified on Robinhood Chain Testnet. Connect your wallet to create a token.','success');}
+   $('swapAddress').textContent=swap;$('swapAddress').href=explorer('address',swap);
+   $('feeAddress').textContent=distributor;$('feeAddress').href=explorer('address',distributor);
+   $('networkStatus')&&($('networkStatus').textContent='Connected · Robinhood Chain Testnet');
+   setButton('CONNECT WALLET & LAUNCH TOKEN',false);
+   status('Launchpad verified. Enter your token name and ticker, then connect your wallet to continue.','success');
  }catch(e){
-   $('creationFee').textContent='Unable to read';
-   status(e.shortMessage||e.message||'Could not read PIXORUN Factory.','error');
-   btn.disabled=true;
-   return;
+   $('creationFee').textContent='Unavailable';
+   $('networkStatus')&&($('networkStatus').textContent='Not verified');
+   status(errorText(e),'error');setButton('LAUNCHPAD UNAVAILABLE',true);return;
  }
  btn.addEventListener('click',async()=>{
-   btn.disabled=true;btn.textContent='CHECKING WALLET…';
+   if(launchBusy)return;
+   launchBusy=true;setButton('PREPARING TRANSACTION…',true);
    try{
-     if(!window.ethereum)throw new Error('No EVM wallet detected.');
-     let chain=await walletChainId();
-     if(chain!==CHAIN_ID){
-       status('Please approve switching to Robinhood Chain Testnet.','pending');
-       try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN_HEX}]});}
-       catch(e){if(e.code!==4902)throw e;await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN_HEX,chainName:'Robinhood Chain Testnet',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]});}
-       chain=await walletChainId();
-       if(chain!==CHAIN_ID)throw new Error('Robinhood Chain Testnet is not selected.');
-     }
      const name=$('tokenName').value.trim(),symbol=$('tokenSymbol').value.trim();
-     if(!name||new TextEncoder().encode(name).length>32)throw new Error('Token name is required and must be at most 32 bytes.');
-     if(!/^[A-Za-z0-9]{1,10}$/.test(symbol))throw new Error('Ticker must contain 1–10 English letters or numbers.');
-     const accounts=await timeout(window.ethereum.request({method:'eth_requestAccounts'}),'Wallet connection');
-     if(!accounts||!accounts.length)throw new Error('Connect a wallet to continue.');
+     if(!name||new TextEncoder().encode(name).length>32)throw new Error('Enter a token name. It must be 1–32 UTF-8 bytes.');
+     if(!/^[A-Za-z0-9]{1,10}$/.test(symbol))throw new Error('Ticker must be 1–10 English letters or numbers, without spaces or symbols.');
+     await switchToTestnet();
+     status('Requesting wallet connection…','pending');
+     const accounts=await timeout(window.ethereum.request({method:'eth_requestAccounts'}),'Wallet connection',60000);
+     if(!accounts?.length)throw new Error('Wallet connection was not approved.');
+     const account=ethers.getAddress(accounts[0]);
      const walletProvider=new ethers.BrowserProvider(window.ethereum,'any');
-     const signer=await timeout(walletProvider.getSigner(),'Wallet signer');
+     const signer=await timeout(walletProvider.getSigner(account),'Wallet signer');
+     const fee=creationFee??await readFactory.creationFee();
+     const balance=await timeout(readProvider.getBalance(account),'Wallet balance');
+     if(balance<fee)throw new Error('Insufficient testnet ETH. You need at least '+fmt(fee)+' ETH for the creation fee, plus gas.');
      const factory=new ethers.Contract(FACTORY,ABI,signer);
-     const fee=await timeout(readFactory.creationFee(),'Creation fee read');
-     const balance=await timeout(readProvider.getBalance(accounts[0]),'Wallet balance read');
-     if(balance<fee)throw new Error('Insufficient testnet ETH for the creation fee and network gas.');
-     status('Checking the launch transaction on Robinhood Testnet before opening your wallet…','pending');
-     await timeout(readFactory.createLaunch.staticCall(name,symbol,{from:accounts[0],value:fee}),'Launch preflight simulation');
-     status('Preflight passed. Please confirm the token launch transaction in your wallet. Creation fee: '+fmt(fee)+' ETH, plus network gas.','pending');
-     btn.textContent='WAITING FOR WALLET…';
-     const tx=await timeout(factory.createLaunch(name,symbol,{value:fee,gasLimit:6000000}),'Wallet transaction request',45000);
-     status('Transaction submitted: '+tx.hash+'. Waiting for confirmation…','pending');
-     btn.textContent='CONFIRMING…';
-     const receipt=await timeout(tx.wait(),'Transaction confirmation',120000);
-     if(!receipt||receipt.status!==1)throw new Error('Transaction was not successful. Check the transaction on the explorer: '+explorer('tx',tx.hash));
+     status('Simulating the exact launch transaction. Your wallet will not be charged during this check…','pending');
+     await timeout(readFactory.createLaunch.staticCall(name,symbol,{from:account,value:fee}),'Launch simulation',45000);
+     const request=await timeout(factory.createLaunch.populateTransaction(name,symbol,{value:fee}),'Transaction preparation');
+     const gas=await timeout(readProvider.estimateGas({...request,from:account}),'Gas estimation',45000);
+     const gasLimit=gas*120n/100n;
+     const feeData=await readProvider.getFeeData();
+     const gasPrice=feeData.maxFeePerGas??feeData.gasPrice??0n;
+     if(gasPrice&&balance<fee+(gasLimit*gasPrice))throw new Error('Your balance covers the creation fee but not the estimated network gas. Add more testnet ETH and retry.');
+     status('Simulation passed. Confirm the token launch in your wallet. Fee: '+fmt(fee)+' ETH plus estimated network gas.','success');
+     setButton('WAITING FOR WALLET APPROVAL…',true);
+     const tx=await timeout(signer.sendTransaction({...request,gasLimit}),'Wallet transaction approval',90000);
+     status('Transaction submitted. Waiting for Robinhood Testnet confirmation…','pending');
+     const txLink=explorer('tx',tx.hash);
+     if($('resultTx')){$('resultTx').href=txLink;$('resultTx').textContent='View transaction '+tx.hash.slice(0,12)+'… ↗';}
+     const receipt=await timeout(tx.wait(), 'Transaction confirmation',180000);
+     if(!receipt||receipt.status!==1)throw new Error('The launch transaction failed on-chain. Review the transaction: '+txLink);
      let token='',curve='';
-     for(const log of receipt.logs){try{const parsed=factory.interface.parseLog(log);if(parsed&&parsed.name==='LaunchCreated'){token=parsed.args.token;curve=parsed.args.curve;break;}}catch(_){}}
-     if(!token||!curve)throw new Error('Transaction confirmed, but LaunchCreated event could not be read. Check: '+explorer('tx',tx.hash));
+     for(const log of receipt.logs){try{const parsed=readFactory.interface.parseLog(log);if(parsed?.name==='LaunchCreated'){token=parsed.args.token;curve=parsed.args.curve;break;}}catch(_){}}
+     if(!token||!curve)throw new Error('Transaction confirmed, but token addresses could not be read from LaunchCreated event. Check '+txLink);
      $('resultToken').textContent=token;$('resultToken').href=explorer('address',token);
      $('resultCurve').textContent=curve;$('resultCurve').href=explorer('address',curve);
-     $('resultTx').href=explorer('tx',tx.hash);$('launchResult').hidden=false;
-     status('Token created successfully on Robinhood Chain Testnet.','success');form.reset();
-   }catch(e){const detail=e.shortMessage||e.reason||e.info?.error?.message||e.error?.message||e.data?.message||e.message||'Token launch failed.';status(String(detail).slice(0,500),'error');}
-   finally{btn.disabled=false;btn.textContent='CONNECT WALLET TO LAUNCH';}
+     $('resultTokenLabel')&&($('resultTokenLabel').textContent='TOKEN CONTRACT');
+     $('resultCurveLabel')&&($('resultCurveLabel').textContent='BONDING CURVE');
+     $('launchResult').hidden=false;
+     status('Success! Your token and bonding curve are deployed on Robinhood Chain Testnet.','success');
+     form.reset();updatePreview();
+   }catch(e){status(errorText(e),'error');}
+   finally{launchBusy=false;setButton('CONNECT WALLET & LAUNCH TOKEN',false);}
  });
 }
 document.addEventListener('DOMContentLoaded',setup);
