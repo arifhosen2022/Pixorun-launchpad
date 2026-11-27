@@ -5,4 +5,14 @@
 <div class="app-row" style="margin:20px 0"><div><div class="app-label">Slippage tolerance</div><select id="slippage" style="padding:10px;background:#17131f;color:white;border:1px solid #4a405b"><option value="0.5">0.5%</option><option value="1" selected>1%</option><option value="2">2%</option><option value="5">5%</option></select></div><span class="app-label">Trading fee: 1% · Gas paid separately</span></div>
 <div class="trade-grid"><section class="app-card"><h2>Buy with ETH</h2><div class="trade-field"><label for="buyAmount">ETH amount</label><input id="buyAmount" type="number" min="0" step="any" placeholder="0.01"></div><div id="buyQuote" class="trade-quote">Enter an ETH amount</div><div id="buyFee" class="app-label"></div><button id="buyBtn" class="app-btn trade-btn" disabled>Buy token</button></section><section class="app-card"><h2>Sell for ETH</h2><div class="trade-field"><label for="sellAmount">Token amount</label><input id="sellAmount" type="number" min="0" step="any" placeholder="1000"></div><div id="sellQuote" class="trade-quote">Enter a token amount</div><div id="sellFee" class="app-label"></div><button id="sellBtn" class="app-btn secondary trade-btn" disabled>Sell token</button></section></div>
 <div class="app-status" role="status" aria-live="polite"><span id="tradeStatus">Connecting to Robinhood Chain Testnet…</span> <button id="tokenRetry" class="app-btn secondary" type="button">Retry</button></div><p class="app-note"><strong>Testnet warning:</strong> Quotes are estimates and can change before confirmation. Check the transaction details in your wallet. Only use Robinhood Chain Testnet ETH.</p></main>
-<footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer><script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script><script src="./token.js?v=token-refresh-20261127b"></script><script src="../app.js?v=wallet-pages-20261127a"></script></body></html>
+<footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer><script>
+(function(){
+ const status=document.getElementById('tradeStatus');
+ const sources=['https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js','https://unpkg.com/ethers@6.13.5/dist/ethers.umd.min.js'];
+ function load(index){
+  if(index>=sources.length){if(status)status.textContent='Could not load ethers library. Check your internet connection, then reload this page.';return;}
+  const s=document.createElement('script');s.src=sources[index];s.onload=function(){const app=document.createElement('script');app.src='./token.js?v=token-loader-20261127c';app.onerror=function(){if(status)status.textContent='Token page script failed to load. Reload the page.';};document.body.appendChild(app);};s.onerror=function(){s.remove();load(index+1);};document.head.appendChild(s);
+ }
+ load(0);
+})();
+</script><script src="../app.js?v=wallet-pages-20261127a"></script></body></html>
