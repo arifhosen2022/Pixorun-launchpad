@@ -161,7 +161,7 @@ async function loadMarketData(){
    if(legacy&&Date.now()-legacy.savedAt<86400000){
     marketText('marketPrice',legacy.price||'—');marketText('marketCap',legacy.cap||'—');marketText('marketLiquidity',legacy.liquidity||'—');
     marketText('marketVolume',legacy.volume||'—');marketText('marketChange',legacy.change||'—');marketText('marketTrades',legacy.trades||'—');
-    marketText('marketUpdated','Saved cache · refreshing Supabase');drawMarketChart(legacy.points||[]);
+    marketText('marketUpdated','Saved cache · refreshing market data');drawMarketChart(legacy.points||[]);
     marketText('marketTradeCount',legacy.tradeCount||'');const host=$('marketRecentTrades');if(host)host.innerHTML=legacy.rows||'';
    }
   }
@@ -179,7 +179,7 @@ async function loadMarketData(){
    const host=$('marketRecentTrades');if(host)host.innerHTML='<p class="trade-help">No indexed trades yet.</p>';
   }
  }catch(e){
-  console.warn('Supabase market read failed:',e);
+  console.warn('Market data read failed:',e);
   if(!$('marketPrice')?.textContent||$('marketPrice').textContent==='—'){
    marketText('marketUpdated','Market data temporarily unavailable');
    marketText('marketDataNote','Market data is temporarily unavailable. Refresh to retry; the page will not run a slow RPC history scan.');
@@ -277,7 +277,7 @@ const retry=$('tokenRetry');if(retry)retry.addEventListener('click',()=>{retry.d
 const p=wallet();p?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;$('buyAmount').value='';$('sellAmount').value='';await readConnectedWallet();await quoteBuy();await quoteSell();});
 p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
 setStatus(cached?'Showing saved token details · checking the blockchain…':'Starting token data request…');
-loadMarketData().catch(e=>console.warn('Supabase market data unavailable:',e));
+loadMarketData().catch(e=>console.warn('Market data unavailable:',e));
 setInterval(()=>loadMarketData().catch(e=>console.warn('Market refresh failed:',e)),5000);
 refresh().then(readConnectedWallet).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
 })();
