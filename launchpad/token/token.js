@@ -138,8 +138,8 @@ function initMarketChart(){
   layout:{background:{type:'solid',color:'#ffffff'},textColor:'#5f4b78',fontFamily:'Inter,system-ui,sans-serif',fontSize:12},
   grid:{vertLines:{color:'#f1ebf8'},horzLines:{color:'#f1ebf8'}},
   crosshair:{mode:window.LightweightCharts.CrosshairMode.Normal,vertLine:{color:'#9872c7',width:1,style:2,labelBackgroundColor:'#7040b5'},horzLine:{color:'#9872c7',width:1,style:2,labelBackgroundColor:'#7040b5'}},
-  rightPriceScale:{borderColor:'#e8def2',scaleMargins:{top:.08,bottom:.25},entireTextOnly:true},
-  timeScale:{borderColor:'#e8def2',timeVisible:true,secondsVisible:false,rightOffset:8,barSpacing:9},
+  rightPriceScale:{borderColor:'#e8def2',scaleMargins:{top:.10,bottom:.20},entireTextOnly:true,minimumWidth:72},
+  timeScale:{borderColor:'#e8def2',timeVisible:true,secondsVisible:false,rightOffset:6,barSpacing:12,minBarSpacing:6},
   localization:{priceFormatter:p=>marketFmt(p,12)}
  });
  marketCandleSeries=marketChart.addCandlestickSeries({
