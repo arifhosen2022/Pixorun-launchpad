@@ -148,7 +148,7 @@ async function setup(){
      const name=$('tokenName').value.trim(),symbol=$('tokenSymbol').value.trim();
      if(!name||new TextEncoder().encode(name).length>32)throw new Error('Enter a token name. It must be 1–32 UTF-8 bytes.');
      if(!/^[A-Za-z0-9]{1,10}$/.test(symbol))throw new Error('Ticker must be 1–10 English letters or numbers, without spaces or symbols.');
-     const metadata={description:String($('tokenDescription')?.value||'').trim(),websiteUrl:cleanUrl($('tokenWebsite')?.value,'website'),xUrl:cleanUrl($('tokenX')?.value,'X',/(^|\.)((x|twitter)\.com)$/i),telegramUrl:cleanUrl($('tokenTelegram')?.value,'Telegram',/(^|\.)((t\.me|telegram\.me))$/i)};
+     const metadata={description:String($('tokenDescription')?.value||'').trim()||null,websiteUrl:cleanUrl($('tokenWebsite')?.value,'website')||null,xUrl:cleanUrl($('tokenX')?.value,'X',/(^|\.)((x|twitter)\.com)$/i)||null,telegramUrl:cleanUrl($('tokenTelegram')?.value,'Telegram',/(^|\.)((t\.me|telegram\.me))$/i)||null};
      const logo=await readImage($('tokenLogo')?.files?.[0],'Token logo');
      const banner=await readImage($('tokenBanner')?.files?.[0],'Banner image');
      const hasMetadata=Object.values(metadata).some(Boolean)||!!logo||!!banner;
