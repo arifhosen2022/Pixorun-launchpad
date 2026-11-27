@@ -48,6 +48,32 @@ function updatePreview(){
  if($('tokenName'))$('tokenName').setAttribute('aria-invalid',String(!validName&&!!name));
  if($('tokenSymbol'))$('tokenSymbol').setAttribute('aria-invalid',String(!validSymbol&&!!symbol));
 }
+
+function cleanUrl(value,label,hosts){
+ const raw=String(value||'').trim();if(!raw)return '';
+ let u;try{u=new URL(raw);}catch{throw new Error('Enter a valid '+label+' URL.');}
+ if(!['https:','http:'].includes(u.protocol))throw new Error(label+' URL must start with https:// or http://');
+ if(hosts&&!hosts.test(u.hostname))throw new Error('Use an official '+label+' link.');
+ return u.href;
+}
+async function readImage(file,label){
+ if(!file)return null;
+ const allowed=['image/png','image/jpeg','image/webp','image/gif'];
+ if(!allowed.includes(file.type))throw new Error(label+' must be PNG, JPG, WEBP or GIF.');
+ if(file.size>2*1024*1024)throw new Error(label+' must be 2 MB or smaller.');
+ const bytes=new Uint8Array(await file.arrayBuffer());
+ const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+ const sha256=Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
+ let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+ return {mime:file.type,base64:btoa(binary),sha256};
+}
+function previewLogo(){
+ const box=$('previewIcon');if(!box)return;box.replaceChildren();
+ const file=$('tokenLogo')?.files?.[0];
+ if(file){const img=document.createElement('img');img.alt='Token logo preview';img.src=URL.createObjectURL(file);box.append(img);}
+ else box.textContent='P';
+}
+
 async function walletChainId(){
  const provider=walletProvider();
  if(!provider)throw new Error('No wallet detected. Open this page inside Bitget Wallet or another EVM wallet browser.');
@@ -87,7 +113,9 @@ async function setup(){
  $('factoryAddress').title=FACTORY;
  $('tokenName')?.addEventListener('input',updatePreview);
  $('tokenSymbol')?.addEventListener('input',updatePreview);
- updatePreview();
+ $('tokenLogo')?.addEventListener('change',previewLogo);
+ $('tokenBanner')?.addEventListener('change',()=>{const file=$('tokenBanner').files?.[0];if(file&&file.size>2*1024*1024){$('tokenBanner').value='';status('Banner image must be 2 MB or smaller.','error');}});
+ updatePreview();previewLogo();
  setButton('CHECKING LAUNCHPAD…',true);
  status('Connecting to Robinhood Chain Testnet and verifying the launch contracts…','pending');
  try{
@@ -120,6 +148,10 @@ async function setup(){
      const name=$('tokenName').value.trim(),symbol=$('tokenSymbol').value.trim();
      if(!name||new TextEncoder().encode(name).length>32)throw new Error('Enter a token name. It must be 1–32 UTF-8 bytes.');
      if(!/^[A-Za-z0-9]{1,10}$/.test(symbol))throw new Error('Ticker must be 1–10 English letters or numbers, without spaces or symbols.');
+     const metadata={description:String($('tokenDescription')?.value||'').trim()||null,websiteUrl:cleanUrl($('tokenWebsite')?.value,'website')||null,xUrl:cleanUrl($('tokenX')?.value,'X',/(^|\.)((x|twitter)\.com)$/i)||null,telegramUrl:cleanUrl($('tokenTelegram')?.value,'Telegram',/(^|\.)((t\.me|telegram\.me))$/i)||null};
+     const logo=await readImage($('tokenLogo')?.files?.[0],'Token logo');
+     const banner=await readImage($('tokenBanner')?.files?.[0],'Banner image');
+     const hasMetadata=Object.values(metadata).some(Boolean)||!!logo||!!banner;
      await switchToTestnet();
      status('Requesting wallet connection…','pending');
      const provider=walletProvider();
@@ -170,15 +202,26 @@ async function setup(){
        const items=Array.isArray(saved?.items)?saved.items:[];
        if(!items.some(item=>item.token?.toLowerCase()===token.toLowerCase()))items.unshift({token,name,symbol,curve,creator:account,blockNumber:receipt.blockNumber,txHash});
        localStorage.setItem(profileKey,JSON.stringify({items,lastBlock:receipt.blockNumber}));
-       if(window.PIXORUN_REGISTRY){await timeout(window.PIXORUN_REGISTRY.registerLaunch(txHash),'Global launch registration',20000);globalRegistered=true;}
+       if(window.PIXORUN_REGISTRY){
+         let payload;
+         if(hasMetadata){
+           const logoHash=logo?.sha256||'',bannerHash=banner?.sha256||'';
+           const message='PIXORUN_TOKEN_METADATA_V1\n'+txHash.toLowerCase()+'\n'+JSON.stringify(metadata)+'\n'+logoHash+'\n'+bannerHash;
+           status('Token is deployed. Approve one free wallet signature to publish its image and details…','pending');
+           const signature=await timeout(provider.request({method:'personal_sign',params:[ethers.hexlify(ethers.toUtf8Bytes(message)),account]}),'Metadata wallet signature',90000);
+           payload={metadata,logo,banner,signature};
+         }
+         await timeout(window.PIXORUN_REGISTRY.registerLaunch(txHash,payload),'Global launch registration',30000);
+         globalRegistered=true;
+       }
      }catch(syncError){console.warn('PIXORUN global registry sync pending:',syncError);}
      $('resultToken').textContent=token;$('resultToken').href=explorer('address',token);
      $('resultCurve').textContent=curve;$('resultCurve').href=explorer('address',curve);
      $('resultTokenLabel')&&($('resultTokenLabel').textContent='TOKEN CONTRACT');
      $('resultCurveLabel')&&($('resultCurveLabel').textContent='BONDING CURVE');
      $('launchResult').hidden=false;
-     status(globalRegistered?'Success! Your token is now visible across PIXORUN.':'Token deployed! Shared listing sync is pending.','success');
-     form.reset();updatePreview();
+     status(globalRegistered?'Success! Your token and metadata are now visible across PIXORUN.':'Token deployed, but shared listing/metadata sync is pending. Retry the metadata signature if it was declined.','success');
+     if(globalRegistered){form.reset();updatePreview();previewLogo();}
    }catch(e){status(errorText(e),'error');}
    finally{launchBusy=false;setButton('CONNECT WALLET & LAUNCH TOKEN',false);}
  });
