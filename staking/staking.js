@@ -92,7 +92,7 @@ async function runAction(action){
  try{
   if(!signer)throw Error('Connect your wallet from the main site header first, then return to Staking.');
   if(action==='stake'){
-   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\\d+(\\.\\d+)?$/.test(raw))throw Error('Enter a valid PIXORUN amount.');
+   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\d+(\.\d+)?$/.test(raw))throw Error('Enter a valid PIXORUN amount.');
    const amount=ethers.parseUnits(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
    const balance=await tokenRead.balanceOf(account);if(balance<amount)throw Error('Insufficient PIXORUN balance.');
    const allowance=await tokenRead.allowance(account,config.stakingRewards);
@@ -112,7 +112,7 @@ async function runAction(action){
    status('Your PIXORUN stake is confirmed on-chain.','success');
    showTxModal('success','You’re officially staking!','Your PIXORUN is now staked on Robinhood Chain Testnet. You can track your position and rewards in the Staking Hub.',null,tx.hash,fmt(amount)+' '+symbol);
   }else if(action==='unstake'){
-   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\\d+(\\.\\d+)?$/.test(raw))throw Error('Enter the PIXORUN amount to unstake.');
+   const raw=String($('stakeAmount').value||'').trim();if(!raw||!/^\d+(\.\d+)?$/.test(raw))throw Error('Enter the PIXORUN amount to unstake.');
    const amount=ethers.parseUnits(raw,decimals);if(amount<=0n)throw Error('Amount must be greater than zero.');
    const staked=await stakingRead.balanceOf(account);if(staked<amount)throw Error('You cannot unstake more than your current stake.');
    status('Confirm the unstaking transaction in MetaMask…','pending');
