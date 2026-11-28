@@ -98,7 +98,7 @@ function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
 function drawMarketChart(points){
  const host=$('marketChart');if(!host)return;
  const valid=points.filter(p=>Number.isFinite(Number(p.price))&&Number(p.price)>0&&Number(p.time)>0).sort((a,b)=>Number(a.time)-Number(b.time));
- const intervalSeconds=chartInterval==='15m'?900:chartInterval==='1h'?3600:chartInterval==='6h'?21600:86400;
+ const intervalSeconds=chartInterval==='5m'?300:chartInterval==='15m'?900:chartInterval==='1h'?3600:21600;
  const buckets=new Map();
  for(const p of valid){
   const key=Math.floor(Number(p.time)/intervalSeconds)*intervalSeconds;let c=buckets.get(key);
