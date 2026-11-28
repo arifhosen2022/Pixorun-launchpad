@@ -44,9 +44,19 @@ async function connect(){
  $('walletNetworkNote').textContent=chain===CHAIN?'Wallet connected to Robinhood Chain Testnet.':'Wallet connected on another network. Switch to Robinhood Chain Testnet when trading.';
  await refreshBalances();return account;
 }
-async function readConnectedWallet(){
- const p=wallet();if(!p)return;
- try{const [a,chain]=await Promise.all([p.request({method:'eth_accounts'}),p.request({method:'eth_chainId'})]);account=a?.[0]?ethers.getAddress(a[0]):null;if(account){$('walletNetworkNote').textContent=chain.toLowerCase()===CHAIN?'Connected · Robinhood Chain Testnet':'Connected · wrong network; switch only when you trade.';await refreshBalances();}else{$('walletEthBalance').textContent='Not connected';$('walletTokenBalance').textContent='Not connected';}}catch(e){console.warn('Wallet state unavailable',e);}
+async function readConnectedWallet(event){
+ const detail=event?.detail||{};
+ const p=detail.provider||wallet();
+ try{
+  let accounts=detail.account?[detail.account]:null,chain=detail.chainId||null;
+  if(p){const state=await Promise.all([p.request({method:'eth_accounts'}),p.request({method:'eth_chainId'})]);accounts=state[0];chain=state[1];}
+  if(!accounts){account=null;$('walletEthBalance').textContent='Not connected';$('walletTokenBalance').textContent='Not connected';$('walletNetworkNote').textContent='Connect your wallet to view live balances and trade.';return;}
+  account=accounts[0]?ethers.getAddress(accounts[0]):null;
+  if(!account){$('walletEthBalance').textContent='Not connected';$('walletTokenBalance').textContent='Not connected';return;}
+  const network=String(chain||'').toLowerCase();
+  $('walletNetworkNote').textContent=network===CHAIN?'Connected · Robinhood Chain Testnet':'Connected · wrong network; switch only when you trade.';
+  if(token)await refreshBalances();
+ }catch(e){console.warn('Wallet state unavailable',e);$('walletNetworkNote').textContent='Wallet detected, but account state could not be read. Reopen the wallet connection.';}
 }
 function showMetadata(m){
  if(!m)return;const about=$('tokenAbout');let has=false;
@@ -406,14 +416,16 @@ $('buyMax')?.addEventListener('click',()=>setTradePercent('buy',100).catch(e=>se
 $('sellMax')?.addEventListener('click',()=>setTradePercent('sell',100).catch(e=>setStatus(e.shortMessage||e.message||'Could not read token balance.')));
 document.querySelectorAll('[data-trade-side][data-trade-percent]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await setTradePercent(button.dataset.tradeSide,Number(button.dataset.tradePercent));}catch(e){setStatus(e.shortMessage||e.reason||e.message||'Could not calculate percentage.');}finally{button.disabled=false;}}));
 const retry=$('tokenRetry');if(retry)retry.addEventListener('click',()=>{retry.disabled=true;refresh().catch(e=>setStatus('Load failed: '+(e.shortMessage||e.reason||e.message||'RPC error'))).finally(()=>retry.disabled=false);});
-const p=wallet();p?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;$('buyAmount').value='';$('sellAmount').value='';await readConnectedWallet();await quoteBuy();await quoteSell();});
+const initialProvider=wallet();initialProvider?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;$('buyAmount').value='';$('sellAmount').value='';await readConnectedWallet();await quoteBuy();await quoteSell();});
 p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
 setStatus(cached?'Showing saved token details · checking the blockchain…':'Starting token data request…');
 window.addEventListener('pixorun:walletChanged',readConnectedWallet);
+window.addEventListener('pixorun:walletChanged',()=>{if(account)refreshBalances();});
+
 paintMarketCache();
 let marketRefreshTimer=null;
 const scheduleMarketRefresh=()=>{if(marketRefreshTimer)clearInterval(marketRefreshTimer);marketRefreshTimer=setInterval(()=>{if(!document.hidden){loadMarketData();updateCurveProgress();if(account)refreshBalances();}},12000);};
 scheduleMarketRefresh();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadMarketData();});
-refresh().then(readConnectedWallet).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
+refresh().then(()=>readConnectedWallet()).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
 })();
