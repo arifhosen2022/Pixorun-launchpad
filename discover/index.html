@@ -107,6 +107,31 @@
 @media(max-width:900px){#missionList .app-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}}
 @media(max-width:560px){#missionList .app-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}#missionList a.mission-token-card{padding:9px!important;gap:7px}.compact-token-logo,.compact-token-fallback{width:30px;height:30px}.compact-token-name{font-size:11px}.compact-token-curve strong{font-size:10px}}
 
+
+/* Premium blue treatment for Discover token cards */
+#missionList a.mission-token-card{
+  background:linear-gradient(145deg,#194778 0%,#12365f 55%,#102d50 100%)!important;
+  border:1px solid #376b9f!important;
+  box-shadow:0 7px 20px #0b2c501c,inset 0 1px 0 #ffffff18!important;
+}
+#missionList a.mission-token-card:hover{
+  background:linear-gradient(145deg,#20558a 0%,#17416e 55%,#12365f 100%)!important;
+  border-color:#5b91c2!important;
+  box-shadow:0 11px 25px #0b2c5030,inset 0 1px 0 #ffffff20!important;
+}
+#missionList .compact-token-logo,#missionList .compact-token-fallback{border-color:#6b94bb}
+#missionList .compact-token-fallback{background:linear-gradient(145deg,#3975ad,#245487);color:#fff}
+#missionList .compact-token-name{color:#fff}
+#missionList .compact-token-symbol{color:#a9d2fa}
+#missionList .compact-token-curve{color:#b8cde2}
+#missionList .compact-token-curve strong{color:#fff}
+#missionList .compact-token-track{background:#ffffff24}
+#missionList .compact-token-track span{background:linear-gradient(90deg,#78c8ff,#b5e5ff)}
+#missionList .compact-token-foot{color:#c1d3e5}
+#missionList .compact-token-state{color:#b9dcff}
+#missionList .compact-token-state.curved{color:#8ce3bf}
+#missionList .compact-token-state.unknown{color:#d1ddeb}
+
 </style></head><body>
 <header class="app-wrap app-nav pixel-sub-nav">
 <a class="app-logo pixel-brand" href="/" aria-label="PIXORUN home"><span class="pixel-brand-mark">P</span><span>PIXORUN<b>.</b><small>LAUNCHPAD</small></span></a>
