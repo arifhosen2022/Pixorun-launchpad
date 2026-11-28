@@ -62,6 +62,20 @@
 .launch-preview .preview-symbol{color:#7040b5!important}
 .launch-preview .preview-icon{background:#eee7f8!important;color:#7040b5!important;border:1px solid #e2d7f2!important}
 
+
+/* Token launch confirmation modal */
+.launch-success-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:20px;background:rgba(18,12,27,.72);backdrop-filter:blur(8px)}
+.launch-success-overlay[hidden]{display:none!important}
+.launch-success-modal{position:relative;width:min(100%,440px);padding:30px 26px 26px;border:1px solid #e5d9f3;border-radius:22px;background:linear-gradient(155deg,#fff 0%,#f8f3ff 100%);box-shadow:0 28px 90px rgba(0,0,0,.32);text-align:center;color:#241b32}
+.launch-success-icon{width:58px;height:58px;margin:0 auto 17px;border-radius:18px;display:grid;place-items:center;background:#e9f8ed;color:#238447;font-size:30px;font-weight:700}
+.launch-success-modal h2{margin:0 0 9px;font-size:23px;line-height:1.25;color:#241b32}
+.launch-success-modal p{margin:0;color:#71667e;font-size:14px;line-height:1.65}
+.launch-success-actions{display:grid;gap:10px;margin-top:23px}
+.launch-success-view{display:block;padding:13px 18px;border-radius:11px;background:#7040b5;color:#fff;text-decoration:none;font-weight:700;transition:background .15s}
+.launch-success-view:hover{background:#5d329c}
+.launch-success-close{padding:10px;border:0;background:transparent;color:#766b82;font:inherit;font-size:13px;cursor:pointer}
+.launch-success-tx{display:inline-block;margin-top:17px;color:#7040b5;font-size:12px;text-decoration:none}
+@media(max-width:480px){.launch-success-modal{padding:26px 20px 20px}.launch-success-modal h2{font-size:21px}}
 </style>
 </head>
 <body>
@@ -114,7 +128,19 @@
 </aside>
 </div>
 </main>
+<div class="launch-success-overlay" id="launchSuccessOverlay" hidden>
+ <section class="launch-success-modal" role="dialog" aria-modal="true" aria-labelledby="launchSuccessTitle" aria-describedby="launchSuccessMessage">
+  <div class="launch-success-icon" aria-hidden="true">✓</div>
+  <h2 id="launchSuccessTitle">Token launched successfully.</h2>
+  <p id="launchSuccessMessage">It is now available across PIXORUN Discover.</p>
+  <div class="launch-success-actions">
+   <a class="launch-success-view" id="launchSuccessView" href="../discover/">View Token</a>
+   <button class="launch-success-close" id="launchSuccessClose" type="button">Close</button>
+  </div>
+  <a class="launch-success-tx" id="launchSuccessTx" href="#" target="_blank" rel="noopener noreferrer" hidden>View launch transaction ↗</a>
+ </section>
+</div>
 <footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer>
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
-<script src="../app.js?v=menu-active-autoclose-20261127a"></script><script src="../registry.js?v=launch-registry-retry-20261127f"></script><script src="./launch.js?v=automatic-token-registry-20261128c"></script>
+<script src="../app.js?v=menu-active-autoclose-20261127a"></script><script src="../registry.js?v=launch-registry-retry-20261127f"></script><script src="./launch.js?v=launch-success-view-modal-20261128d"></script>
 </body></html>

@@ -196,7 +196,7 @@ async function setup(){
      }catch(storageError){console.warn('Could not cache PIXORUN launch for My Profile:',storageError);}
      // Save the launch metadata for automatic registry sync. No extra wallet signature.
      pendingRegistryTxHash=txHash;
-     const pendingSync={txHash,account,metadata,logo};
+     const pendingSync={txHash,account,metadata,logo,token,curve,name,symbol};
      try{localStorage.setItem('pixorun:pending-registry-sync',JSON.stringify(pendingSync));}catch(storageError){console.warn('Could not persist pending registry sync:',storageError);}
      let globalRegistered=false;
      try{
@@ -211,11 +211,20 @@ async function setup(){
      $('resultCurveLabel')&&($('resultCurveLabel').textContent='BONDING CURVE');
      $('launchResult').hidden=false;
      status(globalRegistered?'Token launched successfully. It is now available across PIXORUN Discover.':'Token launched on-chain. Discover sync is retrying automatically.',globalRegistered?'success':'pending');
-     if(globalRegistered){form.reset();updatePreview();previewLogo();}
+     if(globalRegistered){form.reset();updatePreview();previewLogo();showLaunchSuccess(token,txHash);}
    }catch(e){status(errorText(e),'error');}
    finally{launchBusy=false;setButton('LAUNCH TOKEN',false);}
  });
 }
+function showLaunchSuccess(token,txHash){
+ const overlay=$('launchSuccessOverlay'),view=$('launchSuccessView'),tx=$('launchSuccessTx');
+ if(!overlay||!view)return;
+ view.href='../token/?address='+encodeURIComponent(token);
+ if(txHash&&tx){tx.href=explorer('tx',txHash);tx.hidden=false;}else if(tx){tx.hidden=true;tx.removeAttribute('href');}
+ overlay.hidden=false;
+ $('launchSuccessClose')?.focus();
+}
+function closeLaunchSuccess(){const overlay=$('launchSuccessOverlay');if(overlay)overlay.hidden=true;}
 async function resumePendingSync(){
  if(!pendingRegistryTxHash)return;
  try{
@@ -225,10 +234,14 @@ async function resumePendingSync(){
   await registerWithRetry(pendingRegistryTxHash,payload);
   pendingRegistryTxHash=null;try{localStorage.removeItem('pixorun:pending-registry-sync');}catch(_){}
   status('Token launched successfully. It is now available across PIXORUN Discover.','success');
+  if(saved?.token)showLaunchSuccess(saved.token,pendingRegistryTxHash);
  }catch(error){console.warn('PIXORUN registry sync will retry:',error);status('Token is live on-chain. Discover sync is retrying automatically.','pending');setTimeout(resumePendingSync,30000);}
 }
 document.addEventListener('DOMContentLoaded',()=>{
  setup();
+ $('launchSuccessClose')?.addEventListener('click',closeLaunchSuccess);
+ $('launchSuccessOverlay')?.addEventListener('click',event=>{if(event.target===$('launchSuccessOverlay'))closeLaunchSuccess();});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('launchSuccessOverlay')?.hidden)closeLaunchSuccess();});
  try{const saved=JSON.parse(localStorage.getItem('pixorun:pending-registry-sync')||'null');if(saved?.txHash){pendingRegistryTxHash=saved.txHash;setTimeout(resumePendingSync,1200);}}
  catch(e){console.warn('Could not restore pending registry sync:',e);}
 });
