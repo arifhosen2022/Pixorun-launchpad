@@ -216,7 +216,7 @@ async function loadMarketData(){
   await Promise.all(Array.from({length:Math.min(12,blockNums.length)},async()=>{while(blockIndex<blockNums.length){const n=blockNums[blockIndex++];try{const b=await withTimeout(provider.getBlock(n),'Trade timestamp',8000);if(b)blockTimes[n]=Number(b.timestamp);}catch(_){}}}));
   const now=Math.floor(Date.now()/1000),previous=(saved?.points||[]).filter(t=>Number(t.time)>=now-86400);
   const added=decoded.map(t=>({...t,time:blockTimes[t.block]||0,price:t.tokens>0?t.native/t.tokens:0})).filter(t=>t.time>=now-86400&&t.time>0);
-  const byHash=new Map();[...previous,...added].forEach(t=>byHash.set(t.hash,t));
+  const byHash=new Map();[...previous,...added].forEach(t=>byHash.set(String(t.hash||'')+':'+String(t.logIndex??t.transactionIndex??0),t));
   const recent=[...byHash.values()].filter(t=>t.time>=now-86400).sort((a,b)=>a.time-b.time||Number(a.block||0)-Number(b.block||0)||Number(a.transactionIndex||0)-Number(b.transactionIndex||0)||Number(a.logIndex||0)-Number(b.logIndex||0));
   const volume=recent.reduce((s,t)=>s+Number(t.native||0),0),first=recent.find(t=>t.price>0),last=[...recent].reverse().find(t=>t.price>0);
   const change=first&&last&&first.price>0?(last.price/first.price-1)*100:null;
@@ -225,7 +225,7 @@ async function loadMarketData(){
   drawMarketChart(recent.filter(t=>t.price>0));
   const rows=recent.slice(-8).reverse();marketText('marketTradeCount',recent.length+' trades');
   const host=$('marketRecentTrades');
-  if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><time class="market-trade-time" datetime="'+new Date(t.time*1000).toISOString()+'">'+new Date(t.time*1000).toLocaleString([],{year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})+'</time><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
+  if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><time class="market-trade-time" datetime="'+new Date(t.time*1000).toISOString()+'">'+new Date(t.time*1000).toLocaleString('en-GB',{timeZone:'Asia/Dhaka',year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+'</time><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
   marketText('marketDataNote','Live confirmed PIXORUN curve and swap events · rolling 24-hour window.');
   try{localStorage.setItem(marketCacheKey,JSON.stringify({savedAt:Date.now(),lastBlock:latest,price:price>0?marketFmt(price,12)+' ETH':'—',cap:price>0?marketFmt(mcap,5)+' ETH':'—',liquidity,volume:marketFmt(volume,5)+' ETH',change:change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%',trades:String(recent.length),points:recent,tradeCount:recent.length+' trades',rows:host?host.innerHTML:''}));}catch(_){}
  }finally{marketLoading=false;}
