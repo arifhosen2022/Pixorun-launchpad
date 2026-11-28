@@ -88,7 +88,51 @@
  .app-main .market-trade-row{font-size:12px!important}
 }
 </style><style>.trade-percent-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.trade-percent{border:1px solid #514762;background:#18141f;color:#e9e3f4;border-radius:8px;padding:7px 11px;font-size:12px;cursor:pointer}.trade-percent:hover,.trade-percent:focus{border-color:#9a7cff;background:#282039}.trade-percent:disabled{opacity:.45;cursor:not-allowed}.max-btn{margin-left:6px}
-.trade-modal[hidden]{display:none}.trade-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px;background:rgba(5,5,12,.76);backdrop-filter:blur(8px)}.trade-modal-card{width:min(100%,420px);padding:26px;border:1px solid #51436e;border-radius:18px;background:linear-gradient(145deg,#211b32,#12131f);box-shadow:0 24px 80px #0009;color:#fff;text-align:center}.trade-modal-icon{width:54px;height:54px;display:grid;place-items:center;margin:0 auto 15px;border-radius:50%;font-size:26px;font-weight:700;background:#30264a;color:#c9b8ff}.trade-modal[data-state="success"] .trade-modal-icon{background:#123d32;color:#8df0c5}.trade-modal[data-state="error"] .trade-modal-icon{background:#49232c;color:#ff9eaa}.trade-modal-card h2{margin:0 0 9px;font-size:21px}.trade-modal-card p{margin:0;color:#c1b9ce;line-height:1.65;font-size:13px;overflow-wrap:anywhere}.trade-modal-link{display:block;margin:13px 0;color:#c9b8ff;font-size:13px}.trade-modal-close{width:100%;margin-top:17px;padding:11px;border:1px solid #6c5b8d;border-radius:9px;background:#342849;color:#fff;font-weight:600;cursor:pointer}.trade-modal-spinner{width:24px;height:24px;margin:0 auto 15px;border:3px solid #76658f;border-top-color:#c7b5ff;border-radius:50%;animation:tradeSpin .8s linear infinite}@keyframes tradeSpin{to{transform:rotate(360deg)}}</style></head>
+.trade-modal[hidden]{display:none}.trade-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px;background:rgba(5,5,12,.76);backdrop-filter:blur(8px)}.trade-modal-card{width:min(100%,420px);padding:26px;border:1px solid #51436e;border-radius:18px;background:linear-gradient(145deg,#211b32,#12131f);box-shadow:0 24px 80px #0009;color:#fff;text-align:center}.trade-modal-icon{width:54px;height:54px;display:grid;place-items:center;margin:0 auto 15px;border-radius:50%;font-size:26px;font-weight:700;background:#30264a;color:#c9b8ff}.trade-modal[data-state="success"] .trade-modal-icon{background:#123d32;color:#8df0c5}.trade-modal[data-state="error"] .trade-modal-icon{background:#49232c;color:#ff9eaa}.trade-modal-card h2{margin:0 0 9px;font-size:21px}.trade-modal-card p{margin:0;color:#c1b9ce;line-height:1.65;font-size:13px;overflow-wrap:anywhere}.trade-modal-link{display:block;margin:13px 0;color:#c9b8ff;font-size:13px}.trade-modal-close{width:100%;margin-top:17px;padding:11px;border:1px solid #6c5b8d;border-radius:9px;background:#342849;color:#fff;font-weight:600;cursor:pointer}.trade-modal-spinner{width:24px;height:24px;margin:0 auto 15px;border:3px solid #76658f;border-top-color:#c7b5ff;border-radius:50%;animation:tradeSpin .8s linear infinite}@keyframes tradeSpin{to{transform:rotate(360deg)}}</style><style id="token-readable-theme">
+/* Final token-page contrast pass: match the shared light theme instead of white-on-white. */
+.app-main{color:#252238!important}
+.app-main h1,.app-main h2,.app-main h3,.app-main h4{color:#211b2d!important}
+.app-main .token-identity .lead{color:#5f596b!important}
+.app-main .app-card{background:#fff!important;color:#252238!important;border:1px solid #e1dce9!important;box-shadow:0 8px 28px rgba(35,20,55,.07)!important}
+.app-main .app-card h2,.app-main .app-card h3{color:#211b2d!important}
+.app-main p,.app-main .trade-help,.app-main .token-description,.app-main .app-note,.app-main .app-status{color:#625c6e!important;opacity:1!important}
+.app-main .eyebrow{color:#7040b5!important}
+.app-main .app-label,.app-main label,.app-main .balance-box small,.app-main .trade-field label{color:#51485f!important;font-size:12px!important;font-weight:700!important}
+.app-main .app-value,.app-main .balance-box strong{color:#211b2d!important;font-weight:750!important}
+.app-main .balance-box{background:#f7f5fa!important;border:1px solid #e2dce9!important}
+.app-main .balance-box small{color:#625c6e!important}
+.app-main .balance-box strong{color:#211b2d!important}
+.app-main .trade-field input,.app-main .trade-field select,.app-main select{background:#fff!important;color:#211b2d!important;border:1px solid #cfc6dc!important}
+.app-main input::placeholder{color:#827a8e!important;opacity:1}
+.app-main .max-btn,.app-main .trade-percent{color:#4f347e!important;background:#f1ebfa!important;border:1px solid #d8c9eb!important;font-weight:750!important}
+.app-main .trade-quote{color:#24734f!important;font-weight:700!important}
+.app-main .app-note{background:#f4effb!important;border:1px solid #e1d5f0!important;color:#51485f!important}
+.app-main .app-status{color:#5e40a0!important}
+#curveProgressCard{background:linear-gradient(125deg,#183f66 0%,#122e4d 55%,#10263f 100%)!important;border-color:#5688b5!important}
+#curveProgressCard .curve-compact-head h2{color:#fff!important}
+#curveProgressCard .curve-progress-meta{color:#e4effb!important}
+#curveProgressCard .curve-progress-meta b{color:#fff!important}
+#curveProgressPercent{color:#8fe2ff!important}
+#marketOverview .app-row h2{color:#211b2d!important}
+#marketOverview .trade-help,#marketUpdated{color:#625c6e!important}
+#marketOverview .market-stat{background:linear-gradient(145deg,#214f7b 0%,#1a3e62 58%,#153451 100%)!important;border:1px solid #79add8!important}
+#marketOverview .market-stat small,#marketOverview .market-stat strong{color:#fff!important}
+#marketOverview .market-chart{background:#0b1725!important;border-color:#52677e!important}
+#marketOverview .chart-toolbar button{color:#34445a!important;background:#f2f5f9!important;border-color:#cbd5e1!important}
+#marketOverview .chart-toolbar button.active{color:#fff!important;background:#23608b!important;border-color:#23608b!important}
+#marketOverview .chart-ohlc{color:#51485f!important}
+#marketOverview .market-trade-row{background:#f7f5fa!important;border-color:#e1dce9!important}
+#marketOverview .market-trade-row span{color:#51485f!important}
+#marketOverview .market-trade-row a{color:#593493!important}
+#marketOverview .market-buy{color:#14784d!important}
+#marketOverview .market-sell{color:#bd334d!important}
+@media(max-width:650px){
+ .app-main .app-card{padding:16px!important}
+ .app-main .app-label,.app-main label,.app-main .balance-box small,.app-main .trade-field label{font-size:11px!important}
+ .app-main .trade-help,.app-main .app-note,.app-main .app-status{font-size:12px!important;line-height:1.65!important}
+ .app-main .app-value,.app-main .balance-box strong{font-size:14px!important}
+}
+</style></head>
 <body><header class="app-wrap app-nav pixel-sub-nav"><a class="app-logo pixel-brand" href="../" aria-label="PIXORUN home"><span class="pixel-brand-mark">P</span><span>PIXORUN<b>.</b><small>LAUNCHPAD</small></span></a><div class="nav-right"><span class="network-pill">ROBINHOOD TESTNET</span><details class="app-menu"><summary aria-label="Open navigation menu">☰</summary><nav aria-label="Main navigation"><a href="../">HOME ↗</a><a href="../discover/">DISCOVER ↗</a><a href="../profile/">MY PROFILE ↗</a><a href="../create/">CREATE TOKEN ↗</a><a href="../points/">PIXORUN POINTS ↗</a><a href="../staking/">STAKING HUB ↗</a><a href="../faucet/">TESTNET FAUCET ↗</a><a href="../docs/">DOCUMENTATION ↗</a></nav></details></div></header>
 <main class="app-wrap app-main"><div class="eyebrow">PIXORUN TOKEN · ROBINHOOD CHAIN TESTNET</div><div class="token-identity"><img id="tokenLogo" class="token-logo" alt="Token logo" hidden><div><h1 id="tokenName">Loading token…</h1><p class="lead">$<strong id="tokenSymbol">—</strong> · <span id="tradeMode">Checking market…</span></p></div></div>
 <section class="app-card curve-compact" id="curveProgressCard"><div class="curve-compact-head"><h2>Bonding Curve</h2><strong id="curveProgressPercent">Loading…</strong></div><div class="curve-progress-track"><div id="curveProgressFill" class="curve-progress-fill"></div></div><div class="curve-progress-meta"><span><b id="curveTokensSold">—</b> sold</span><span><b id="curveTokensRemaining">—</b> left</span></div><p id="curveProgressNote" hidden></p></section>
