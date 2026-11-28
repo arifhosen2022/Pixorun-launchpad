@@ -120,8 +120,9 @@ async function updateCurveProgress(){
   const bounded=Math.max(0,Math.min(100,pct));
   $('curveProgressPercent').textContent=graduated?'100% · Liftoff complete':bounded.toFixed(2)+'%';
   $('curveProgressFill').style.width=(graduated?100:bounded)+'%';
-  $('curveTokensSold').textContent=fmt(sold,decimals);
-  $('curveTokensRemaining').textContent=fmt(remaining,decimals);
+  const compactCurveAmount=value=>{const n=Number(ethers.formatUnits(value,decimals));if(!Number.isFinite(n))return '—';if(n>=1e9)return (n/1e9).toFixed(2).replace(/\.00$/,'')+'B';if(n>=1e6)return (n/1e6).toFixed(2).replace(/\.00$/,'')+'M';if(n>=1e3)return (n/1e3).toFixed(2).replace(/\.00$/,'')+'K';return n.toLocaleString(undefined,{maximumFractionDigits:2});};
+  $('curveTokensSold').textContent=compactCurveAmount(sold);
+  $('curveTokensRemaining').textContent=compactCurveAmount(remaining);
   $('curveProgressNote').textContent=graduated?'The bonding curve is complete. This token has moved to its PIXORUN Swap pool.':'Progress = tokens sold ÷ 793,100,000-token curve allocation. Values are read directly from the bonding curve contract.';
  }catch(e){$('curveProgressPercent').textContent='Unavailable';$('curveProgressNote').textContent='Could not read curve progress from Robinhood Chain Testnet. Tap Retry to refresh.';}
 }
