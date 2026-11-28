@@ -39,13 +39,27 @@ async function loadConfig(){
  status('Staking contracts verified on Robinhood Chain Testnet.','success');
  setButtons(true);
 }
+let deploymentBlockPromise=null;
+async function getStakingDeploymentBlock(){
+ if(!deploymentBlockPromise)deploymentBlockPromise=(async()=>{
+  const target=Math.floor(Date.parse(config.deployedAt||'2026-11-27T16:47:57Z')/1000);
+  let low=0,high=await readProvider.getBlockNumber();
+  while(low<high){
+   const mid=Math.floor((low+high)/2),block=await readProvider.getBlock(mid);
+   if(!block)throw Error('Could not read staking deployment block history.');
+   if(block.timestamp<target)low=mid+1;else high=mid;
+  }
+  return low;
+ })();
+ return deploymentBlockPromise;
+}
 async function getAlreadyClaimedRewards(wallet){
  const filter=stakingRead.filters.RewardPaid(wallet);
  const latest=await readProvider.getBlockNumber();
+ const first=await getStakingDeploymentBlock();
  let total=0n;
- // Keep each eth_getLogs request bounded for RPC reliability.
- for(let from=0;from<=latest;from+=10000){
-  const to=Math.min(from+9999,latest);
+ for(let from=first;from<=latest;from+=2000){
+  const to=Math.min(from+1999,latest);
   const logs=await stakingRead.queryFilter(filter,from,to);
   for(const log of logs)total+=log.args.amount;
  }
@@ -53,15 +67,26 @@ async function getAlreadyClaimedRewards(wallet){
 }
 async function refresh(){
  if(!tokenRead||!stakingRead)return;
- const [total]=await Promise.all([stakingRead.totalStaked()]);
+ const total=await stakingRead.totalStaked();
  setCompactAmount('totalStaked',total,decimals,symbol);
  if(!account){setCompactAmount('yourStake',0n,decimals,symbol);$('pendingRewards').textContent='—';$('pendingRewards').removeAttribute('title');$('pendingRewards').removeAttribute('aria-label');$('walletBalance').textContent='—';$('walletBalance').removeAttribute('title');$('walletBalance').removeAttribute('aria-label');$('stakeAvailableBalance').textContent='Connect wallet';$('stakeAvailableBalance').removeAttribute('title');$('stakeAvailableBalance').removeAttribute('aria-label');setButtons(false);return;}
- const [staked,reward,balance,claimed]=await Promise.all([stakingRead.balanceOf(account),stakingRead.earned(account),tokenRead.balanceOf(account),getAlreadyClaimedRewards(account)]);
+ const wallet=account;
+ const [staked,reward,balance]=await Promise.all([stakingRead.balanceOf(wallet),stakingRead.earned(wallet),tokenRead.balanceOf(wallet)]);
+ if(account!==wallet)return;
  setCompactAmount('yourStake',staked,decimals,symbol);
  setCompactAmount('pendingRewards',reward,18,'ETH');
- setCompactAmount('walletBalance',claimed,18,'ETH');const available=fmtCompact(balance,decimals,symbol);$('stakeAvailableBalance').textContent=available.text+' available';$('stakeAvailableBalance').title=available.title+' available';$('stakeAvailableBalance').setAttribute('aria-label',available.title+' available');
+ const available=fmtCompact(balance,decimals,symbol);$('stakeAvailableBalance').textContent=available.text+' available';$('stakeAvailableBalance').title=available.title+' available';$('stakeAvailableBalance').setAttribute('aria-label',available.title+' available');
  $('unstakeBtn').disabled=busy||staked===0n;
  $('claimBtn').disabled=busy||reward===0n;
+ // Historical claim events are independent from live balances. Never let a log-query
+ // failure clear a connected wallet or suppress the current on-chain balances.
+ try{
+  const claimed=await getAlreadyClaimedRewards(wallet);
+  if(account===wallet)setCompactAmount('walletBalance',claimed,18,'ETH');
+ }catch(error){
+  if(account===wallet){$('walletBalance').textContent='Unavailable';$('walletBalance').title='Could not read complete claim history from Robinhood RPC.';}
+  console.warn('PIXORUN claimed reward history unavailable:',error);
+ }
 }
 async function useSharedWallet(detail){
  const shared=window.PIXORUN_WALLET;
@@ -147,13 +172,13 @@ async function runAction(action){
   status(message,'error');showTxModal('error',rejected?'Request cancelled':'Transaction failed',message,action);
  }finally{busy=false;setButtons(!!signer&&!!config?.stakingRewards);if(account)await refresh().catch(()=>{});}
 }
-window.addEventListener('pixorun:walletChanged',e=>{lastWalletDetail=e.detail||{};if(configReady)useSharedWallet(lastWalletDetail).catch(err=>{account=null;signer=null;tokenWrite=null;stakingWrite=null;refresh();status(err?.message||'Could not sync the connected site wallet.','error');});});
+window.addEventListener('pixorun:walletChanged',e=>{lastWalletDetail=e.detail||{};if(configReady)useSharedWallet(lastWalletDetail).catch(err=>{console.warn('PIXORUN shared wallet sync:',err);status(err?.message||'Wallet connected; refreshing on-chain data…','info');});});
 document.addEventListener('DOMContentLoaded',async()=>{
  setButtons(false);
  $('stakeBtn')?.addEventListener('click',()=>runAction('stake'));
  $('unstakeBtn')?.addEventListener('click',()=>runAction('unstake'));
  $('claimBtn')?.addEventListener('click',()=>runAction('claim'));
  document.querySelectorAll('[data-stake-percent]').forEach(button=>button.addEventListener('click',async()=>{if(!account||!tokenRead)return;const balance=await tokenRead.balanceOf(account);const pct=BigInt(button.dataset.stakePercent);const amount=balance*pct/100n;$('stakeAmount').value=compactInputAmount(ethers.formatUnits(amount,decimals));}));
- try{await loadConfig();configReady=true;await refresh();const state=await window.PIXORUN_WALLET?.getState?.();if(state?.provider&&state?.account)await useSharedWallet(state);else if(lastWalletDetail?.provider&&lastWalletDetail?.account)await useSharedWallet(lastWalletDetail);else status('Connect your wallet using the main site header to use Staking.','info');}catch(e){status(e?.message||'Staking is unavailable.','error');setButtons(false);}
+ try{await loadConfig();configReady=true;await refresh();let state=null;for(let attempt=0;attempt<8;attempt++){state=await window.PIXORUN_WALLET?.getState?.();if(state?.provider&&state?.account)break;const provider=window.PIXORUN_WALLET?.getProvider?.();if(provider){const accounts=await provider.request({method:'eth_accounts'}).catch(()=>[]);const chainId=await provider.request({method:'eth_chainId'}).catch(()=>null);if(accounts?.[0]){state={provider,account:accounts[0],chainId};break;}}if(lastWalletDetail?.provider&&lastWalletDetail?.account){state=lastWalletDetail;break;}await new Promise(resolve=>setTimeout(resolve,350));}if(state?.provider&&state?.account)await useSharedWallet(state);else status('Connect your wallet using the main site header to use Staking.','info');}catch(e){status(e?.message||'Staking is unavailable.','error');setButtons(false);}
 });
 })();
