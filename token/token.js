@@ -158,11 +158,11 @@ async function loadMarketData(){
   if(mode==='curve'){
    const [rn,rt,realN,realT]=reserves;reserveEth=Number(ethers.formatEther(realN));reserveToken=Number(ethers.formatUnits(realT,decimals));
    if(rt>0n&&rn>0n)price=Number(ethers.formatEther(rn))/Number(ethers.formatUnits(rt,decimals));
-   liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens (curve reserves)';
+   liquidity=marketFmt(reserveEth,5)+' ETH + '+compactAmount(reserveToken)+' tokens · curve';
   }else{
    const [rn,rt]=reserves;reserveEth=Number(ethers.formatEther(rn));reserveToken=Number(ethers.formatUnits(rt,decimals));
    if(rt>0n)price=Number(ethers.formatEther(rn))/Number(ethers.formatUnits(rt,decimals));
-   liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens (pool reserves)';
+   liquidity=marketFmt(reserveEth,5)+' ETH + '+compactAmount(reserveToken)+' tokens · pool';
   }
   const mcap=price*Number(ethers.formatUnits(supply,decimals));
   marketText('marketPrice',price>0?marketFmt(price,12)+' ETH':'—');marketText('marketCap',price>0?marketFmt(mcap,5)+' ETH':'—');marketText('marketLiquidity',liquidity);
