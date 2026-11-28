@@ -127,7 +127,7 @@ function drawMarketChart(points){
  const W=1000,H=300,left=104,right=22,top=22,bottom=42,plotW=W-left-right,plotH=H-top-bottom;
  const values=candles.flatMap(c=>[c.high,c.low]),rawMin=Math.min(...values),rawMax=Math.max(...values);
  const pad=(rawMax-rawMin)||Math.max(Math.abs(rawMax)*.012,1e-12),min=Math.max(0,rawMin-pad*.18),max=rawMax+pad*.18,range=max-min||1;
- const y=v=>top+(max-v)/range*plotH,step=plotW/Math.max(candles.length,1),cw=Math.max(3,Math.min(20,step*.62));
+ const y=v=>top+(max-v)/range*plotH,step=plotW/Math.max(candles.length,1),cw=Math.max(2,Math.min(20,step*.84));
  let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+config.label+' candlestick chart using confirmed on-chain trades">';
  for(let i=0;i<=4;i++){
   const yy=top+i*plotH/4,val=max-i*range/4;
