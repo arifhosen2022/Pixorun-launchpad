@@ -162,7 +162,7 @@
 <div id="tradeModal" class="trade-modal" data-state="pending" hidden role="dialog" aria-modal="true" aria-labelledby="tradeModalTitle"><div class="trade-modal-card"><div id="tradeModalIcon" class="trade-modal-icon"><div class="trade-modal-spinner"></div></div><h2 id="tradeModalTitle">Processing transaction</h2><p id="tradeModalMessage">Please confirm in your wallet.</p><a id="tradeModalLink" class="trade-modal-link" target="_blank" rel="noopener noreferrer" hidden>View transaction ↗</a><button id="tradeModalClose" class="trade-modal-close" type="button">Close</button></div></div>
 <div class="app-status" role="status" aria-live="polite"><span id="tradeStatus">Connecting to Robinhood Chain Testnet…</span> <button id="tokenRetry" class="app-btn secondary" type="button" hidden>Retry</button></div><p class="app-note"><strong>Testnet warning:</strong> Quotes are estimates and can change before confirmation. The final transaction uses on-chain slippage protection. Only use Robinhood Chain Testnet ETH.</p></main>
 <footer class="app-footer"><div class="app-wrap app-footer-inner"><span>© 2026 PIXORUN</span><a href="https://x.com/pixorun" target="_blank" rel="noopener noreferrer">FOLLOW PIXORUN ON X ↗</a></div></footer>
-<script src="../registry.js?v=market-holders-chart-20261128d"></script><script>
+<script src="../registry.js?v=premium-area-chart-20261128e"></script><script>
 (function(){
  const status=document.getElementById('tradeStatus'),retry=document.getElementById('tokenRetry');
  const sources=['https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js','https://unpkg.com/ethers@6.13.5/dist/ethers.umd.min.js'];
@@ -173,12 +173,12 @@
   const s=document.createElement('script');s.src=sources[i];s.async=true;
   s.onload=function(){
    if(status)status.textContent='Connecting to Robinhood Chain Testnet…';
-   const rpc=document.createElement('script');rpc.src='../rpc-provider.js?v=market-holders-chart-20261128d';
-   rpc.onload=function(){if(status)status.textContent='Starting token page…';const app=document.createElement('script');app.src='./token.js?v=market-holders-chart-20261128d';app.onerror=function(){fail('Token page module failed to load. Tap Reload to try again.');};document.body.appendChild(app);};
+   const rpc=document.createElement('script');rpc.src='../rpc-provider.js?v=premium-area-chart-20261128e';
+   rpc.onload=function(){if(status)status.textContent='Starting token page…';const app=document.createElement('script');app.src='./token.js?v=premium-area-chart-20261128e';app.onerror=function(){fail('Token page module failed to load. Tap Reload to try again.');};document.body.appendChild(app);};
    rpc.onerror=function(){fail('Could not load RPC fallback module. Tap Reload to try again.');};document.head.appendChild(rpc);
   };
   s.onerror=function(){s.remove();load(i+1);};document.head.appendChild(s);
  }
  load(0);
 })();
-</script><script src="../app.js?v=market-holders-chart-20261128d"></script></body></html>
+</script><script src="../app.js?v=premium-area-chart-20261128e"></script></body></html>
