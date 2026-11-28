@@ -132,6 +132,15 @@
  .app-main .trade-help,.app-main .app-note,.app-main .app-status{font-size:12px!important;line-height:1.65!important}
  .app-main .app-value,.app-main .balance-box strong{font-size:14px!important}
 }
+</style><style id="market-trade-time-style">
+.market-trade-row{grid-template-columns:70px minmax(0,1fr) auto auto}
+.market-trade-time{color:#b8c9dc;font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media(max-width:650px){
+ .market-trade-row{grid-template-columns:58px minmax(0,1fr)}
+ .market-trade-row>span{grid-column:2;grid-row:1}
+ .market-trade-row>.market-trade-time{grid-column:2;grid-row:2}
+ .market-trade-row>a{grid-column:2;grid-row:3;justify-self:start}
+}
 </style></head>
 <body><header class="app-wrap app-nav pixel-sub-nav"><a class="app-logo pixel-brand" href="../" aria-label="PIXORUN home"><span class="pixel-brand-mark">P</span><span>PIXORUN<b>.</b><small>LAUNCHPAD</small></span></a><div class="nav-right"><span class="network-pill">ROBINHOOD TESTNET</span><details class="app-menu"><summary aria-label="Open navigation menu">☰</summary><nav aria-label="Main navigation"><a href="../">HOME ↗</a><a href="../discover/">DISCOVER ↗</a><a href="../profile/">MY PROFILE ↗</a><a href="../create/">CREATE TOKEN ↗</a><a href="../points/">PIXORUN POINTS ↗</a><a href="../staking/">STAKING HUB ↗</a><a href="../faucet/">TESTNET FAUCET ↗</a><a href="../docs/">DOCUMENTATION ↗</a></nav></details></div></header>
 <main class="app-wrap app-main"><div class="eyebrow">PIXORUN TOKEN · ROBINHOOD CHAIN TESTNET</div><div class="token-identity"><img id="tokenLogo" class="token-logo" alt="Token logo" hidden><div><h1 id="tokenName">Loading token…</h1><p class="lead">$<strong id="tokenSymbol">—</strong> · <span id="tradeMode">Checking market…</span></p></div></div>
