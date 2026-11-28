@@ -13,7 +13,7 @@ const isNew=x=>{const t=launchedAt(x),age=Date.now()-t;return t>0&&age>=0&&age<=
 const ageLabel=x=>{const age=Math.max(0,Date.now()-launchedAt(x)),mins=Math.floor(age/60000);return mins<1?'Just launched':mins<60?mins+'m ago':Math.floor(mins/60)+'h ago';};
 const short=a=>typeof a==='string'&&a.length>12?a.slice(0,6)+'…'+a.slice(-4):(a||'—');
 const allocation=793100000n*10n**18n;let provider=null;
-function getProvider(){if(!window.ethers)throw Error('On-chain status library is unavailable. Reload the page.');if(!provider)provider=new ethers.JsonRpcProvider(RPC,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true,batchMaxCount:1});return provider;}
+function getProvider(){if(!window.ethers)throw Error('On-chain status library is unavailable. Reload the page.');if(!provider)provider=window.PIXORUN_RPC.createProvider();return provider;}
 async function readCurve(x){
  if(!validAddress(x.curve_address))return {...x,curveState:'unknown',curveProgress:null,totalSold:0n};
  const key=x.curve_address.toLowerCase(),cached=curveCache.get(key);

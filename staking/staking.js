@@ -25,7 +25,7 @@ async function loadConfig(){
  if(!config.stakingRewards||!config.feeDistributor)throw Error('Staking contract has not been deployed yet. Buttons remain locked.');
  if(String(config.officialToken||'').toLowerCase()!==OFFICIAL_TOKEN.toLowerCase())throw Error('Registry token does not match the official PIXORUN token. Staking is locked.');
  if(!ethers.isAddress(config.stakingRewards)||!ethers.isAddress(config.feeDistributor))throw Error('Invalid staking deployment address. Staking is locked.');
- readProvider=new ethers.JsonRpcProvider(RPC,{chainId:CHAIN_ID,name:'Robinhood Chain Testnet'},{staticNetwork:true});
+ readProvider=window.PIXORUN_RPC.createProvider();
  const [network,tokenCode,stakingCode,feeCode]=await Promise.all([readProvider.getNetwork(),readProvider.getCode(OFFICIAL_TOKEN),readProvider.getCode(config.stakingRewards),readProvider.getCode(config.feeDistributor)]);
  if(Number(network.chainId)!==CHAIN_ID||tokenCode==='0x'||stakingCode==='0x'||feeCode==='0x')throw Error('The official token or staking deployment could not be verified on Testnet.');
  tokenRead=new ethers.Contract(OFFICIAL_TOKEN,tokenAbi,readProvider);

@@ -165,9 +165,9 @@
   if(i>=sources.length){fail('Could not load the trading library. Check your connection and tap Reload.');return;}
   const s=document.createElement('script');s.src=sources[i];s.async=true;
   s.onload=function(){
-   const app=document.createElement('script');app.src='./token.js?v=token-wallet-state-sync-20261128f';
-   app.onerror=function(){fail('Token page module failed to load. Tap Reload to try again.');};
-   document.body.appendChild(app);
+   const rpc=document.createElement('script');rpc.src='../rpc-provider.js?v=rpc-fallback-20261128a';
+   rpc.onload=function(){const app=document.createElement('script');app.src='./token.js?v=rpc-fallback-20261128a';app.onerror=function(){fail('Token page module failed to load. Tap Reload to try again.');};document.body.appendChild(app);};
+   rpc.onerror=function(){fail('Could not load RPC fallback module. Tap Reload to try again.');};document.head.appendChild(rpc);
   };
   s.onerror=function(){s.remove();load(i+1);};document.head.appendChild(s);
  }

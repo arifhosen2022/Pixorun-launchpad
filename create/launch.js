@@ -119,7 +119,7 @@ async function setup(){
  status('Connecting to Robinhood Chain Testnet and verifying the launch contracts…','pending');
  try{
    if(!window.ethers)throw new Error('The ethers wallet library did not load. Refresh this page and try again.');
-   readProvider=new ethers.JsonRpcProvider(RPC,{chainId:CHAIN_ID,name:'Robinhood Chain Testnet'},{staticNetwork:true});
+   readProvider=window.PIXORUN_RPC.createProvider();
    const network=await timeout(readProvider.getNetwork(),'Robinhood Testnet RPC');
    if(Number(network.chainId)!==CHAIN_ID)throw new Error('RPC network mismatch. Expected Robinhood Chain Testnet (46630).');
    const code=await timeout(readProvider.getCode(FACTORY),'Launchpad Factory verification');
