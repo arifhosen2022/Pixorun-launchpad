@@ -119,7 +119,7 @@ const curveEvents=new ethers.Interface(['event Bought(address indexed buyer,uint
 const pairEvents=new ethers.Interface(['event Swap(address indexed sender,bool nativeToToken,uint256 amountIn,uint256 amountOut,uint256 fee)']);
 const marketFmt=(n,max=6)=>compactNumber(n,Math.min(max,4));
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
-let chartInterval='5m',chartMode='area';
+let chartInterval='5m',chartMode='area',marketRefreshRequested=false;
 function paintMarketCache(){
  const keys=['pixorun:market:v4:','pixorun:market:v3:','pixorun:market:v2:','pixorun:market:v1:'];
  for(const prefix of keys){try{const raw=localStorage.getItem(prefix+tokenAddress.toLowerCase());if(raw){marketCache=JSON.parse(raw);break;}}catch(_){}}
@@ -187,7 +187,8 @@ async function findBlockAtOrAfter(target,latest){
  return lo;
 }
 async function loadMarketData(){
- if(marketLoading||!token||!curve||!tokenAddress)return;
+ if(!token||!curve||!tokenAddress)return;
+ if(marketLoading){marketRefreshRequested=true;return;}
  marketLoading=true;
  const key='pixorun:market:v4:'+tokenAddress.toLowerCase();
  let saved=marketCache;
@@ -265,7 +266,9 @@ async function loadMarketData(){
   marketText('marketChange',change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%');
   marketText('marketTrades',String(recent.length));
   if(scanSucceeded||!saved){
-   drawMarketChart(recent.filter(t=>Number(t.price)>0));
+   let chartPoints=recent.filter(t=>Number(t.price)>0);
+   try{const latestBlock=await withTimeout(provider.getBlock(latest),'Current price timestamp',8000);if(latestBlock&&price>0)chartPoints=[...chartPoints,{type:'Spot',native:0,tokens:0,price,time:Number(latestBlock.timestamp),block:latest,transactionIndex:999999,logIndex:999999}];}catch(_){}
+   drawMarketChart(chartPoints);
    const rows=recent.slice(-8).reverse(),host=$('marketRecentTrades');
    if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><time class="market-trade-time" datetime="'+new Date(t.time*1000).toISOString()+'">'+new Date(t.time*1000).toLocaleString('en-GB',{timeZone:'Asia/Dhaka',year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+'</time><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
    marketText('marketTradeCount',recent.length+' trades');
@@ -278,7 +281,7 @@ async function loadMarketData(){
   marketText('marketUpdated','Temporarily delayed');
   marketText('marketDataNote','Could not refresh live reserves. Last saved market data is kept on screen.');
   if(!saved)drawMarketChart([]);
- }finally{marketLoading=false;}
+ }finally{marketLoading=false;if(marketRefreshRequested){marketRefreshRequested=false;loadMarketData().catch(error=>console.warn('Queued market refresh delayed:',error));}}
 }
 
 let holdersLoading=false,holdersLoaded=false;
@@ -420,7 +423,7 @@ async function buy(){
   const tx=mode==='curve'?await contract.buy(minOut,{value:amount,gasLimit:gas*12n/10n}):await contract.swapNativeForToken(minOut,{value:amount,gasLimit:gas*12n/10n});
   showTradeModal('pending','Buy submitted','Your buy transaction was submitted. Waiting for Robinhood Chain confirmation…',tx.hash);setStatus('Buy submitted: '+tx.hash);await tx.wait();
   showTradeModal('success','Buy successful','Your token purchase is complete. '+$('tokenSymbol').textContent+' balance and market data are refreshing.',tx.hash);
-  setStatus('Buy confirmed on Robinhood Chain Testnet.');await refresh();
+  setStatus('Buy confirmed on Robinhood Chain Testnet.');await refresh();marketRefreshRequested=true;if(!marketLoading){marketRefreshRequested=false;await loadMarketData();}
  }catch(e){const message=e.shortMessage||e.reason||e.message||'Buy failed.';showTradeModal('error','Buy failed',message);setStatus(message);}finally{busy=false;$('buyBtn').disabled=!canTrade;}
 }
 async function sell(){
@@ -446,7 +449,7 @@ async function sell(){
   showTradeModal('pending','Sell submitted','Your sell transaction was submitted. Waiting for Robinhood Chain confirmation…',tx.hash);
   setStatus('Sell submitted: '+tx.hash);await tx.wait();
   showTradeModal('success','Sell successful','Your tokens were sold successfully. ETH and token balances are refreshing.',tx.hash);
-  setStatus('Sell confirmed on Robinhood Chain Testnet.');await refresh();
+  setStatus('Sell confirmed on Robinhood Chain Testnet.');await refresh();marketRefreshRequested=true;if(!marketLoading){marketRefreshRequested=false;await loadMarketData();}
  }catch(e){const message=e.shortMessage||e.reason||e.message||'Sell failed.';showTradeModal('error','Transaction failed',message);setStatus(message);}finally{busy=false;$('sellBtn').disabled=!canTrade;}
 }
 $('buyAmount')?.addEventListener('input',quoteBuy);$('sellAmount')?.addEventListener('input',quoteSell);$('slippage')?.addEventListener('change',()=>{quoteBuy();quoteSell();});
