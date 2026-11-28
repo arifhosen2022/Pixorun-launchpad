@@ -417,7 +417,36 @@ $('buyBtn')?.addEventListener('click',buy);$('sellBtn')?.addEventListener('click
 $('buyMax')?.addEventListener('click',()=>setTradePercent('buy',100).catch(e=>setStatus(e.shortMessage||e.message||'Could not read ETH balance.')));
 $('sellMax')?.addEventListener('click',()=>setTradePercent('sell',100).catch(e=>setStatus(e.shortMessage||e.message||'Could not read token balance.')));
 document.querySelectorAll('[data-trade-side][data-trade-percent]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await setTradePercent(button.dataset.tradeSide,Number(button.dataset.tradePercent));}catch(e){setStatus(e.shortMessage||e.reason||e.message||'Could not calculate percentage.');}finally{button.disabled=false;}}));
-const retry=$('tokenRetry');if(retry)retry.addEventListener('click',()=>{retry.disabled=true;refresh().catch(e=>setStatus('Load failed: '+(e.shortMessage||e.reason||e.message||'RPC error'))).finally(()=>retry.disabled=false);});
+let tokenLoadInProgress=false;
+async function loadTokenWithAutoRetry(){
+ if(tokenLoadInProgress)return;
+ tokenLoadInProgress=true;
+ const retry=$('tokenRetry');
+ if(retry)retry.disabled=true;
+ let lastError=null;
+ const delays=[1000,2000,4000,6000];
+ try{
+  for(let attempt=0;attempt<=delays.length;attempt++){
+   try{
+    if(attempt>0)setStatus('Network response delayed · automatically retrying ('+attempt+'/'+delays.length+')…');
+    await refresh();
+    await readConnectedWallet();
+    if(retry)retry.hidden=true;
+    return;
+   }catch(error){
+    lastError=error;
+    console.warn('Token details load attempt '+(attempt+1)+' failed:',error);
+    if(attempt<delays.length)await new Promise(resolve=>setTimeout(resolve,delays[attempt]));
+   }
+  }
+  setStatus('Could not load token: '+(lastError?.shortMessage||lastError?.reason||lastError?.message||'RPC error')+'. Tap Retry.');
+ }finally{
+  tokenLoadInProgress=false;
+  if(retry)retry.disabled=false;
+ }
+}
+const retryButton=$('tokenRetry');
+if(retryButton)retryButton.addEventListener('click',loadTokenWithAutoRetry);
 const initialProvider=wallet();initialProvider?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;$('buyAmount').value='';$('sellAmount').value='';await readConnectedWallet();await quoteBuy();await quoteSell();});
 p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
 setStatus(cached?'Showing saved token details · checking the blockchain…':'Starting token data request…');
@@ -429,5 +458,5 @@ let marketRefreshTimer=null;
 const scheduleMarketRefresh=()=>{if(marketRefreshTimer)clearInterval(marketRefreshTimer);marketRefreshTimer=setInterval(()=>{if(!document.hidden){loadMarketData();updateCurveProgress();if(account)refreshBalances();}},12000);};
 scheduleMarketRefresh();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadMarketData();});
-refresh().then(()=>readConnectedWallet()).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
+loadTokenWithAutoRetry();
 })();
