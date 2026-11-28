@@ -95,49 +95,59 @@ const pairEvents=new ethers.Interface(['event Swap(address indexed sender,bool n
 const marketFmt=(n,max=6)=>compactNumber(n,Math.min(max,4));
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
 let chartInterval='1s';
+function chartPriceFmt(value){
+ const n=Number(value);if(!Number.isFinite(n)||n<=0)return '—';
+ if(n>=1)return marketFmt(n,8);
+ const decimals=Math.min(18,Math.max(8,Math.ceil(-Math.log10(n))+5));
+ return n.toFixed(decimals).replace(/0+$/,'').replace(/\.$/,'');
+}
 function drawMarketChart(points){
  const host=$('marketChart');if(!host)return;
- const valid=points.filter(p=>Number.isFinite(Number(p.price))&&Number(p.price)>0&&Number(p.time)>0)
-  .sort((a,b)=>Number(a.time)-Number(b.time)||Number(a.block||0)-Number(b.block||0)||Number(a.transactionIndex||0)-Number(b.transactionIndex||0)||Number(a.logIndex||0)-Number(b.logIndex||0));
  const config={
-  '1s':{seconds:1,window:300,label:'1-second'},
-  '1m':{seconds:60,window:3600,label:'1-minute'},
-  '5m':{seconds:300,window:21600,label:'5-minute'},
-  '15m':{seconds:900,window:86400,label:'15-minute'}
- }[chartInterval]||{seconds:1,window:300,label:'1-second'};
- const now=Math.floor(Date.now()/1000),visible=valid.filter(p=>Number(p.time)>=now-config.window);
- if(!visible.length){host.innerHTML='<div class="chart-empty"><strong>No confirmed trades yet</strong><span>New candles appear when an on-chain trade is confirmed.</span></div>';return;}
+  '1s':{seconds:1,window:300,label:'1-second',tick:60},
+  '1m':{seconds:60,window:3600,label:'1-minute',tick:600},
+  '5m':{seconds:300,window:21600,label:'5-minute',tick:3600},
+  '15m':{seconds:900,window:86400,label:'15-minute',tick:10800}
+ }[chartInterval]||{seconds:1,window:300,label:'1-second',tick:60};
+ const now=Math.floor(Date.now()/1000),end=Math.ceil(now/config.seconds)*config.seconds,startTime=end-config.window;
+ const valid=points.filter(p=>Number.isFinite(Number(p.price))&&Number(p.price)>0&&Number(p.time)>=startTime&&Number(p.time)<end)
+  .sort((a,b)=>Number(a.time)-Number(b.time)||Number(a.block||0)-Number(b.block||0)||Number(a.transactionIndex||0)-Number(b.transactionIndex||0)||Number(a.logIndex||0)-Number(b.logIndex||0));
+ if(!valid.length){host.innerHTML='<div class="chart-empty"><strong>No confirmed trades in this period</strong><span>Only confirmed on-chain trades are shown. New candles appear after a trade.</span></div>';return;}
  const buckets=new Map(),size=config.seconds;
- for(const p of visible){
+ for(const p of valid){
   const time=Number(p.time),price=Number(p.price),key=Math.floor(time/size)*size;
   let c=buckets.get(key);
   if(!c){c={time:key,open:price,high:price,low:price,close:price,count:0};buckets.set(key,c);}
   c.high=Math.max(c.high,price);c.low=Math.min(c.low,price);c.close=price;c.count++;
  }
- // Render only intervals containing confirmed trades. Every candle gets one equal-width slot;
- // elapsed wall-clock gaps do not create artificial candles or visual gaps.
  const candles=[...buckets.values()].sort((a,b)=>a.time-b.time);
- const W=1000,H=300,left=104,right=22,top=22,bottom=42,plotW=W-left-right,plotH=H-top-bottom;
+ const W=1000,H=300,left=118,right=24,top=20,bottom=48,plotW=W-left-right,plotH=H-top-bottom;
  const values=candles.flatMap(c=>[c.high,c.low]),rawMin=Math.min(...values),rawMax=Math.max(...values);
- const pad=(rawMax-rawMin)||Math.max(Math.abs(rawMax)*.012,1e-12),min=Math.max(0,rawMin-pad*.18),max=rawMax+pad*.18,range=max-min||1;
- const y=v=>top+(max-v)/range*plotH,step=plotW/candles.length,cw=Math.max(1,Math.min(18,step*.72));
- let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+config.label+' candlestick chart using confirmed on-chain trades">';
+ const spread=rawMax-rawMin,pad=spread>0?spread*.16:Math.max(Math.abs(rawMax)*.025,1e-18);
+ const min=Math.max(0,rawMin-pad),max=rawMax+pad,range=max-min||Math.max(Math.abs(max)*.01,1e-18);
+ const y=v=>top+(max-v)/range*plotH;
+ const xTime=t=>left+(t-startTime)/config.window*plotW;
+ const candleW=Math.max(2,Math.min(22,plotW*size/config.window*.72));
+ const dhaka={timeZone:'Asia/Dhaka',hour:'2-digit',minute:'2-digit',hour12:false};
+ let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+config.label+' candlestick chart on a real time scale, using confirmed on-chain trades">';
  for(let i=0;i<=4;i++){
   const yy=top+i*plotH/4,val=max-i*range/4;
-  svg+='<line x1="'+left+'" y1="'+yy.toFixed(1)+'" x2="'+(W-right)+'" y2="'+yy.toFixed(1)+'" stroke="#52677e" stroke-width="1" opacity=".55"/><text x="'+(left-12)+'" y="'+(yy+4).toFixed(1)+'" text-anchor="end" fill="#e3edf8" font-size="12" font-weight="600">'+marketFmt(val,8)+'</text>';
+  svg+='<line x1="'+left+'" y1="'+yy.toFixed(1)+'" x2="'+(W-right)+'" y2="'+yy.toFixed(1)+'" stroke="#52677e" stroke-width="1" opacity=".55"/><text x="'+(left-12)+'" y="'+(yy+4).toFixed(1)+'" text-anchor="end" fill="#e3edf8" font-size="12" font-weight="600">'+chartPriceFmt(val)+'</text>';
  }
- candles.forEach((c,i)=>{
-  const x=left+step*(i+.5),up=c.close>=c.open,color=up?'#31d6a0':'#ff7185',yo=y(c.open),yc=y(c.close),bodyY=Math.min(yo,yc),bodyH=Math.max(2,Math.abs(yc-yo));
-  svg+='<line x1="'+x.toFixed(1)+'" y1="'+y(c.high).toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+y(c.low).toFixed(1)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-cw/2).toFixed(1)+'" y="'+bodyY.toFixed(1)+'" width="'+cw.toFixed(1)+'" height="'+bodyH.toFixed(1)+'" rx="1.5" fill="'+color+'"><title>'+new Date(c.time*1000).toLocaleString()+' · Open '+marketFmt(c.open,10)+' · High '+marketFmt(c.high,10)+' · Low '+marketFmt(c.low,10)+' · Close '+marketFmt(c.close,10)+' · '+c.count+' trades</title></rect>';
- });
- const labelIndices=[0,Math.floor((candles.length-1)/2),candles.length-1];
- [...new Set(labelIndices)].forEach(i=>{
-  const c=candles[i],x=left+step*(i+.5),date=new Date(c.time*1000);
-  const label=chartInterval==='1s'?date.toLocaleTimeString([],{minute:'2-digit',second:'2-digit'}):date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  svg+='<text x="'+x.toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" fill="#dce8f5" font-size="12" font-weight="600">'+label+'</text>';
+ const firstTick=Math.ceil(startTime/config.tick)*config.tick;
+ for(let t=firstTick;t<=end;t+=config.tick){
+  const x=xTime(t),date=new Date(t*1000),label=date.toLocaleTimeString('en-GB',dhaka);
+  svg+='<line x1="'+x.toFixed(1)+'" y1="'+top+'" x2="'+x.toFixed(1)+'" y2="'+(top+plotH)+'" stroke="#52677e" stroke-width="1" opacity=".22"/><text x="'+x.toFixed(1)+'" y="'+(H-15)+'" text-anchor="middle" fill="#dce8f5" font-size="11" font-weight="600">'+label+'</text>';
+ }
+ candles.forEach(c=>{
+  const x=xTime(c.time+size/2),up=c.close>=c.open,color=up?'#31d6a0':'#ff7185';
+  const yo=y(c.open),yc=y(c.close),bodyY=Math.min(yo,yc),bodyH=Math.max(2,Math.abs(yc-yo));
+  const title=new Date(c.time*1000).toLocaleString('en-GB',{timeZone:'Asia/Dhaka',dateStyle:'medium',timeStyle:'medium'})+' · O '+chartPriceFmt(c.open)+' · H '+chartPriceFmt(c.high)+' · L '+chartPriceFmt(c.low)+' · C '+chartPriceFmt(c.close)+' · '+c.count+' trades';
+  svg+='<line x1="'+x.toFixed(1)+'" y1="'+y(c.high).toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+y(c.low).toFixed(1)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-candleW/2).toFixed(1)+'" y="'+bodyY.toFixed(1)+'" width="'+candleW.toFixed(1)+'" height="'+bodyH.toFixed(1)+'" rx="1.2" fill="'+color+'"><title>'+title+'</title></rect>';
  });
  svg+='</svg>';host.innerHTML=svg;
 }
+
 document.querySelectorAll('[data-chart-interval]').forEach(btn=>btn.addEventListener('click',()=>{
  chartInterval=btn.dataset.chartInterval;
  document.querySelectorAll('[data-chart-interval]').forEach(b=>b.classList.toggle('active',b===btn));
