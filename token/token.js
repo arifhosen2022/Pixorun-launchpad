@@ -163,7 +163,7 @@ function drawMarketChart(points){
 document.querySelectorAll('[data-chart-interval]').forEach(btn=>btn.addEventListener('click',()=>{
  chartInterval=btn.dataset.chartInterval;
  document.querySelectorAll('[data-chart-interval]').forEach(b=>b.classList.toggle('active',b===btn));
- try{const key='pixorun:market:v3:'+tokenAddress.toLowerCase(),saved=JSON.parse(localStorage.getItem(key)||'null');drawMarketChart(saved?.points||[]);}catch(_){drawMarketChart([]);}
+ try{const saved=marketCache||JSON.parse(localStorage.getItem('pixorun:market:v4:'+tokenAddress.toLowerCase())||'null')||JSON.parse(localStorage.getItem('pixorun:market:v3:'+tokenAddress.toLowerCase())||'null');drawMarketChart(saved?.points||[]);}catch(_){drawMarketChart([]);}
 }));
 
 async function updateCurveProgress(){
@@ -386,7 +386,7 @@ setStatus(cached?'Showing saved token details · checking the blockchain…':'St
 window.addEventListener('pixorun:walletChanged',readConnectedWallet);
 paintMarketCache();
 let marketRefreshTimer=null;
-const scheduleMarketRefresh=()=>{if(marketRefreshTimer)clearInterval(marketRefreshTimer);marketRefreshTimer=setInterval(()=>{if(!document.hidden)loadMarketData();},12000);};
+const scheduleMarketRefresh=()=>{if(marketRefreshTimer)clearInterval(marketRefreshTimer);marketRefreshTimer=setInterval(()=>{if(!document.hidden){loadMarketData();updateCurveProgress();if(account)refreshBalances();}},12000);};
 scheduleMarketRefresh();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadMarketData();});
 refresh().then(readConnectedWallet).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
