@@ -5,7 +5,8 @@ const RPC='https://rpc.testnet.chain.robinhood.com';
 const root=document.getElementById('missionList');
 if(!root)return;
 let records=[],refreshing=false,activeFilter='top',searchTerm='';
-const NEW_LAUNCH_WINDOW_MS=30*60*1000,REFRESH_INTERVAL_MS=30000;
+const NEW_LAUNCH_WINDOW_MS=30*60*1000,REFRESH_INTERVAL_MS=60000,CURVE_ENRICH_LIMIT=40,CURVE_CACHE_MS=55000;
+const curveCache=new Map();
 const validAddress=a=>/^0x[a-fA-F0-9]{40}$/.test(a||'');
 const launchedAt=x=>{const t=Date.parse(x.created_at||'');return Number.isFinite(t)?t:0;};
 const isNew=x=>{const t=launchedAt(x),age=Date.now()-t;return t>0&&age>=0&&age<=NEW_LAUNCH_WINDOW_MS;};
@@ -15,12 +16,23 @@ const allocation=793100000n*10n**18n;let provider=null;
 function getProvider(){if(!window.ethers)throw Error('On-chain status library is unavailable. Reload the page.');if(!provider)provider=new ethers.JsonRpcProvider(RPC,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true,batchMaxCount:1});return provider;}
 async function readCurve(x){
  if(!validAddress(x.curve_address))return {...x,curveState:'unknown',curveProgress:null,totalSold:0n};
+ const key=x.curve_address.toLowerCase(),cached=curveCache.get(key);
+ if(cached&&Date.now()-cached.time<CURVE_CACHE_MS)return {...x,...cached.value};
  const c=new ethers.Contract(x.curve_address,['function graduated() view returns(bool)','function totalSold() view returns(uint256)','function realToken() view returns(uint256)'],getProvider());
- const [graduated,sold,remaining]=await Promise.all([c.graduated(),c.totalSold(),c.realToken()]);
- const pct=Number(sold*10000n/allocation)/100;
- return {...x,curveState:graduated?'curved':'curving',curveProgress:Math.max(0,Math.min(100,pct)),totalSold:sold,remaining};
+ let timer;const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Curve status request timed out')),10000);});
+ try{
+  const [graduated,sold,remaining]=await Promise.race([Promise.all([c.graduated(),c.totalSold(),c.realToken()]),timeout]);
+  const pct=Number(sold*10000n/allocation)/100;
+  const value={curveState:graduated?'curved':'curving',curveProgress:Math.max(0,Math.min(100,pct)),totalSold:sold,remaining};
+  curveCache.set(key,{time:Date.now(),value});return {...x,...value};
+ }finally{clearTimeout(timer);}
 }
-async function enrich(rows){let cursor=0;const out=new Array(rows.length);await Promise.all(Array.from({length:Math.min(8,rows.length)},async()=>{while(true){const i=cursor++;if(i>=rows.length)return;try{out[i]=await readCurve(rows[i]);}catch(e){out[i]={...rows[i],curveState:'unknown',curveProgress:null,totalSold:0n};}}}));return out;}
+async function enrich(rows){
+ const out=rows.map(x=>({...x,curveState:'unknown',curveProgress:null,totalSold:0n}));
+ let cursor=0;const count=Math.min(CURVE_ENRICH_LIMIT,rows.length);
+ await Promise.all(Array.from({length:Math.min(4,count)},async()=>{while(true){const i=cursor++;if(i>=count)return;try{out[i]=await readCurve(rows[i]);}catch(e){console.warn('Discover curve status unavailable:',rows[i].token_address,e);}}}));
+ return out;
+}
 function renderStats(){
  const set=(id,n)=>{const el=document.getElementById(id);if(el)el.textContent=String(n);};
  set('statTotal',records.length);set('statBonding',records.filter(x=>x.curveState==='curving').length);set('statGraduated',records.filter(x=>x.curveState==='curved').length);set('statNew',records.filter(isNew).length);
