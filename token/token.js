@@ -341,7 +341,9 @@ async function refresh(){
  else setStatus('');
  const metadataTask=loadMetadata().catch(error=>console.warn('Token metadata refresh delayed:',error));
  await Promise.all([quoteBuy(),quoteSell(),updateCurveProgress()]);
- await loadMarketData();
+ // Do not block the token page's first render on the 24-hour trade-history scan.
+ // Cached market data is painted immediately; live market history refreshes in the background.
+ loadMarketData().catch(error=>console.warn('Background market refresh delayed:',error));
  if(account)await refreshBalances();
 }
 
