@@ -6,7 +6,7 @@ const RPC='https://rpc.testnet.chain.robinhood.com';
 const EXPLORER='https://explorer.testnet.chain.robinhood.com';
 const $=id=>document.getElementById(id);
 const tokenAbi=['function balanceOf(address) view returns(uint256)','function allowance(address,address) view returns(uint256)','function decimals() view returns(uint8)','function symbol() view returns(string)','function approve(address,uint256) returns(bool)'];
-const stakingAbi=['function stakingToken() view returns(address)','function totalStaked() view returns(uint256)','function balanceOf(address) view returns(uint256)','function earned(address) view returns(uint256)','function stake(uint256)','function withdraw(uint256)','function claimReward()'];
+const stakingAbi=['function stakingToken() view returns(address)','function totalStaked() view returns(uint256)','function balanceOf(address) view returns(uint256)','function earned(address) view returns(uint256)','function stake(uint256)','function withdraw(uint256)','function claimReward()','event RewardPaid(address indexed user,uint256 amount)'];
 let config=null,readProvider=null,tokenRead=null,stakingRead=null,decimals=18,symbol='PIXORUN',busy=false,account=null,signer=null,tokenWrite=null,stakingWrite=null,configReady=false,lastWalletDetail=null;
 const status=(message,type='info')=>{const el=$('stakingStatus');if(el){el.textContent=message;el.dataset.type=type;}};
 const fmt=(value,d=decimals)=>{try{return Number(ethers.formatUnits(value,d)).toLocaleString(undefined,{maximumFractionDigits:6});}catch(_){return '—';}};
@@ -39,15 +39,27 @@ async function loadConfig(){
  status('Staking contracts verified on Robinhood Chain Testnet.','success');
  setButtons(true);
 }
+async function getAlreadyClaimedRewards(wallet){
+ const filter=stakingRead.filters.RewardPaid(wallet);
+ const latest=await readProvider.getBlockNumber();
+ let total=0n;
+ // Keep each eth_getLogs request bounded for RPC reliability.
+ for(let from=0;from<=latest;from+=10000){
+  const to=Math.min(from+9999,latest);
+  const logs=await stakingRead.queryFilter(filter,from,to);
+  for(const log of logs)total+=log.args.amount;
+ }
+ return total;
+}
 async function refresh(){
  if(!tokenRead||!stakingRead)return;
  const [total]=await Promise.all([stakingRead.totalStaked()]);
  setCompactAmount('totalStaked',total,decimals,symbol);
  if(!account){setCompactAmount('yourStake',0n,decimals,symbol);$('pendingRewards').textContent='—';$('pendingRewards').removeAttribute('title');$('pendingRewards').removeAttribute('aria-label');$('walletBalance').textContent='—';$('walletBalance').removeAttribute('title');$('walletBalance').removeAttribute('aria-label');$('stakeAvailableBalance').textContent='Connect wallet';$('stakeAvailableBalance').removeAttribute('title');$('stakeAvailableBalance').removeAttribute('aria-label');setButtons(false);return;}
- const [staked,reward,balance]=await Promise.all([stakingRead.balanceOf(account),stakingRead.earned(account),tokenRead.balanceOf(account)]);
+ const [staked,reward,balance,claimed]=await Promise.all([stakingRead.balanceOf(account),stakingRead.earned(account),tokenRead.balanceOf(account),getAlreadyClaimedRewards(account)]);
  setCompactAmount('yourStake',staked,decimals,symbol);
  setCompactAmount('pendingRewards',reward,18,'ETH');
- setCompactAmount('walletBalance',balance,decimals,symbol);const available=fmtCompact(balance,decimals,symbol);$('stakeAvailableBalance').textContent=available.text+' available';$('stakeAvailableBalance').title=available.title+' available';$('stakeAvailableBalance').setAttribute('aria-label',available.title+' available');
+ setCompactAmount('walletBalance',claimed,18,'ETH');const available=fmtCompact(balance,decimals,symbol);$('stakeAvailableBalance').textContent=available.text+' available';$('stakeAvailableBalance').title=available.title+' available';$('stakeAvailableBalance').setAttribute('aria-label',available.title+' available');
  $('unstakeBtn').disabled=busy||staked===0n;
  $('claimBtn').disabled=busy||reward===0n;
 }
