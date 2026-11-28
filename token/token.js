@@ -473,7 +473,7 @@ async function loadTokenWithAutoRetry(){
  const retryButton=$('tokenRetry');
 if(retryButton)retryButton.addEventListener('click',loadTokenWithAutoRetry);
 const initialProvider=wallet();initialProvider?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;$('buyAmount').value='';$('sellAmount').value='';await readConnectedWallet();await quoteBuy();await quoteSell();});
-p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
+initialProvider?.on?.('chainChanged',async()=>{await readConnectedWallet();});
 setStatus(cached?'Showing saved token details · checking the blockchain…':'Starting token data request…');
 window.addEventListener('pixorun:walletChanged',readConnectedWallet);
 window.addEventListener('pixorun:walletChanged',()=>{if(account)refreshBalances();});
