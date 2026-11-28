@@ -163,21 +163,18 @@ function drawMarketChart(points){
  const spread=rawMax-rawMin,pad=spread>0?spread*.16:Math.max(Math.abs(rawMax)*.025,1e-18);
  const min=Math.max(0,rawMin-pad),max=rawMax+pad,range=max-min||Math.max(Math.abs(max)*.01,1e-18);
  const y=v=>top+(max-v)/range*plotH;
- const xTime=t=>left+(t-startTime)/config.window*plotW;
- const candleW=Math.max(2,Math.min(22,plotW*size/config.window*.72));
+ const candleStep=plotW/Math.max(1,candles.length),xCandle=i=>left+candleStep*(i+.5);
+ const candleW=Math.max(3,Math.min(22,candleStep*.72));
  const dhaka={timeZone:'Asia/Dhaka',hour:'2-digit',minute:'2-digit',hour12:false};
  let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+config.label+' candlestick chart on a real time scale, using confirmed on-chain trades">';
  for(let i=0;i<=4;i++){
   const yy=top+i*plotH/4,val=max-i*range/4;
   svg+='<line x1="'+left+'" y1="'+yy.toFixed(1)+'" x2="'+(W-right)+'" y2="'+yy.toFixed(1)+'" stroke="#52677e" stroke-width="1" opacity=".55"/><text x="'+(left-12)+'" y="'+(yy+4).toFixed(1)+'" text-anchor="end" fill="#e3edf8" font-size="12" font-weight="600">'+chartPriceFmt(val)+'</text>';
  }
- const firstTick=Math.ceil(startTime/config.tick)*config.tick;
- for(let t=firstTick;t<=end;t+=config.tick){
-  const x=xTime(t),date=new Date(t*1000),label=date.toLocaleTimeString('en-GB',dhaka);
-  svg+='<line x1="'+x.toFixed(1)+'" y1="'+top+'" x2="'+x.toFixed(1)+'" y2="'+(top+plotH)+'" stroke="#52677e" stroke-width="1" opacity=".22"/><text x="'+x.toFixed(1)+'" y="'+(H-15)+'" text-anchor="middle" fill="#dce8f5" font-size="11" font-weight="600">'+label+'</text>';
- }
- candles.forEach(c=>{
-  const x=xTime(c.time+size/2),up=c.close>=c.open,color=up?'#31d6a0':'#ff7185';
+ const labelCount=Math.min(6,candles.length),labelIndexes=new Set(Array.from({length:labelCount},(_,i)=>Math.round(i*(candles.length-1)/Math.max(1,labelCount-1))));
+ labelIndexes.forEach(i=>{const c=candles[i],x=xCandle(i),label=new Date(c.time*1000).toLocaleTimeString('en-GB',dhaka);svg+='<line x1="'+x.toFixed(1)+'" y1="'+top+'" x2="'+x.toFixed(1)+'" y2="'+(top+plotH)+'" stroke="#52677e" stroke-width="1" opacity=".22"/><text x="'+x.toFixed(1)+'" y="'+(H-15)+'" text-anchor="middle" fill="#dce8f5" font-size="11" font-weight="600">'+label+'</text>';});
+ candles.forEach((c,i)=>{
+  const x=xCandle(i),up=c.close>=c.open,color=up?'#31d6a0':'#ff7185';
   const yo=y(c.open),yc=y(c.close),bodyY=Math.min(yo,yc),bodyH=Math.max(2,Math.abs(yc-yo));
   const title=new Date(c.time*1000).toLocaleString('en-GB',{timeZone:'Asia/Dhaka',dateStyle:'medium',timeStyle:'medium'})+' · O '+chartPriceFmt(c.open)+' · H '+chartPriceFmt(c.high)+' · L '+chartPriceFmt(c.low)+' · C '+chartPriceFmt(c.close)+' · '+c.count+' trades';
   svg+='<line x1="'+x.toFixed(1)+'" y1="'+y(c.high).toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+y(c.low).toFixed(1)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-candleW/2).toFixed(1)+'" y="'+bodyY.toFixed(1)+'" width="'+candleW.toFixed(1)+'" height="'+bodyH.toFixed(1)+'" rx="1.2" fill="'+color+'"><title>'+title+'</title></rect>';
@@ -305,6 +302,49 @@ async function loadMarketData(){
  }finally{marketLoading=false;}
 }
 
+let holdersLoading=false,holdersLoaded=false;
+async function loadTokenHolders(){
+ const host=$('marketHolders');if(!host||holdersLoading)return;
+ if(holdersLoaded)return;
+ holdersLoading=true;const tab=$('holdersTab');if(tab)tab.disabled=true;
+ host.innerHTML='<p class="trade-help">Loading holder history from Robinhood Chain Testnet…</p>';
+ try{
+  if(!launchBlock&&window.PIXORUN_REGISTRY){
+   const row=await withTimeout(window.PIXORUN_REGISTRY.getLaunch(tokenAddress),'Holder launch metadata',12000);
+   if(row?.block_number!==undefined&&row?.block_number!==null)launchBlock=Number(row.block_number);
+  }
+  if(!Number.isSafeInteger(Number(launchBlock))||Number(launchBlock)<0)throw Error('Token launch block is not available yet. Please try again shortly.');
+  const latest=await withTimeout(provider.getBlockNumber(),'Holder latest block',12000);
+  const topic=ethers.id('Transfer(address,address,uint256)'),balances=new Map(),chunk=1000,total=Math.max(1,latest-Number(launchBlock)+1);
+  for(let from=Number(launchBlock);from<=latest;from+=chunk){
+   const to=Math.min(latest,from+chunk-1);
+   const logs=await withTimeout(provider.getLogs({address:tokenAddress,fromBlock:from,toBlock:to,topics:[topic]}),'Holder transfer history',18000);
+   logs.sort((a,b)=>a.blockNumber-b.blockNumber||(a.index??a.logIndex??0)-(b.index??b.logIndex??0));
+   for(const log of logs){
+    const fromAddress='0x'+log.topics[1].slice(-40),toAddress='0x'+log.topics[2].slice(-40),amount=BigInt(log.data);
+    if(fromAddress.toLowerCase()!==ethers.ZeroAddress.toLowerCase())balances.set(fromAddress.toLowerCase(),(balances.get(fromAddress.toLowerCase())||0n)-amount);
+    if(toAddress.toLowerCase()!==ethers.ZeroAddress.toLowerCase())balances.set(toAddress.toLowerCase(),(balances.get(toAddress.toLowerCase())||0n)+amount);
+   }
+   const scanned=Math.min(total,to+1-Number(launchBlock));
+   host.innerHTML='<p class="trade-help">Scanning token transfers… '+Math.floor(scanned/total*100)+'%</p>';
+  }
+  const rows=[...balances.entries()].filter(([,v])=>v>0n).sort((a,b)=>a[1]===b[1]?0:a[1]>b[1]?-1:1);
+  const supply=await token.totalSupply(),top=rows.slice(0,100);
+  host.innerHTML=top.length?'<p class="trade-help">'+rows.length.toLocaleString()+' holders · showing top '+top.length+'</p>'+top.map(([address,balance],i)=>{const pct=supply>0n?Number(balance*1000000n/supply)/10000:0;return '<div class="market-holder-row"><span class="market-holder-rank">#'+(i+1)+'</span><a class="market-holder-address" href="'+EXPLORER+'/address/'+address+'" target="_blank" rel="noopener noreferrer">'+address.slice(0,8)+'…'+address.slice(-6)+' ↗</a><strong class="market-holder-balance">'+marketFmt(ethers.formatUnits(balance,decimals),3)+'<small class="market-holder-share">'+pct.toFixed(2)+'% of supply</small></strong></div>';}).join(''):'<p class="trade-help">No token holders found yet.</p>';
+  holdersLoaded=true;
+ }catch(error){console.warn('Token holders could not be loaded:',error);host.innerHTML='<p class="trade-help">Could not load holders: '+String(error.shortMessage||error.message||'RPC error')+'</p><button type="button" class="market-activity-tab" id="retryHolders">Retry holders</button>';host.querySelector('#retryHolders')?.addEventListener('click',()=>{holdersLoaded=false;loadTokenHolders();});}
+ finally{holdersLoading=false;if(tab)tab.disabled=false;}
+}
+function setMarketActivity(view){
+ const recent=view==='recent',recentTab=$('recentTradesTab'),holdersTab=$('holdersTab');
+ if(recentTab){recentTab.classList.toggle('active',recent);recentTab.setAttribute('aria-selected',String(recent));}
+ if(holdersTab){holdersTab.classList.toggle('active',!recent);holdersTab.setAttribute('aria-selected',String(!recent));}
+ $('marketRecentTrades').hidden=!recent;$('marketHolders').hidden=recent;
+ marketText('marketTradeCount',recent?(marketCache?.tradeCount||'0 trades'):'Current token balances');
+ if(!recent)loadTokenHolders();
+}
+$('recentTradesTab')?.addEventListener('click',()=>setMarketActivity('recent'));
+$('holdersTab')?.addEventListener('click',()=>setMarketActivity('holders'));
 async function refresh(){
  if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Discover.');
  setStatus('Finding this token across PIXORUN launchpad generations…');
