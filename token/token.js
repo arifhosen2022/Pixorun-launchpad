@@ -6,7 +6,7 @@ const tokenAbi=['function name() view returns(string)','function symbol() view r
 const curveAbi=['function graduated() view returns(bool)','function totalSold() view returns(uint256)','function realNative() view returns(uint256)','function realToken() view returns(uint256)','function virtualNative() view returns(uint256)','function virtualToken() view returns(uint256)','function quoteBuy(uint256) view returns(uint256,uint256,uint256)','function quoteSell(uint256) view returns(uint256,uint256,uint256)','function buy(uint256) payable returns(uint256)','function sell(uint256,uint256) returns(uint256)'];
 const swapFactoryAbi=['function getPair(address) view returns(address)'];
 const pairAbi=['function reserveNative() view returns(uint112)','function reserveToken() view returns(uint112)','function swapNativeForToken(uint256) payable returns(uint256)','function swapTokenForNative(uint256,uint256) returns(uint256)'];
-const $=id=>document.getElementById(id),provider=window.PIXORUN_RPC.createProvider();
+const $=id=>document.getElementById(id);let provider=window.PIXORUN_RPC.createProvider();
 const tokenAddress=new URLSearchParams(location.search).get('address');
 const cacheKey=tokenAddress&&ethers.isAddress(tokenAddress)?'pixorun:token:v2:'+tokenAddress.toLowerCase():null;
 let cached=null;try{cached=cacheKey?JSON.parse(localStorage.getItem(cacheKey)||'null'):null;}catch(_){}
@@ -309,15 +309,34 @@ async function refresh(){
  if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Discover.');
  setStatus('Finding this token across PIXORUN launchpad generations…');
  const candidates=await loadFactoryCandidates();
- let matched=null,lookupErrors=[];
+ let matched=null,lookupErrors=[],factoryFound=false;
+ const rpcUrls=window.PIXORUN_RPC?.urls?.length?window.PIXORUN_RPC.urls:[RPC];
  for(const item of candidates){
-  try{
-   const candidate=new ethers.Contract(item.launchpadFactory,factoryAbi,provider);
-   const candidateCurve=await withTimeout(candidate.curveOf(tokenAddress),'Factory lookup',10000);
-   if(candidateCurve&&candidateCurve!==ethers.ZeroAddress){matched={...item,contract:candidate,curve:candidateCurve};break;}
-  }catch(error){lookupErrors.push(item.launchpadFactory+': '+(error.shortMessage||error.message||'RPC read failed'));}
+  for(const url of rpcUrls){
+   let rpcCandidate;
+   try{
+    rpcCandidate=new ethers.JsonRpcProvider(url,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true,batchMaxCount:1});
+    const candidate=new ethers.Contract(item.launchpadFactory,factoryAbi,rpcCandidate);
+    const candidateCurve=await withTimeout(candidate.curveOf(tokenAddress),'Factory lookup',7000);
+    if(candidateCurve&&candidateCurve!==ethers.ZeroAddress){
+     provider=rpcCandidate;
+     matched={...item,contract:candidate,curve:candidateCurve};
+     factoryFound=true;
+     break;
+    }
+    factoryFound=true;
+    rpcCandidate.destroy?.();
+   }catch(error){
+    rpcCandidate?.destroy?.();
+    lookupErrors.push(url+': '+(error.shortMessage||error.message||'RPC read failed'));
+   }
+  }
+  if(matched)break;
  }
- if(!matched)throw Error('This token was not found in the active PIXORUN Factory. '+(lookupErrors.length?'Factory lookup issue: '+lookupErrors.join(' · '):'Check that the token address belongs to Robinhood Chain Testnet.'));
+ if(!matched){
+  if(!factoryFound)throw Error('Factory lookup RPC unavailable. '+lookupErrors.join(' · '));
+  throw Error('This token was not found in the active PIXORUN Factory. Check that the token address belongs to Robinhood Chain Testnet.');
+ }
  const factory=matched.contract;curveAddress=matched.curve;
  token=new ethers.Contract(tokenAddress,tokenAbi,provider);curve=new ethers.Contract(curveAddress,curveAbi,provider);
  let associatedSwapFactory=matched.swapFactory;
@@ -419,33 +438,39 @@ $('sellMax')?.addEventListener('click',()=>setTradePercent('sell',100).catch(e=>
 document.querySelectorAll('[data-trade-side][data-trade-percent]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await setTradePercent(button.dataset.tradeSide,Number(button.dataset.tradePercent));}catch(e){setStatus(e.shortMessage||e.reason||e.message||'Could not calculate percentage.');}finally{button.disabled=false;}}));
 let tokenLoadInProgress=false;
 async function loadTokenWithAutoRetry(){
- if(tokenLoadInProgress)return;
- tokenLoadInProgress=true;
- const retry=$('tokenRetry');
- if(retry)retry.disabled=true;
- let lastError=null;
- const delays=[1000,2000,4000,6000];
- try{
-  for(let attempt=0;attempt<=delays.length;attempt++){
-   try{
-    if(attempt>0)setStatus('Network response delayed · automatically retrying ('+attempt+'/'+delays.length+')…');
-    await refresh();
-    await readConnectedWallet();
-    if(retry)retry.hidden=true;
-    return;
-   }catch(error){
-    lastError=error;
-    console.warn('Token details load attempt '+(attempt+1)+' failed:',error);
-    if(attempt<delays.length)await new Promise(resolve=>setTimeout(resolve,delays[attempt]));
+  if(tokenLoadInProgress)return;
+  tokenLoadInProgress=true;
+  const retry=$('tokenRetry');
+  if(retry)retry.disabled=true;
+  let attempt=0;
+  const delays=[1000,2000,4000,8000,15000,20000];
+  try{
+   while(true){
+    try{
+     if(attempt>0)setStatus('Robinhood RPC is responding slowly · automatically reconnecting ('+attempt+')…');
+     await refresh();
+     await readConnectedWallet();
+     if(retry)retry.hidden=true;
+     return;
+    }catch(error){
+     attempt++;
+     console.warn('Token details load attempt '+attempt+' failed:',error);
+     const message=String(error?.shortMessage||error?.reason||error?.message||'RPC error');
+     const transient=/timed out|timeout|network|fetch|rpc|server|429|502|503|504|connection|temporar|unavailable|missing response|failed to detect/i.test(message);
+     if(!transient){
+      setStatus('Could not load token: '+message);
+      return;
+     }
+     setStatus('Token data connection delayed · retrying automatically. You do not need to tap Retry.');
+     await new Promise(resolve=>setTimeout(resolve,delays[Math.min(attempt-1,delays.length-1)]));
+    }
    }
+  }finally{
+   tokenLoadInProgress=false;
+   if(retry)retry.disabled=false;
   }
-  setStatus('Could not load token: '+(lastError?.shortMessage||lastError?.reason||lastError?.message||'RPC error')+'. Tap Retry.');
- }finally{
-  tokenLoadInProgress=false;
-  if(retry)retry.disabled=false;
  }
-}
-const retryButton=$('tokenRetry');
+ const retryButton=$('tokenRetry');
 if(retryButton)retryButton.addEventListener('click',loadTokenWithAutoRetry);
 const initialProvider=wallet();initialProvider?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAddress(a[0]):null;$('buyAmount').value='';$('sellAmount').value='';await readConnectedWallet();await quoteBuy();await quoteSell();});
 p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
