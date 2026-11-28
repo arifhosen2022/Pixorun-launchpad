@@ -14,7 +14,7 @@ if(cached){$('tokenName').textContent=cached.name||'Token';$('tokenSymbol').text
 let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n,marketLoading=false,launchBlock=null;
 const withTimeout=(promise,label,ms=12000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Error(label+' timed out. Robinhood RPC did not respond.')),ms))]);
 const fmt=(v,d=18)=>{const raw=ethers.formatUnits(v,d),parts=raw.split('.'),whole=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');const fraction=(parts[1]||'').replace(/0+$/,'');return fraction?whole+'.'+fraction:whole;};
-const setStatus=m=>{if($('tradeStatus'))$('tradeStatus').textContent=m;};
+const setStatus=m=>{const el=$('tradeStatus'),wrap=el?.closest('.app-status'),retry=$('tokenRetry');if(el)el.textContent=m||'';if(wrap)wrap.hidden=!m;if(retry)retry.hidden=!(m&&/could not|failed|unavailable|error|paused|tap retry/i.test(m));};
 function showTradeModal(state,title,message,hash){
  const modal=$('tradeModal');if(!modal){setStatus(message);return;}
  modal.dataset.state=state;$('tradeModalTitle').textContent=title;$('tradeModalMessage').textContent=message;
@@ -220,7 +220,7 @@ async function refresh(){
  try{localStorage.setItem(cacheKey,JSON.stringify({name,symbol,creator,curveAddress,totalSupply:fmt(supply,decimals)+' '+symbol,tradeMode:mode==='swap'?'PIXORUN Swap pool':'Bonding curve'}));}catch(_){}
  const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
- else setStatus('Token loaded · enter an amount to see the exact on-chain fee quote.');
+ else setStatus('');
  const metadataTask=loadMetadata();
  const marketTask=loadMarketData();
  await Promise.all([quoteBuy(),quoteSell(),metadataTask,updateCurveProgress()]);
