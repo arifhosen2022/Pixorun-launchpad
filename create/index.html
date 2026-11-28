@@ -50,6 +50,18 @@
 .launch-step{color:#62586f!important}
 .step-no{background:#eee7f8!important;color:#7040b5!important}
 
+
+/* Token preview: match the light PIXORUN surface */
+.launch-preview{
+  background:linear-gradient(145deg,#fff 0%,#f7f2ff 100%)!important;
+  border:1px solid #e5dcef!important;
+  box-shadow:0 8px 24px #35204f0b!important;
+  color:#241b32!important;
+}
+.launch-preview .preview-name{color:#241b32!important}
+.launch-preview .preview-symbol{color:#7040b5!important}
+.launch-preview .preview-icon{background:#eee7f8!important;color:#7040b5!important;border:1px solid #e2d7f2!important}
+
 </style>
 </head>
 <body>
@@ -67,7 +79,7 @@
 <div class="launch-field"><label for="tokenName">Token name <span id="nameCount" class="launch-hint">0/32 bytes</span></label><input id="tokenName" name="tokenName" maxlength="32" autocomplete="off" placeholder="e.g. PIXORUN World" required><p class="launch-hint">1–32 UTF-8 bytes. This name is written into the token contract.</p></div>
 <div class="launch-field"><label for="tokenSymbol">Token ticker <span id="symbolCount" class="launch-hint">0/10</span></label><input id="tokenSymbol" name="tokenSymbol" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="e.g. PIX" required><p class="launch-hint">1–10 English letters or numbers. No spaces or special characters.</p></div>
 <div class="launch-field"><label for="tokenDescription">Token description <span class="launch-hint">Optional · max 1,000 characters</span></label><textarea id="tokenDescription" maxlength="1000" placeholder="Tell the community what your token is about…"></textarea></div>
-<div class="launch-two-col"><div class="launch-field"><label for="tokenLogo">Token logo <span class="launch-hint">Optional · max 2 MB</span></label><input id="tokenLogo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><p class="launch-hint">PNG, JPG, WEBP or GIF. Stored on PIXORUN Supabase Storage.</p></div><div class="launch-field"><label for="tokenBanner">Banner image <span class="launch-hint">Optional · max 2 MB</span></label><input id="tokenBanner" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><p class="launch-hint">Optional wide image for the token details page.</p></div></div>
+<div class="launch-two-col"><div class="launch-field"><label for="tokenLogo">Token logo <span class="launch-hint">Optional · max 2 MB</span></label><input id="tokenLogo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><p class="launch-hint">PNG, JPG, WEBP or GIF. Stored on PIXORUN Supabase Storage.</p></div></div>
 <div class="launch-field"><label for="tokenWebsite">Website</label><input id="tokenWebsite" type="url" maxlength="300" placeholder="https://yourproject.com"></div>
 <div class="launch-two-col"><div class="launch-field"><label for="tokenX">X / Twitter</label><input id="tokenX" type="url" maxlength="300" placeholder="https://x.com/yourproject"></div><div class="launch-field"><label for="tokenTelegram">Telegram</label><input id="tokenTelegram" type="url" maxlength="300" placeholder="https://t.me/yourcommunity"></div></div>
 <p class="launch-hint">After your token is deployed, your wallet will ask for one free signature to verify and publish these details globally. This signature does not spend ETH.</p>
