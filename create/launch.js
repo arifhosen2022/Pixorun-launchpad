@@ -12,7 +12,7 @@ const ABI=[
  'event LaunchCreated(address indexed creator,address indexed token,address indexed curve,string name,string symbol)'
 ];
 const $=id=>document.getElementById(id);
-let readProvider,readFactory,creationFee,launchBusy=false,pendingMetadataSync=null,pendingRegistryTxHash=null,profilePublishMode=false;
+let readProvider,readFactory,creationFee,launchBusy=false,pendingMetadataSync=null,pendingRegistryTxHash=null;
 function walletProvider(){return window.PIXORUN_WALLET?.getProvider()||null;}
 const isBitgetProvider=provider=>!!provider&&(
  provider===window.bitkeep?.ethereum ||
@@ -181,8 +181,7 @@ async function setup(){
    $('swapAddress').textContent=swap;$('swapAddress').href=explorer('address',swap);
    $('feeAddress').textContent=distributor;$('feeAddress').href=explorer('address',distributor);
    $('networkStatus')&&($('networkStatus').textContent='Connected · Robinhood Chain Testnet');
-   if(profilePublishMode){setButton('LAUNCH TOKEN',false);$('launchStatus').hidden=true;}
-   else{setButton('CONNECT WALLET & LAUNCH TOKEN',false);status('Launchpad verified. Enter your token name and ticker, then connect your wallet to continue.','success');}
+   setButton('LAUNCH TOKEN',false);status('Launchpad verified. Enter your token name and ticker to continue.','success');
  }catch(e){
    $('creationFee').textContent='Unavailable';
    $('networkStatus')&&($('networkStatus').textContent='Not verified');
@@ -190,16 +189,11 @@ async function setup(){
  }
  btn.addEventListener('click',async()=>{
    if(launchBusy)return;
-   if(profilePublishMode&&pendingRegistryTxHash){
-     launchBusy=true;setButton('PUBLISHING PROFILE…',true);$('launchStatus').hidden=false;
-     try{await syncPendingMetadata();profilePublishMode=false;status('Token profile published successfully.','success');setButton('PROFILE PUBLISHED',true);}
-     catch(e){status(errorText(e),'error');setButton('LAUNCH TOKEN',false);}
-     finally{launchBusy=false;}
-     return;
-   }
+   const name=$('tokenName').value.trim(),symbol=$('tokenSymbol').value.trim();
+   if(!name||new TextEncoder().encode(name).length>32){status('Enter a token name. It must be 1–32 UTF-8 bytes.','error');$('tokenName').focus();return;}
+   if(!/^[A-Za-z0-9]{1,10}$/.test(symbol)){status('Ticker must be 1–10 English letters or numbers, without spaces or symbols.','error');$('tokenSymbol').focus();return;}
    launchBusy=true;setButton('PREPARING TRANSACTION…',true);
    try{
-     const name=$('tokenName').value.trim(),symbol=$('tokenSymbol').value.trim();
      if(!name||new TextEncoder().encode(name).length>32)throw new Error('Enter a token name. It must be 1–32 UTF-8 bytes.');
      if(!/^[A-Za-z0-9]{1,10}$/.test(symbol))throw new Error('Ticker must be 1–10 English letters or numbers, without spaces or symbols.');
      const metadata={description:String($('tokenDescription')?.value||'').trim()||null,websiteUrl:cleanUrl($('tokenWebsite')?.value,'website')||null,xUrl:cleanUrl($('tokenX')?.value,'X',/(^|\.)((x|twitter)\.com)$/i)||null,telegramUrl:cleanUrl($('tokenTelegram')?.value,'Telegram',/(^|\.)((t\.me|telegram\.me))$/i)||null};
@@ -271,18 +265,17 @@ async function setup(){
      $('resultTokenLabel')&&($('resultTokenLabel').textContent='TOKEN CONTRACT');
      $('resultCurveLabel')&&($('resultCurveLabel').textContent='BONDING CURVE');
      $('launchResult').hidden=false;
-     if(!globalRegistered&&pendingMetadataSync&&!pendingMetadataSync.signature){profilePublishMode=true;$('launchStatus').hidden=true;setButton('LAUNCH TOKEN',false);}
-     else status(globalRegistered?(hasMetadata?'Your token and profile are now live across PIXORUN.':'Your token is now live across PIXORUN.'):'Your token is live. We are finishing the final profile setup automatically.',globalRegistered?'success':'pending');
+     status(globalRegistered?(hasMetadata?'Your token and profile are now live across PIXORUN.':'Your token is now live across PIXORUN.'):'Your token is live. We are finishing the final profile setup automatically.',globalRegistered?'success':'pending');
      if(globalRegistered){form.reset();updatePreview();previewLogo();}
    }catch(e){status(errorText(e),'error');}
-   finally{launchBusy=false;setButton('CONNECT WALLET & LAUNCH TOKEN',false);}
+   finally{launchBusy=false;setButton('LAUNCH TOKEN',false);}
  });
 }
 async function resumePendingSync(){
  if(!pendingRegistryTxHash)return;
  if(pendingMetadataSync&&!pendingMetadataSync.signature){
   if($('retryMetadata')){$('retryMetadata').hidden=false;$('retryMetadata').textContent='PUBLISH TOKEN PROFILE';}
-  status('Your token is live. Approve one free wallet signature to publish its profile details.','pending');return;
+  return;
  }
  try{await syncPendingMetadata();status('Your token and profile are now live across PIXORUN.','success');}
  catch(error){console.warn('PIXORUN background profile sync will retry:',error);status('Your token is live. We are completing the final profile setup.','pending');setTimeout(resumePendingSync,30000);}
@@ -294,7 +287,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(saved?.txHash)pendingRegistryTxHash=saved.txHash;
   const pending=await latestPendingMetadata();
   if(pending){pendingMetadataSync=pending;pendingRegistryTxHash=pending.txHash;}
-  if(pendingRegistryTxHash){if(pending&&!pending.signature){profilePublishMode=true;$('launchStatus').hidden=true;setButton('LAUNCH TOKEN',false);}else status('Your token is live. Final profile setup is being completed.','pending');setTimeout(resumePendingSync,1200);}
+  if(pendingRegistryTxHash){setTimeout(resumePendingSync,1200);}
  }catch(e){console.warn('Could not restore pending profile publishing:',e);}
 });
 })();
