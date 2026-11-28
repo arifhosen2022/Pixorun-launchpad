@@ -10,8 +10,8 @@ const $=id=>document.getElementById(id),provider=new ethers.JsonRpcProvider(RPC,
 const tokenAddress=new URLSearchParams(location.search).get('address');
 const cacheKey=tokenAddress&&ethers.isAddress(tokenAddress)?'pixorun:token:v2:'+tokenAddress.toLowerCase():null;
 let cached=null;try{cached=cacheKey?JSON.parse(localStorage.getItem(cacheKey)||'null'):null;}catch(_){}
-if(cached){launchBlock=Number(cached.launchBlock)||null;$('tokenName').textContent=cached.name||'Token';$('tokenSymbol').textContent=cached.symbol||'—';$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;if(cached.curveAddress){$('curveAddress').textContent=cached.curveAddress;$('curveAddress').href=EXPLORER+'/address/'+cached.curveAddress;}if(cached.creator){$('creatorAddress').textContent=cached.creator;$('creatorAddress').href=EXPLORER+'/address/'+cached.creator;}$('totalSupply').textContent=cached.totalSupply||'—';$('tradeMode').textContent=cached.tradeMode||'Refreshing market…';}
-let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n,marketLoading=false,launchBlock=null,marketCache=null;
+if(cached){$('tokenName').textContent=cached.name||'Token';$('tokenSymbol').textContent=cached.symbol||'—';$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;if(cached.curveAddress){$('curveAddress').textContent=cached.curveAddress;$('curveAddress').href=EXPLORER+'/address/'+cached.curveAddress;}if(cached.creator){$('creatorAddress').textContent=cached.creator;$('creatorAddress').href=EXPLORER+'/address/'+cached.creator;}$('totalSupply').textContent=cached.totalSupply||'—';$('tradeMode').textContent=cached.tradeMode||'Refreshing market…';}
+let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n,marketLoading=false,launchBlock=Number(cached?.launchBlock)||null,marketCache=null;
 const withTimeout=(promise,label,ms=16000)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error(label+' timed out. Robinhood RPC did not respond.')),ms);Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
 const compactNumber=(value,max=3)=>{const n=Number(value);if(!Number.isFinite(n))return '—';const a=Math.abs(n),sign=n<0?'-':'';for(const [limit,suffix] of [[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']])if(a>=limit){const scaled=a/limit;return sign+scaled.toLocaleString('en-US',{maximumFractionDigits:2,minimumFractionDigits:0})+suffix;}if(a>0&&a<0.001)return sign+Number(a.toPrecision(4)).toString();return n.toLocaleString('en-US',{maximumFractionDigits:max});};
 const fmt=(v,d=18)=>compactNumber(ethers.formatUnits(v,d),3);
@@ -217,7 +217,7 @@ async function loadMarketData(){
   let scanError=null,scanSucceeded=false;
   try{
    let fromBlock;
-   if(Number.isSafeInteger(Number(saved?.lastBlock)))fromBlock=Math.max(0,Number(saved.lastBlock)-2);
+   if(saved?.lastBlock!==null&&saved?.lastBlock!==undefined&&Number.isSafeInteger(Number(saved.lastBlock)))fromBlock=Math.max(0,Number(saved.lastBlock)-2);
    else if(Number.isSafeInteger(Number(launchBlock))&&Number(launchBlock)>0){
     const launch=await withTimeout(provider.getBlock(Number(launchBlock)),'Launch block timestamp',10000);
     fromBlock=launch&&Number(launch.timestamp)>=Math.floor(Date.now()/1000)-86400?Number(launchBlock):await findBlockAtOrAfter(Math.floor(Date.now()/1000)-86400,latest);
@@ -304,8 +304,9 @@ async function refresh(){
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('');
  const metadataTask=loadMetadata();
- await Promise.all([quoteBuy(),quoteSell(),metadataTask,updateCurveProgress()]);
+ await Promise.all([quoteBuy(),quoteSell(),updateCurveProgress()]);
  await loadMarketData();
+ metadataTask.catch(error=>console.warn('Token metadata refresh delayed:',error));
  if(account)await refreshBalances();
 }
 
