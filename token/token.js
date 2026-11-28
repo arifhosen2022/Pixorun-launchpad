@@ -246,10 +246,13 @@ async function buy(){
   else{const q=await getBuyQuote(amount);minOut=minAfterSlippage(q.out);contract=new ethers.Contract(pairAddress,pairAbi,signer);}
   const gas=mode==='curve'?await contract.buy.estimateGas(minOut,{value:amount}):await contract.swapNativeForToken.estimateGas(minOut,{value:amount});const feeData=await provider.getFeeData();const gasPrice=feeData.maxFeePerGas??feeData.gasPrice??0n;ethBalance=await provider.getBalance(account);
   if(ethBalance<amount+(gas*gasPrice*12n/10n))throw Error('Insufficient ETH for this buy plus estimated gas. Reduce the buy amount or add testnet ETH.');
+  showTradeModal('pending','Confirm your buy','Approve the transaction in your wallet. Waiting for on-chain confirmation…');
   setStatus('Confirm the buy in your wallet. The quote is protected by '+slippage()+'% slippage.');
-  const tx=mode==='curve'?await contract.buy(minOut,{value:amount,gasLimit:gas*12n/10n}):await contract.swapNativeForToken(minOut,{value:amount,gasLimit:gas*12n/10n});setStatus('Buy submitted: '+tx.hash);await tx.wait();
+  const tx=mode==='curve'?await contract.buy(minOut,{value:amount,gasLimit:gas*12n/10n}):await contract.swapNativeForToken(minOut,{value:amount,gasLimit:gas*12n/10n});
+  showTradeModal('pending','Buy submitted','Your buy transaction was submitted. Waiting for Robinhood Chain confirmation…',tx.hash);setStatus('Buy submitted: '+tx.hash);await tx.wait();
+  showTradeModal('success','Buy successful','Your token purchase is complete. '+$('tokenSymbol').textContent+' balance and market data are refreshing.',tx.hash);
   setStatus('Buy confirmed on Robinhood Chain Testnet.');await refresh();
- }catch(e){setStatus(e.shortMessage||e.reason||e.message||'Buy failed.');}finally{busy=false;$('buyBtn').disabled=!canTrade;}
+ }catch(e){const message=e.shortMessage||e.reason||e.message||'Buy failed.';showTradeModal('error','Buy failed',message);setStatus(message);}finally{busy=false;$('buyBtn').disabled=!canTrade;}
 }
 async function sell(){
  if(busy)return;busy=true;$('sellBtn').disabled=true;
@@ -259,14 +262,23 @@ async function sell(){
   const currentBalance=await token.balanceOf(account);if(amount>currentBalance)throw Error('You do not have enough '+$('tokenSymbol').textContent+' for this sell.');
   const spender=mode==='curve'?curveAddress:pairAddress;
   const signer=await new ethers.BrowserProvider(wallet()).getSigner(),signedToken=token.connect(signer),allowance=await token.allowance(account,spender);
-  if(allowance<amount){setStatus('Approve the exact token amount in your wallet…');const approval=await signedToken.approve(spender,amount);await approval.wait();}
+  if(allowance<amount){
+   showTradeModal('pending','Approve token spending','Confirm the token approval in your wallet. The sell will start after approval is confirmed.');
+   setStatus('Approve the exact token amount in your wallet…');const approval=await signedToken.approve(spender,amount);
+   showTradeModal('pending','Approval submitted','Waiting for your token approval to be confirmed on-chain…',approval.hash);await approval.wait();
+   showTradeModal('success','Approval successful','Token spending is approved. Your sell transaction is starting now.',approval.hash);
+  }
   let minOut,contract;
   if(mode==='curve'){const q=await curve.quoteSell(amount);minOut=minAfterSlippage(q[2]);contract=new ethers.Contract(curveAddress,curveAbi,signer);}
   else{const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const gross=amount*rn/(rt+amount),out=gross-gross*100n/10000n;minOut=minAfterSlippage(out);contract=new ethers.Contract(pairAddress,pairAbi,signer);}
+  showTradeModal('pending','Confirm your sell','Approve the sell transaction in your wallet. Waiting for on-chain confirmation…');
   setStatus('Confirm the sell in your wallet. The minimum receive amount includes '+slippage()+'% slippage protection.');
   const tx=mode==='curve'?await contract.sell(amount,minOut):await contract.swapTokenForNative(amount,minOut);
-  setStatus('Sell submitted: '+tx.hash);await tx.wait();setStatus('Sell confirmed on Robinhood Chain Testnet.');await refresh();
- }catch(e){setStatus(e.shortMessage||e.reason||e.message||'Sell failed.');}finally{busy=false;$('sellBtn').disabled=!canTrade;}
+  showTradeModal('pending','Sell submitted','Your sell transaction was submitted. Waiting for Robinhood Chain confirmation…',tx.hash);
+  setStatus('Sell submitted: '+tx.hash);await tx.wait();
+  showTradeModal('success','Sell successful','Your tokens were sold successfully. ETH and token balances are refreshing.',tx.hash);
+  setStatus('Sell confirmed on Robinhood Chain Testnet.');await refresh();
+ }catch(e){const message=e.shortMessage||e.reason||e.message||'Sell failed.';showTradeModal('error','Transaction failed',message);setStatus(message);}finally{busy=false;$('sellBtn').disabled=!canTrade;}
 }
 $('buyAmount')?.addEventListener('input',quoteBuy);$('sellAmount')?.addEventListener('input',quoteSell);$('slippage')?.addEventListener('change',()=>{quoteBuy();quoteSell();});
 $('buyBtn')?.addEventListener('click',buy);$('sellBtn')?.addEventListener('click',sell);
