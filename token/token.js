@@ -6,13 +6,13 @@ const tokenAbi=['function name() view returns(string)','function symbol() view r
 const curveAbi=['function graduated() view returns(bool)','function totalSold() view returns(uint256)','function realNative() view returns(uint256)','function realToken() view returns(uint256)','function virtualNative() view returns(uint256)','function virtualToken() view returns(uint256)','function quoteBuy(uint256) view returns(uint256,uint256,uint256)','function quoteSell(uint256) view returns(uint256,uint256,uint256)','function buy(uint256) payable returns(uint256)','function sell(uint256,uint256) returns(uint256)'];
 const swapFactoryAbi=['function getPair(address) view returns(address)'];
 const pairAbi=['function reserveNative() view returns(uint112)','function reserveToken() view returns(uint112)','function swapNativeForToken(uint256) payable returns(uint256)','function swapTokenForNative(uint256,uint256) returns(uint256)'];
-const $=id=>document.getElementById(id),provider=new ethers.JsonRpcProvider(RPC,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true,batchMaxCount:1});
+const $=id=>document.getElementById(id),provider=new ethers.JsonRpcProvider(RPC,{chainId:46630,name:'Robinhood Chain Testnet'},{staticNetwork:true,batchMaxCount:10,batchStallTime:20});
 const tokenAddress=new URLSearchParams(location.search).get('address');
 const cacheKey=tokenAddress&&ethers.isAddress(tokenAddress)?'pixorun:token:v2:'+tokenAddress.toLowerCase():null;
 let cached=null;try{cached=cacheKey?JSON.parse(localStorage.getItem(cacheKey)||'null'):null;}catch(_){}
-if(cached){$('tokenName').textContent=cached.name||'Token';$('tokenSymbol').textContent=cached.symbol||'—';$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;if(cached.curveAddress){$('curveAddress').textContent=cached.curveAddress;$('curveAddress').href=EXPLORER+'/address/'+cached.curveAddress;}if(cached.creator){$('creatorAddress').textContent=cached.creator;$('creatorAddress').href=EXPLORER+'/address/'+cached.creator;}$('totalSupply').textContent=cached.totalSupply||'—';$('tradeMode').textContent=cached.tradeMode||'Refreshing market…';}
-let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n,marketLoading=false,launchBlock=null;
-const withTimeout=(promise,label,ms=12000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Error(label+' timed out. Robinhood RPC did not respond.')),ms))]);
+if(cached){launchBlock=Number(cached.launchBlock)||null;$('tokenName').textContent=cached.name||'Token';$('tokenSymbol').textContent=cached.symbol||'—';$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;if(cached.curveAddress){$('curveAddress').textContent=cached.curveAddress;$('curveAddress').href=EXPLORER+'/address/'+cached.curveAddress;}if(cached.creator){$('creatorAddress').textContent=cached.creator;$('creatorAddress').href=EXPLORER+'/address/'+cached.creator;}$('totalSupply').textContent=cached.totalSupply||'—';$('tradeMode').textContent=cached.tradeMode||'Refreshing market…';}
+let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n,marketLoading=false,launchBlock=null,marketCache=null;
+const withTimeout=(promise,label,ms=16000)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error(label+' timed out. Robinhood RPC did not respond.')),ms);Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
 const compactNumber=(value,max=3)=>{const n=Number(value);if(!Number.isFinite(n))return '—';const a=Math.abs(n),sign=n<0?'-':'';for(const [limit,suffix] of [[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']])if(a>=limit){const scaled=a/limit;return sign+scaled.toLocaleString('en-US',{maximumFractionDigits:2,minimumFractionDigits:0})+suffix;}if(a>0&&a<0.001)return sign+Number(a.toPrecision(4)).toString();return n.toLocaleString('en-US',{maximumFractionDigits:max});};
 const fmt=(v,d=18)=>compactNumber(ethers.formatUnits(v,d),3);
 const setStatus=m=>{const el=$('tradeStatus'),wrap=el?.closest('.app-status'),retry=$('tokenRetry');if(el)el.textContent=m||'';if(wrap)wrap.hidden=!m;if(retry)retry.hidden=!(m&&/could not|failed|unavailable|error|paused|tap retry/i.test(m));};
@@ -57,7 +57,7 @@ function showMetadata(m){
  for(const [label,url] of [['Website',m.website_url],['X / Twitter',m.x_url],['Telegram',m.telegram_url]])if(url){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=label+' ↗';links.append(a);has=true;}
  about.hidden=!has;
 }
-async function loadMetadata(){try{if(window.PIXORUN_REGISTRY){const row=await window.PIXORUN_REGISTRY.getLaunch(tokenAddress);if(row?.block_number!==undefined&&row?.block_number!==null)launchBlock=Number(row.block_number);showMetadata(row);}}catch(e){console.warn('Token metadata could not be loaded',e);}}
+async function loadMetadata(){try{if(window.PIXORUN_REGISTRY){const row=await withTimeout(window.PIXORUN_REGISTRY.getLaunch(tokenAddress),'Token metadata',12000);if(row?.block_number!==undefined&&row?.block_number!==null){launchBlock=Number(row.block_number);try{const old=JSON.parse(localStorage.getItem(cacheKey)||'{}');localStorage.setItem(cacheKey,JSON.stringify({...old,launchBlock}));}catch(_){}}showMetadata(row);}}catch(e){console.warn('Token metadata could not be loaded',e);}}
 async function getBuyQuote(amount){
  if(mode==='swap'){const [rn,rt]=await Promise.all([pair.reserveNative(),pair.reserveToken()]);const fee=amount*100n/10000n,net=amount-fee;return {out:net*rt/(rn+net),fee,net,acceptedGross:amount,refund:0n};}
  try{const q=await curve.quoteBuy(amount);return {out:q[0],fee:q[1],net:q[2],acceptedGross:amount,refund:0n};}
@@ -95,6 +95,18 @@ const pairEvents=new ethers.Interface(['event Swap(address indexed sender,bool n
 const marketFmt=(n,max=6)=>compactNumber(n,Math.min(max,4));
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
 let chartInterval='1s';
+function paintMarketCache(){
+ const keys=['pixorun:market:v4:','pixorun:market:v3:','pixorun:market:v2:','pixorun:market:v1:'];
+ for(const prefix of keys){try{const raw=localStorage.getItem(prefix+tokenAddress.toLowerCase());if(raw){marketCache=JSON.parse(raw);break;}}catch(_){}}
+ if(!marketCache)return;
+ const c=marketCache;
+ marketText('marketPrice',c.price||'—');marketText('marketCap',c.cap||'—');marketText('marketLiquidity',c.liquidity||'—');
+ marketText('marketVolume',c.volume||'—');marketText('marketChange',c.change||'—');marketText('marketTrades',c.trades||'0');
+ marketText('marketUpdated','Saved data · refreshing');drawMarketChart(c.points||[]);
+ marketText('marketTradeCount',c.tradeCount||'0 trades');
+ const host=$('marketRecentTrades');if(host&&c.rows)host.innerHTML=c.rows;
+ marketText('marketDataNote','Showing the latest saved data while live on-chain data refreshes.');
+}
 function chartPriceFmt(value){
  const n=Number(value);if(!Number.isFinite(n)||n<=0)return '—';
  if(n>=1)return marketFmt(n,8);
@@ -168,76 +180,103 @@ async function updateCurveProgress(){
   $('curveProgressNote').textContent=graduated?'The bonding curve is complete. This token has moved to its PIXORUN Swap pool.':'Progress = tokens sold ÷ 793,100,000-token curve allocation. Values are read directly from the bonding curve contract.';
  }catch(e){$('curveProgressPercent').textContent='Unavailable';$('curveProgressNote').textContent='Could not read curve progress from Robinhood Chain Testnet. Tap Retry to refresh.';}
 }
-async function findBlockAtOrAfter(target,latest){let lo=0,hi=latest;while(lo<hi){const mid=Math.floor((lo+hi)/2),b=await withTimeout(provider.getBlock(mid),'Block timestamp');if(!b)throw Error('Could not read block timestamp.');if(Number(b.timestamp)<target)lo=mid+1;else hi=mid;}return lo;}
+async function findBlockAtOrAfter(target,latest){
+ let lo=0,hi=latest;
+ while(lo<hi){const mid=Math.floor((lo+hi)/2),b=await withTimeout(provider.getBlock(mid),'Block timestamp',10000);if(!b)throw Error('Could not read block timestamp.');if(Number(b.timestamp)<target)lo=mid+1;else hi=mid;}
+ return lo;
+}
 async function loadMarketData(){
- if(marketLoading||!token||!curve)return;marketLoading=true;
- const marketCacheKey='pixorun:market:v3:'+tokenAddress.toLowerCase();let saved=null;
- try{saved=JSON.parse(localStorage.getItem(marketCacheKey)||'null');if(!saved)saved=JSON.parse(localStorage.getItem('pixorun:market:v2:'+tokenAddress.toLowerCase())||'null');if(!saved)saved=JSON.parse(localStorage.getItem('pixorun:market:v1:'+tokenAddress.toLowerCase())||'null');}catch(_){}
- // Paint the last known market immediately; never stop here because cached data must still refresh.
- if(saved){
-  marketText('marketPrice',saved.price||'—');marketText('marketCap',saved.cap||'—');marketText('marketLiquidity',saved.liquidity||'—');
-  marketText('marketVolume',saved.volume||'—');marketText('marketChange',saved.change||'—');marketText('marketTrades',saved.trades||'0');
-  marketText('marketUpdated','Live refresh · cached '+new Date(saved.savedAt||Date.now()).toLocaleTimeString());
-  drawMarketChart(saved.points||[]);marketText('marketTradeCount',saved.tradeCount||'0 trades');
-  const cachedHost=$('marketRecentTrades');if(cachedHost)cachedHost.innerHTML=saved.rows||'<p class="trade-help">Waiting for confirmed trades…</p>';
-  marketText('marketDataNote','Showing saved trades while live Robinhood Chain data refreshes.');
- }
+ if(marketLoading||!token||!curve||!tokenAddress)return;
+ marketLoading=true;
+ const key='pixorun:market:v4:'+tokenAddress.toLowerCase();
+ let saved=marketCache;
+ try{saved=JSON.parse(localStorage.getItem(key)||'null')||saved;}catch(_){}
  try{
-  const latest=await withTimeout(provider.getBlockNumber(),'Latest block',8000);
-  let price=0,liquidity='—',reserveEth=0,reserveToken=0;
+  const latest=await withTimeout(provider.getBlockNumber(),'Latest block',10000);
   const reserveReads=mode==='curve'
    ?Promise.all([curve.virtualNative(),curve.virtualToken(),curve.realNative(),curve.realToken()])
    :Promise.all([pair.reserveNative(),pair.reserveToken()]);
   const [reserves,supply]=await Promise.all([reserveReads,token.totalSupply()]);
+  let reserveEth=0,reserveToken=0,price=0,liquidity='—';
   if(mode==='curve'){
-   const [rn,rt,realN,realT]=reserves;reserveEth=Number(ethers.formatEther(realN));reserveToken=Number(ethers.formatUnits(realT,decimals));
-   if(rt>0n&&rn>0n)price=Number(ethers.formatEther(rn))/Number(ethers.formatUnits(rt,decimals));
-   liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens (curve reserves)';
+   const [virtualNative,virtualToken,realNative,realToken]=reserves;
+   reserveEth=Number(ethers.formatEther(realNative));reserveToken=Number(ethers.formatUnits(realToken,decimals));
+   if(virtualNative>0n&&virtualToken>0n)price=Number(ethers.formatEther(virtualNative))/Number(ethers.formatUnits(virtualToken,decimals));
+   liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens';
   }else{
-   const [rn,rt]=reserves;reserveEth=Number(ethers.formatEther(rn));reserveToken=Number(ethers.formatUnits(rt,decimals));
-   if(rt>0n)price=Number(ethers.formatEther(rn))/Number(ethers.formatUnits(rt,decimals));
-   liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens (pool reserves)';
+   const [nativeReserve,tokenReserve]=reserves;
+   reserveEth=Number(ethers.formatEther(nativeReserve));reserveToken=Number(ethers.formatUnits(tokenReserve,decimals));
+   if(nativeReserve>0n&&tokenReserve>0n)price=reserveEth/reserveToken;
+   liquidity=marketFmt(reserveEth,5)+' ETH + '+marketFmt(reserveToken,0)+' tokens';
   }
-  const mcap=price*Number(ethers.formatUnits(supply,decimals));
-  marketText('marketPrice',price>0?marketFmt(price,12)+' ETH':'—');marketText('marketCap',price>0?marketFmt(mcap,5)+' ETH':'—');marketText('marketLiquidity',liquidity);
-  marketText('marketUpdated','On-chain · '+new Date().toLocaleTimeString());
-  // On first visit scan the last 24h. Later visits fetch only blocks created since the previous refresh.
-  let fromBlock;
-  if(Number.isSafeInteger(Number(saved?.lastBlock)))fromBlock=Math.max(0,Number(saved.lastBlock)+1);
-  else fromBlock=await findBlockAtOrAfter(Math.floor(Date.now()/1000)-86400,latest);
-  const logs=[],topics=[curveEvents.getEvent('Bought').topicHash,curveEvents.getEvent('Sold').topicHash,pairEvents.getEvent('Swap').topicHash];
-  if(fromBlock<=latest){
-   const ranges=[];for(let start=fromBlock;start<=latest;start+=1000)ranges.push([start,Math.min(latest,start+999)]);
-   let cursor=0;await Promise.all(Array.from({length:Math.min(4,ranges.length)},async()=>{while(cursor<ranges.length){const [start,end]=ranges[cursor++];const [a,b]=await Promise.all([
-    withTimeout(provider.getLogs({address:curveAddress,fromBlock:start,toBlock:end,topics:[[topics[0],topics[1]]]}),'Curve event scan',12000),
-    mode==='swap'?withTimeout(provider.getLogs({address:pairAddress,fromBlock:start,toBlock:end,topics:[topics[2]]}),'Swap event scan',12000):Promise.resolve([])
-   ]);logs.push(...a,...b);}}));
-  }
-  const decoded=logs.map(log=>{try{
-   if(log.address.toLowerCase()===curveAddress.toLowerCase()){
-    const p=curveEvents.parseLog(log);
-    if(p.name==='Bought')return {type:'Buy',native:Number(ethers.formatEther(p.args.grossNative)),tokens:Number(ethers.formatUnits(p.args.tokensOut,decimals)),block:log.blockNumber,transactionIndex:log.transactionIndex??0,logIndex:log.index??log.logIndex??0,hash:log.transactionHash};
-    return {type:'Sell',native:Number(ethers.formatEther(p.args.grossNative)),tokens:Number(ethers.formatUnits(p.args.tokensIn,decimals)),block:log.blockNumber,transactionIndex:log.transactionIndex??0,logIndex:log.index??log.logIndex??0,hash:log.transactionHash};
+  const supplyNumber=Number(ethers.formatUnits(supply,decimals)),mcap=price*supplyNumber;
+  const priceLabel=price>0?chartPriceFmt(price)+' ETH':'—';
+  marketText('marketPrice',priceLabel);marketText('marketCap',price>0?marketFmt(mcap,5)+' ETH':'—');
+  marketText('marketLiquidity',liquidity);marketText('marketUpdated','On-chain · '+new Date().toLocaleTimeString('en-GB',{timeZone:'Asia/Dhaka'}));
+  let recent=(saved?.points||[]).filter(t=>Number(t.time)>=Math.floor(Date.now()/1000)-86400);
+  let scanError=null,scanSucceeded=false;
+  try{
+   let fromBlock;
+   if(Number.isSafeInteger(Number(saved?.lastBlock)))fromBlock=Math.max(0,Number(saved.lastBlock)-2);
+   else if(Number.isSafeInteger(Number(launchBlock))&&Number(launchBlock)>0){
+    const launch=await withTimeout(provider.getBlock(Number(launchBlock)),'Launch block timestamp',10000);
+    fromBlock=launch&&Number(launch.timestamp)>=Math.floor(Date.now()/1000)-86400?Number(launchBlock):await findBlockAtOrAfter(Math.floor(Date.now()/1000)-86400,latest);
+   }else fromBlock=await findBlockAtOrAfter(Math.floor(Date.now()/1000)-86400,latest);
+   const topics=[curveEvents.getEvent('Bought').topicHash,curveEvents.getEvent('Sold').topicHash,pairEvents.getEvent('Swap').topicHash],logs=[];
+   if(fromBlock<=latest){
+    const ranges=[];for(let n=fromBlock;n<=latest;n+=1500)ranges.push([n,Math.min(latest,n+1499)]);
+    let cursor=0;
+    await Promise.all(Array.from({length:Math.min(2,ranges.length)},async()=>{
+     while(cursor<ranges.length){
+      const [fromBlock,toBlock]=ranges[cursor++];
+      const curveLogs=await withTimeout(provider.getLogs({address:curveAddress,fromBlock,toBlock,topics:[[topics[0],topics[1]]]}),'Curve trade history',15000);
+      logs.push(...curveLogs);
+      if(mode==='swap'){
+       const pairLogs=await withTimeout(provider.getLogs({address:pairAddress,fromBlock,toBlock,topics:[topics[2]]}),'Swap trade history',15000);
+       logs.push(...pairLogs);
+      }
+     }
+    }));
    }
-   const p=pairEvents.parseLog(log),buy=p.args.nativeToToken;
-   return {type:buy?'Buy':'Sell',native:Number(ethers.formatEther(buy?p.args.amountIn:p.args.amountOut)),tokens:Number(ethers.formatUnits(buy?p.args.amountOut:p.args.amountIn,decimals)),block:log.blockNumber,transactionIndex:log.transactionIndex??0,logIndex:log.index??log.logIndex??0,hash:log.transactionHash};
-  }catch(_){return null;}}).filter(Boolean);
-  const blockNums=[...new Set(decoded.map(t=>t.block))],blockTimes={};let blockIndex=0;
-  await Promise.all(Array.from({length:Math.min(12,blockNums.length)},async()=>{while(blockIndex<blockNums.length){const n=blockNums[blockIndex++];try{const b=await withTimeout(provider.getBlock(n),'Trade timestamp',8000);if(b)blockTimes[n]=Number(b.timestamp);}catch(_){}}}));
-  const now=Math.floor(Date.now()/1000),previous=(saved?.points||[]).filter(t=>Number(t.time)>=now-86400);
-  const added=decoded.map(t=>({...t,time:blockTimes[t.block]||0,price:t.tokens>0?t.native/t.tokens:0})).filter(t=>t.time>=now-86400&&t.time>0);
-  const byHash=new Map();[...previous,...added].forEach(t=>byHash.set(String(t.hash||'')+':'+String(t.logIndex??t.transactionIndex??0),t));
-  const recent=[...byHash.values()].filter(t=>t.time>=now-86400).sort((a,b)=>a.time-b.time||Number(a.block||0)-Number(b.block||0)||Number(a.transactionIndex||0)-Number(b.transactionIndex||0)||Number(a.logIndex||0)-Number(b.logIndex||0));
-  const volume=recent.reduce((s,t)=>s+Number(t.native||0),0),first=recent.find(t=>t.price>0),last=[...recent].reverse().find(t=>t.price>0);
+   const decoded=logs.map(log=>{try{
+    if(log.address.toLowerCase()===curveAddress.toLowerCase()){
+     const event=curveEvents.parseLog(log);
+     return event.name==='Bought'
+      ?{type:'Buy',native:Number(ethers.formatEther(event.args.grossNative)),tokens:Number(ethers.formatUnits(event.args.tokensOut,decimals)),block:log.blockNumber,transactionIndex:log.transactionIndex??0,logIndex:log.index??log.logIndex??0,hash:log.transactionHash}
+      :{type:'Sell',native:Number(ethers.formatEther(event.args.grossNative)),tokens:Number(ethers.formatUnits(event.args.tokensIn,decimals)),block:log.blockNumber,transactionIndex:log.transactionIndex??0,logIndex:log.index??log.logIndex??0,hash:log.transactionHash};
+    }
+    const event=pairEvents.parseLog(log),isBuy=event.args.nativeToToken;
+    return {type:isBuy?'Buy':'Sell',native:Number(ethers.formatEther(isBuy?event.args.amountIn:event.args.amountOut)),tokens:Number(ethers.formatUnits(isBuy?event.args.amountOut:event.args.amountIn,decimals)),block:log.blockNumber,transactionIndex:log.transactionIndex??0,logIndex:log.index??log.logIndex??0,hash:log.transactionHash};
+   }catch(_){return null;}}).filter(Boolean);
+   const blockNums=[...new Set(decoded.map(t=>t.block))],times={};let cursor=0;
+   await Promise.all(Array.from({length:Math.min(8,blockNums.length)},async()=>{
+    while(cursor<blockNums.length){const n=blockNums[cursor++];try{const b=await withTimeout(provider.getBlock(n),'Trade timestamp',10000);if(b)times[n]=Number(b.timestamp);}catch(_){}}
+   }));
+   const now=Math.floor(Date.now()/1000),added=decoded.map(t=>({...t,time:times[t.block]||0,price:t.tokens>0?t.native/t.tokens:0})).filter(t=>t.time>=now-86400&&t.time>0);
+   const map=new Map();[...recent,...added].forEach(t=>map.set(String(t.hash||'')+':'+String(t.logIndex??t.transactionIndex??0),t));
+   recent=[...map.values()].filter(t=>Number(t.time)>=now-86400).sort((a,b)=>a.time-b.time||Number(a.block||0)-Number(b.block||0)||Number(a.transactionIndex||0)-Number(b.transactionIndex||0)||Number(a.logIndex||0)-Number(b.logIndex||0));
+   scanSucceeded=true;
+  }catch(error){scanError=error;console.warn('PIXORUN trade history scan failed:',error);}
+  const volume=recent.reduce((sum,t)=>sum+Number(t.native||0),0);
+  const first=recent.find(t=>Number(t.price)>0),last=[...recent].reverse().find(t=>Number(t.price)>0);
   const change=first&&last&&first.price>0?(last.price/first.price-1)*100:null;
-  marketText('marketVolume',marketFmt(volume,5)+' ETH');marketText('marketChange',change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%');
-  marketText('marketTrades',String(recent.length));marketText('marketUpdated','Live · '+new Date().toLocaleTimeString());
-  drawMarketChart(recent.filter(t=>t.price>0));
-  const rows=recent.slice(-8).reverse();marketText('marketTradeCount',recent.length+' trades');
-  const host=$('marketRecentTrades');
-  if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><time class="market-trade-time" datetime="'+new Date(t.time*1000).toISOString()+'">'+new Date(t.time*1000).toLocaleString('en-GB',{timeZone:'Asia/Dhaka',year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+'</time><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
-  marketText('marketDataNote','Live confirmed PIXORUN curve and swap events · rolling 24-hour window.');
-  try{localStorage.setItem(marketCacheKey,JSON.stringify({savedAt:Date.now(),lastBlock:latest,price:price>0?marketFmt(price,12)+' ETH':'—',cap:price>0?marketFmt(mcap,5)+' ETH':'—',liquidity,volume:marketFmt(volume,5)+' ETH',change:change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%',trades:String(recent.length),points:recent,tradeCount:recent.length+' trades',rows:host?host.innerHTML:''}));}catch(_){}
+  marketText('marketVolume',marketFmt(volume,5)+' ETH');
+  marketText('marketChange',change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%');
+  marketText('marketTrades',String(recent.length));
+  if(scanSucceeded||!saved){
+   drawMarketChart(recent.filter(t=>Number(t.price)>0));
+   const rows=recent.slice(-8).reverse(),host=$('marketRecentTrades');
+   if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><time class="market-trade-time" datetime="'+new Date(t.time*1000).toISOString()+'">'+new Date(t.time*1000).toLocaleString('en-GB',{timeZone:'Asia/Dhaka',year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+'</time><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
+   marketText('marketTradeCount',recent.length+' trades');
+  }
+  marketText('marketDataNote',scanError?'Market reserves are live. Trade history is temporarily delayed; saved trades remain visible.':'Live confirmed on-chain trades · rolling 24-hour window.');
+  const payload={savedAt:Date.now(),lastBlock:scanSucceeded?latest:(saved?.lastBlock??null),price:priceLabel,cap:price>0?marketFmt(mcap,5)+' ETH':'—',liquidity,volume:marketFmt(volume,5)+' ETH',change:change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%',trades:String(recent.length),points:recent,tradeCount:recent.length+' trades',rows:$('marketRecentTrades')?.innerHTML||''};
+  marketCache=payload;try{localStorage.setItem(key,JSON.stringify(payload));}catch(_){}
+ }catch(error){
+  console.warn('PIXORUN market refresh failed:',error);
+  marketText('marketUpdated','Temporarily delayed');
+  marketText('marketDataNote','Could not refresh live reserves. Last saved market data is kept on screen.');
+  if(!saved)drawMarketChart([]);
  }finally{marketLoading=false;}
 }
 
@@ -260,14 +299,13 @@ async function refresh(){
  if(mode==='swap'){$('pairAddress').textContent=pairAddress;$('pairAddress').href=EXPLORER+'/address/'+pairAddress;pair=new ethers.Contract(pairAddress,pairAbi,provider);$('graduationNote').textContent='This token completed Liftoff. Trading uses its PIXORUN Swap pool.';}
  else {$('pairAddress').textContent='Not created yet';$('graduationNote').textContent='This token is still on its bonding curve. When the curve sells out, Liftoff seeds the PIXORUN Swap pool atomically.';}
  $('graduationNote').hidden=false;
- try{localStorage.setItem(cacheKey,JSON.stringify({name,symbol,creator,curveAddress,totalSupply:fmt(supply,decimals)+' '+symbol,tradeMode:mode==='swap'?'PIXORUN Swap pool':'Bonding curve'}));}catch(_){}
+ try{localStorage.setItem(cacheKey,JSON.stringify({name,symbol,creator,curveAddress,launchBlock:launchBlock||undefined,totalSupply:fmt(supply,decimals)+' '+symbol,tradeMode:mode==='swap'?'PIXORUN Swap pool':'Bonding curve'}));}catch(_){}
  const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('');
  const metadataTask=loadMetadata();
- const marketTask=loadMarketData();
  await Promise.all([quoteBuy(),quoteSell(),metadataTask,updateCurveProgress()]);
- marketTask.catch(e=>{console.warn('Market data unavailable:',e);marketText('marketUpdated','Market data temporarily unavailable');marketText('marketDataNote','Robinhood Chain RPC is slow or rate-limited. Token details and trading remain available; cached trades stay visible.');});
+ await loadMarketData();
  if(account)await refreshBalances();
 }
 
@@ -346,6 +384,10 @@ const p=wallet();p?.on?.('accountsChanged',async a=>{account=a?.[0]?ethers.getAd
 p?.on?.('chainChanged',async()=>{await readConnectedWallet();});
 setStatus(cached?'Showing saved token details · checking the blockchain…':'Starting token data request…');
 window.addEventListener('pixorun:walletChanged',readConnectedWallet);
-setInterval(()=>{if(!document.hidden)loadMarketData().catch(e=>console.warn('Live market refresh failed:',e));},1000);
+paintMarketCache();
+let marketRefreshTimer=null;
+const scheduleMarketRefresh=()=>{if(marketRefreshTimer)clearInterval(marketRefreshTimer);marketRefreshTimer=setInterval(()=>{if(!document.hidden)loadMarketData();},12000);};
+scheduleMarketRefresh();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadMarketData();});
 refresh().then(readConnectedWallet).catch(e=>{console.error('PIXORUN token load failed:',e);setStatus('Could not load token: '+(e.shortMessage||e.reason||e.message||'RPC error')+'. Tap Retry.');});
 })();
