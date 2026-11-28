@@ -200,13 +200,13 @@ async function setup(){
      const logo=await readImage($('tokenLogo')?.files?.[0],'Token logo');
      const banner=await readImage($('tokenBanner')?.files?.[0],'Banner image');
      const hasMetadata=Object.values(metadata).some(Boolean)||!!logo||!!banner;
-     status('Choose your wallet and approve the connection…','pending');
-     const chosen=await timeout(window.PIXORUN_WALLET.connect(),'Wallet connection',60000);
-     const provider=chosen.provider;
-     await switchToTestnet();
-     const accounts=[chosen.account];
-     if(!accounts?.length)throw new Error('Wallet connection was not approved.');
+     // Reuse the wallet already connected in the shared site header. Never open a second connect flow here.
+     const shared=await timeout(window.PIXORUN_WALLET?.getState?.(),'Connected site wallet',15000);
+     const provider=shared?.provider||walletProvider();
+     const accounts=shared?.account?[shared.account]:(provider?await provider.request({method:'eth_accounts'}):[]);
+     if(!provider||!accounts?.length)throw new Error('Connect your wallet from the homepage header first, then return here to launch your token.');
      const account=ethers.getAddress(accounts[0]);
+     await switchToTestnet();
      const fee=creationFee??await readFactory.creationFee();
      const balance=await timeout(readProvider.getBalance(account),'Wallet balance');
      if(balance<fee)throw new Error('Insufficient testnet ETH. You need at least '+fmt(fee)+' ETH for the creation fee, plus gas.');
