@@ -119,74 +119,46 @@ const curveEvents=new ethers.Interface(['event Bought(address indexed buyer,uint
 const pairEvents=new ethers.Interface(['event Swap(address indexed sender,bool nativeToToken,uint256 amountIn,uint256 amountOut,uint256 fee)']);
 const marketFmt=(n,max=6)=>compactNumber(n,Math.min(max,4));
 function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
-let chartInterval='1s';
+let chartInterval='5m',chartMode='area';
 function paintMarketCache(){
  const keys=['pixorun:market:v4:','pixorun:market:v3:','pixorun:market:v2:','pixorun:market:v1:'];
  for(const prefix of keys){try{const raw=localStorage.getItem(prefix+tokenAddress.toLowerCase());if(raw){marketCache=JSON.parse(raw);break;}}catch(_){}}
- if(!marketCache)return;
- const c=marketCache;
- marketText('marketPrice',c.price||'—');marketText('marketCap',c.cap||'—');marketText('marketLiquidity',c.liquidity||'—');
- marketText('marketVolume',c.volume||'—');marketText('marketChange',c.change||'—');marketText('marketTrades',c.trades||'0');
- marketText('marketUpdated','Saved data · refreshing');drawMarketChart(c.points||[]);
- marketText('marketTradeCount',c.tradeCount||'0 trades');
- const host=$('marketRecentTrades');if(host&&c.rows)host.innerHTML=c.rows;
- marketText('marketDataNote','Showing the latest saved data while live on-chain data refreshes.');
+ if(!marketCache)return;const c=marketCache;
+ marketText('marketPrice',c.price||'—');marketText('marketCap',c.cap||'—');marketText('marketLiquidity',c.liquidity||'—');marketText('marketVolume',c.volume||'—');marketText('marketChange',c.change||'—');marketText('marketTrades',c.trades||'0');marketText('marketUpdated','Saved data · refreshing');drawMarketChart(c.points||[]);marketText('marketTradeCount',c.tradeCount||'0 trades');const host=$('marketRecentTrades');if(host&&c.rows)host.innerHTML=c.rows;marketText('marketDataNote','Showing the latest saved data while live on-chain data refreshes.');
 }
-function chartPriceFmt(value){
- const n=Number(value);if(!Number.isFinite(n)||n<=0)return '—';
- if(n>=1)return marketFmt(n,8);
- const decimals=Math.min(18,Math.max(8,Math.ceil(-Math.log10(n))+5));
- return n.toFixed(decimals).replace(/0+$/,'').replace(/\.$/,'');
-}
+function chartPriceFmt(value){const n=Number(value);if(!Number.isFinite(n)||n<=0)return '—';if(n>=1)return marketFmt(n,8);const decimals=Math.min(18,Math.max(8,Math.ceil(-Math.log10(n))+5));return n.toFixed(decimals).replace(/0+$/,'').replace(/\.$/,'');}
 function drawMarketChart(points){
  const host=$('marketChart');if(!host)return;
- const config={
-  '1s':{seconds:1,window:300,label:'1-second',tick:60},
-  '1m':{seconds:60,window:3600,label:'1-minute',tick:600},
-  '5m':{seconds:300,window:21600,label:'5-minute',tick:3600},
-  '15m':{seconds:900,window:86400,label:'15-minute',tick:10800}
- }[chartInterval]||{seconds:1,window:300,label:'1-second',tick:60};
- const now=Math.floor(Date.now()/1000),end=Math.ceil(now/config.seconds)*config.seconds,startTime=end-config.window;
- const valid=points.filter(p=>Number.isFinite(Number(p.price))&&Number(p.price)>0&&Number(p.time)>=startTime&&Number(p.time)<end)
-  .sort((a,b)=>Number(a.time)-Number(b.time)||Number(a.block||0)-Number(b.block||0)||Number(a.transactionIndex||0)-Number(b.transactionIndex||0)||Number(a.logIndex||0)-Number(b.logIndex||0));
- if(!valid.length){host.innerHTML='<div class="chart-empty"><strong>No confirmed trades in this period</strong><span>Only confirmed on-chain trades are shown. New candles appear after a trade.</span></div>';return;}
- const buckets=new Map(),size=config.seconds;
- for(const p of valid){
-  const time=Number(p.time),price=Number(p.price),key=Math.floor(time/size)*size;
-  let c=buckets.get(key);
-  if(!c){c={time:key,open:price,high:price,low:price,close:price,count:0};buckets.set(key,c);}
-  c.high=Math.max(c.high,price);c.low=Math.min(c.low,price);c.close=price;c.count++;
- }
- const candles=[...buckets.values()].sort((a,b)=>a.time-b.time);
- const W=1000,H=300,left=118,right=24,top=20,bottom=48,plotW=W-left-right,plotH=H-top-bottom;
- const values=candles.flatMap(c=>[c.high,c.low]),rawMin=Math.min(...values),rawMax=Math.max(...values);
- const spread=rawMax-rawMin,pad=spread>0?spread*.16:Math.max(Math.abs(rawMax)*.025,1e-18);
- const min=Math.max(0,rawMin-pad),max=rawMax+pad,range=max-min||Math.max(Math.abs(max)*.01,1e-18);
- const y=v=>top+(max-v)/range*plotH;
- const candleStep=plotW/Math.max(1,candles.length),xCandle=i=>left+candleStep*(i+.5);
- const candleW=Math.max(3,Math.min(22,candleStep*.72));
+ const cfg={'1s':{seconds:1,window:300,label:'1-second'},'1m':{seconds:60,window:3600,label:'1-minute'},'5m':{seconds:300,window:21600,label:'5-minute'},'15m':{seconds:900,window:86400,label:'15-minute'}}[chartInterval]||{seconds:300,window:21600,label:'5-minute'};
+ const now=Math.floor(Date.now()/1000),end=Math.ceil(now/cfg.seconds)*cfg.seconds,start=end-cfg.window;
+ const valid=points.filter(p=>Number.isFinite(Number(p.price))&&Number(p.price)>0&&Number(p.time)>=start&&Number(p.time)<end).sort((a,b)=>Number(a.time)-Number(b.time)||Number(a.block||0)-Number(b.block||0)||Number(a.transactionIndex||0)-Number(b.transactionIndex||0)||Number(a.logIndex||0)-Number(b.logIndex||0));
+ if(!valid.length){host.innerHTML='<div class="chart-empty"><strong>No confirmed trades in this period</strong><span>Only confirmed on-chain trades are shown. New price points appear after a trade.</span></div>';marketText('chartLivePrice','No confirmed price');marketText('chartLiveChange','Waiting for trades');return;}
+ const buckets=new Map();for(const p of valid){const time=Math.floor(Number(p.time)/cfg.seconds)*cfg.seconds,price=Number(p.price);let b=buckets.get(time);if(!b){b={time,price,high:price,low:price,count:0};buckets.set(time,b);}b.price=price;b.high=Math.max(b.high,price);b.low=Math.min(b.low,price);b.count++;}
+ const data=[...buckets.values()].sort((a,b)=>a.time-b.time),prices=data.map(d=>d.price),last=prices.at(-1),first=prices[0],change=first?((last-first)/first*100):0;
+ marketText('chartLivePrice',chartPriceFmt(last)+' ETH');marketText('chartLiveChange',(change>=0?'+':'')+change.toFixed(2)+'% in view');
+ const W=1000,H=310,L=112,R=26,T=22,B=42,PW=W-L-R,PH=H-T-B;
+ const min0=Math.min(...data.map(d=>Math.min(d.price,d.low))),max0=Math.max(...data.map(d=>Math.max(d.price,d.high))),spread=max0-min0,pad=spread?spread*.18:Math.max(Math.abs(max0)*.025,1e-18),min=Math.max(0,min0-pad),max=max0+pad,range=max-min||1e-18;
+ const x=i=>L+(data.length===1?PW/2:i/(data.length-1)*PW),y=v=>T+(max-v)/range*PH;
  const dhaka={timeZone:'Asia/Dhaka',hour:'2-digit',minute:'2-digit',hour12:false};
- let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+config.label+' candlestick chart on a real time scale, using confirmed on-chain trades">';
- for(let i=0;i<=4;i++){
-  const yy=top+i*plotH/4,val=max-i*range/4;
-  svg+='<line x1="'+left+'" y1="'+yy.toFixed(1)+'" x2="'+(W-right)+'" y2="'+yy.toFixed(1)+'" stroke="#52677e" stroke-width="1" opacity=".55"/><text x="'+(left-12)+'" y="'+(yy+4).toFixed(1)+'" text-anchor="end" fill="#e3edf8" font-size="12" font-weight="600">'+chartPriceFmt(val)+'</text>';
+ let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Premium '+(chartMode==='area'?'area':'candlestick')+' price chart from confirmed on-chain trades"><defs><linearGradient id="pixAreaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#20d6a0" stop-opacity=".38"/><stop offset="100%" stop-color="#20d6a0" stop-opacity=".015"/></linearGradient><filter id="pixGlow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+ for(let i=0;i<=4;i++){const yy=T+i*PH/4,val=max-i*range/4;svg+='<line x1="'+L+'" y1="'+yy.toFixed(1)+'" x2="'+(W-R)+'" y2="'+yy.toFixed(1)+'" stroke="#8295ad" opacity=".17" stroke-dasharray="4 7"/><text x="'+(L-12)+'" y="'+(yy+4)+'" text-anchor="end" fill="#aab9ce" font-size="12">'+chartPriceFmt(val)+'</text>';}
+ const base=T+PH;
+ if(chartMode==='area'){
+  const path=data.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(d.price).toFixed(1)).join(' ');
+  const area=path+' L '+x(data.length-1).toFixed(1)+' '+base+' L '+x(0).toFixed(1)+' '+base+' Z';
+  svg+='<path d="'+area+'" fill="url(#pixAreaFill)"/><path d="'+path+'" fill="none" stroke="#20d6a0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#pixGlow)"/>';
+  const step=PW/Math.max(1,data.length),maxVol=Math.max(1,...data.map(d=>d.count));
+  data.forEach((d,i)=>{const xx=x(i),yy=y(d.price),bar=Math.max(2,Math.min(22,d.count/maxVol*22));const title=new Date(d.time*1000).toLocaleString('en-GB',{timeZone:'Asia/Dhaka',dateStyle:'medium',timeStyle:'short'})+' · '+chartPriceFmt(d.price)+' ETH · '+d.count+' confirmed trades';svg+='<line x1="'+xx.toFixed(1)+'" y1="'+T+'" x2="'+xx.toFixed(1)+'" y2="'+base+'" stroke="#a7b7ca" opacity=".05"/><circle cx="'+xx.toFixed(1)+'" cy="'+yy.toFixed(1)+'" r="3.5" fill="#20d6a0" stroke="#0d1725" stroke-width="2"><title>'+title+'</title></circle><rect x="'+(xx-Math.max(1,step*.22)).toFixed(1)+'" y="'+(base-bar).toFixed(1)+'" width="'+Math.max(2,step*.44).toFixed(1)+'" height="'+bar.toFixed(1)+'" rx="2" fill="#20d6a0" opacity=".55"><title>'+d.count+' trades</title></rect>';});
+  const yy=y(last);svg+='<line x1="'+L+'" y1="'+yy.toFixed(1)+'" x2="'+(W-R)+'" y2="'+yy.toFixed(1)+'" stroke="#20d6a0" stroke-dasharray="5 5" opacity=".75"/><circle cx="'+x(data.length-1).toFixed(1)+'" cy="'+yy.toFixed(1)+'" r="6" fill="#20d6a0" stroke="#e5fff7" stroke-width="2"/>';
+ }else{
+  const step=PW/Math.max(1,data.length),cw=Math.max(3,Math.min(18,step*.62));
+  data.forEach((d,i)=>{const prev=i?data[i-1].price:d.price,up=d.price>=prev,color=up?'#20d6a0':'#ff7185',xx=x(i),yo=y(prev),yc=y(d.price);svg+='<line x1="'+xx+'" y1="'+y(Math.max(d.high,prev))+'" x2="'+xx+'" y2="'+y(Math.min(d.low,prev))+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(xx-cw/2)+'" y="'+Math.min(yo,yc)+'" width="'+cw+'" height="'+Math.max(2,Math.abs(yo-yc))+'" rx="1.5" fill="'+color+'"><title>'+new Date(d.time*1000).toLocaleString('en-GB',{timeZone:'Asia/Dhaka'})+' · '+chartPriceFmt(d.price)+' ETH · '+d.count+' trades</title></rect>';});
  }
- const labelCount=Math.min(6,candles.length),labelIndexes=new Set(Array.from({length:labelCount},(_,i)=>Math.round(i*(candles.length-1)/Math.max(1,labelCount-1))));
- labelIndexes.forEach(i=>{const c=candles[i],x=xCandle(i),label=new Date(c.time*1000).toLocaleTimeString('en-GB',dhaka);svg+='<line x1="'+x.toFixed(1)+'" y1="'+top+'" x2="'+x.toFixed(1)+'" y2="'+(top+plotH)+'" stroke="#52677e" stroke-width="1" opacity=".22"/><text x="'+x.toFixed(1)+'" y="'+(H-15)+'" text-anchor="middle" fill="#dce8f5" font-size="11" font-weight="600">'+label+'</text>';});
- candles.forEach((c,i)=>{
-  const x=xCandle(i),up=c.close>=c.open,color=up?'#31d6a0':'#ff7185';
-  const yo=y(c.open),yc=y(c.close),bodyY=Math.min(yo,yc),bodyH=Math.max(2,Math.abs(yc-yo));
-  const title=new Date(c.time*1000).toLocaleString('en-GB',{timeZone:'Asia/Dhaka',dateStyle:'medium',timeStyle:'medium'})+' · O '+chartPriceFmt(c.open)+' · H '+chartPriceFmt(c.high)+' · L '+chartPriceFmt(c.low)+' · C '+chartPriceFmt(c.close)+' · '+c.count+' trades';
-  svg+='<line x1="'+x.toFixed(1)+'" y1="'+y(c.high).toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+y(c.low).toFixed(1)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-candleW/2).toFixed(1)+'" y="'+bodyY.toFixed(1)+'" width="'+candleW.toFixed(1)+'" height="'+bodyH.toFixed(1)+'" rx="1.2" fill="'+color+'"><title>'+title+'</title></rect>';
- });
+ const labels=Math.min(6,data.length);for(let i=0;i<labels;i++){const ix=Math.round(i*(data.length-1)/Math.max(1,labels-1)),xx=x(ix),label=new Date(data[ix].time*1000).toLocaleTimeString('en-GB',dhaka);svg+='<text x="'+xx.toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" fill="#aab9ce" font-size="12">'+label+'</text>';}
  svg+='</svg>';host.innerHTML=svg;
 }
-
-document.querySelectorAll('[data-chart-interval]').forEach(btn=>btn.addEventListener('click',()=>{
- chartInterval=btn.dataset.chartInterval;
- document.querySelectorAll('[data-chart-interval]').forEach(b=>b.classList.toggle('active',b===btn));
- try{const saved=marketCache||JSON.parse(localStorage.getItem('pixorun:market:v4:'+tokenAddress.toLowerCase())||'null')||JSON.parse(localStorage.getItem('pixorun:market:v3:'+tokenAddress.toLowerCase())||'null');drawMarketChart(saved?.points||[]);}catch(_){drawMarketChart([]);}
-}));
+document.querySelectorAll('[data-chart-interval]').forEach(btn=>btn.addEventListener('click',()=>{chartInterval=btn.dataset.chartInterval;document.querySelectorAll('[data-chart-interval]').forEach(b=>b.classList.toggle('active',b===btn));try{const saved=marketCache||JSON.parse(localStorage.getItem('pixorun:market:v4:'+tokenAddress.toLowerCase())||'null')||JSON.parse(localStorage.getItem('pixorun:market:v3:'+tokenAddress.toLowerCase())||'null');drawMarketChart(saved?.points||[]);}catch(_){drawMarketChart([]);}}));
+document.querySelectorAll('[data-chart-mode]').forEach(btn=>btn.addEventListener('click',()=>{chartMode=btn.dataset.chartMode;document.querySelectorAll('[data-chart-mode]').forEach(b=>b.classList.toggle('active',b===btn));try{const saved=marketCache||JSON.parse(localStorage.getItem('pixorun:market:v4:'+tokenAddress.toLowerCase())||'null')||JSON.parse(localStorage.getItem('pixorun:market:v3:'+tokenAddress.toLowerCase())||'null');drawMarketChart(saved?.points||[]);}catch(_){drawMarketChart([]);}}));
 
 async function updateCurveProgress(){
  const card=$('curveProgressCard');if(!card||!curve)return;
