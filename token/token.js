@@ -97,7 +97,8 @@ function marketText(id,value){const el=$(id);if(el)el.textContent=value;}
 let chartInterval='1s';
 function drawMarketChart(points){
  const host=$('marketChart');if(!host)return;
- const valid=points.filter(p=>Number.isFinite(Number(p.price))&&Number(p.price)>0&&Number(p.time)>0).sort((a,b)=>Number(a.time)-Number(b.time));
+ const valid=points.filter(p=>Number.isFinite(Number(p.price))&&Number(p.price)>0&&Number(p.time)>0)
+  .sort((a,b)=>Number(a.time)-Number(b.time)||Number(a.block||0)-Number(b.block||0)||Number(a.transactionIndex||0)-Number(b.transactionIndex||0)||Number(a.logIndex||0)-Number(b.logIndex||0));
  const config={
   '1s':{seconds:1,window:300,label:'1-second'},
   '1m':{seconds:60,window:3600,label:'1-minute'},
@@ -113,21 +114,13 @@ function drawMarketChart(points){
   if(!c){c={time:key,open:price,high:price,low:price,close:price,count:0};buckets.set(key,c);}
   c.high=Math.max(c.high,price);c.low=Math.min(c.low,price);c.close=price;c.count++;
  }
- const traded=[...buckets.values()].sort((a,b)=>a.time-b.time);
- // Keep every time bucket on the timeline; empty intervals inherit the previous close.
- const candles=[];
- if(traded.length){
-  let previous=traded[0].close;
-  for(let time=traded[0].time;time<=traded[traded.length-1].time;time+=size){
-   const actual=buckets.get(time);
-   if(actual){candles.push(actual);previous=actual.close;}
-   else candles.push({time,open:previous,high:previous,low:previous,close:previous,count:0});
-  }
- }
+ // Render only intervals containing confirmed trades. Every candle gets one equal-width slot;
+ // elapsed wall-clock gaps do not create artificial candles or visual gaps.
+ const candles=[...buckets.values()].sort((a,b)=>a.time-b.time);
  const W=1000,H=300,left=104,right=22,top=22,bottom=42,plotW=W-left-right,plotH=H-top-bottom;
  const values=candles.flatMap(c=>[c.high,c.low]),rawMin=Math.min(...values),rawMax=Math.max(...values);
  const pad=(rawMax-rawMin)||Math.max(Math.abs(rawMax)*.012,1e-12),min=Math.max(0,rawMin-pad*.18),max=rawMax+pad*.18,range=max-min||1;
- const y=v=>top+(max-v)/range*plotH,step=plotW/Math.max(candles.length,1),cw=Math.max(2,Math.min(20,step*.84));
+ const y=v=>top+(max-v)/range*plotH,step=plotW/candles.length,cw=Math.max(1,Math.min(18,step*.72));
  let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+config.label+' candlestick chart using confirmed on-chain trades">';
  for(let i=0;i<=4;i++){
   const yy=top+i*plotH/4,val=max-i*range/4;
@@ -137,11 +130,10 @@ function drawMarketChart(points){
   const x=left+step*(i+.5),up=c.close>=c.open,color=up?'#31d6a0':'#ff7185',yo=y(c.open),yc=y(c.close),bodyY=Math.min(yo,yc),bodyH=Math.max(2,Math.abs(yc-yo));
   svg+='<line x1="'+x.toFixed(1)+'" y1="'+y(c.high).toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+y(c.low).toFixed(1)+'" stroke="'+color+'" stroke-width="2"/><rect x="'+(x-cw/2).toFixed(1)+'" y="'+bodyY.toFixed(1)+'" width="'+cw.toFixed(1)+'" height="'+bodyH.toFixed(1)+'" rx="1.5" fill="'+color+'"><title>'+new Date(c.time*1000).toLocaleString()+' · Open '+marketFmt(c.open,10)+' · High '+marketFmt(c.high,10)+' · Low '+marketFmt(c.low,10)+' · Close '+marketFmt(c.close,10)+' · '+c.count+' trades</title></rect>';
  });
- const first=candles[0].time,last=candles[candles.length-1].time;
- const labels=[first,Math.floor((first+last)/2),last];
- labels.forEach((t,i)=>{
-  const x=left+(candles.length===1?plotW/2:((t-first)/(last-first||1))*plotW);
-  const date=new Date(t*1000),label=chartInterval==='1s'?date.toLocaleTimeString([],{minute:'2-digit',second:'2-digit'}):date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+ const labelIndices=[0,Math.floor((candles.length-1)/2),candles.length-1];
+ [...new Set(labelIndices)].forEach(i=>{
+  const c=candles[i],x=left+step*(i+.5),date=new Date(c.time*1000);
+  const label=chartInterval==='1s'?date.toLocaleTimeString([],{minute:'2-digit',second:'2-digit'}):date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   svg+='<text x="'+x.toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" fill="#dce8f5" font-size="12" font-weight="600">'+label+'</text>';
  });
  svg+='</svg>';host.innerHTML=svg;
@@ -149,7 +141,7 @@ function drawMarketChart(points){
 document.querySelectorAll('[data-chart-interval]').forEach(btn=>btn.addEventListener('click',()=>{
  chartInterval=btn.dataset.chartInterval;
  document.querySelectorAll('[data-chart-interval]').forEach(b=>b.classList.toggle('active',b===btn));
- try{const key='pixorun:market:v2:'+tokenAddress.toLowerCase(),saved=JSON.parse(localStorage.getItem(key)||'null');drawMarketChart(saved?.points||[]);}catch(_){drawMarketChart([]);}
+ try{const key='pixorun:market:v3:'+tokenAddress.toLowerCase(),saved=JSON.parse(localStorage.getItem(key)||'null');drawMarketChart(saved?.points||[]);}catch(_){drawMarketChart([]);}
 }));
 
 async function updateCurveProgress(){
@@ -169,8 +161,8 @@ async function updateCurveProgress(){
 async function findBlockAtOrAfter(target,latest){let lo=0,hi=latest;while(lo<hi){const mid=Math.floor((lo+hi)/2),b=await withTimeout(provider.getBlock(mid),'Block timestamp');if(!b)throw Error('Could not read block timestamp.');if(Number(b.timestamp)<target)lo=mid+1;else hi=mid;}return lo;}
 async function loadMarketData(){
  if(marketLoading||!token||!curve)return;marketLoading=true;
- const marketCacheKey='pixorun:market:v2:'+tokenAddress.toLowerCase();let saved=null;
- try{saved=JSON.parse(localStorage.getItem(marketCacheKey)||'null');if(!saved)saved=JSON.parse(localStorage.getItem('pixorun:market:v1:'+tokenAddress.toLowerCase())||'null');}catch(_){}
+ const marketCacheKey='pixorun:market:v3:'+tokenAddress.toLowerCase();let saved=null;
+ try{saved=JSON.parse(localStorage.getItem(marketCacheKey)||'null');if(!saved)saved=JSON.parse(localStorage.getItem('pixorun:market:v2:'+tokenAddress.toLowerCase())||'null');if(!saved)saved=JSON.parse(localStorage.getItem('pixorun:market:v1:'+tokenAddress.toLowerCase())||'null');}catch(_){}
  // Paint the last known market immediately; never stop here because cached data must still refresh.
  if(saved){
   marketText('marketPrice',saved.price||'—');marketText('marketCap',saved.cap||'—');marketText('marketLiquidity',saved.liquidity||'—');
@@ -214,18 +206,18 @@ async function loadMarketData(){
   const decoded=logs.map(log=>{try{
    if(log.address.toLowerCase()===curveAddress.toLowerCase()){
     const p=curveEvents.parseLog(log);
-    if(p.name==='Bought')return {type:'Buy',native:Number(ethers.formatEther(p.args.grossNative)),tokens:Number(ethers.formatUnits(p.args.tokensOut,decimals)),block:log.blockNumber,hash:log.transactionHash};
-    return {type:'Sell',native:Number(ethers.formatEther(p.args.netNative)),tokens:Number(ethers.formatUnits(p.args.tokensIn,decimals)),block:log.blockNumber,hash:log.transactionHash};
+    if(p.name==='Bought')return {type:'Buy',native:Number(ethers.formatEther(p.args.grossNative)),tokens:Number(ethers.formatUnits(p.args.tokensOut,decimals)),block:log.blockNumber,transactionIndex:log.transactionIndex??0,logIndex:log.index??log.logIndex??0,hash:log.transactionHash};
+    return {type:'Sell',native:Number(ethers.formatEther(p.args.grossNative)),tokens:Number(ethers.formatUnits(p.args.tokensIn,decimals)),block:log.blockNumber,transactionIndex:log.transactionIndex??0,logIndex:log.index??log.logIndex??0,hash:log.transactionHash};
    }
    const p=pairEvents.parseLog(log),buy=p.args.nativeToToken;
-   return {type:buy?'Buy':'Sell',native:Number(ethers.formatEther(buy?p.args.amountIn:p.args.amountOut)),tokens:Number(ethers.formatUnits(buy?p.args.amountOut:p.args.amountIn,decimals)),block:log.blockNumber,hash:log.transactionHash};
+   return {type:buy?'Buy':'Sell',native:Number(ethers.formatEther(buy?p.args.amountIn:p.args.amountOut)),tokens:Number(ethers.formatUnits(buy?p.args.amountOut:p.args.amountIn,decimals)),block:log.blockNumber,transactionIndex:log.transactionIndex??0,logIndex:log.index??log.logIndex??0,hash:log.transactionHash};
   }catch(_){return null;}}).filter(Boolean);
   const blockNums=[...new Set(decoded.map(t=>t.block))],blockTimes={};let blockIndex=0;
   await Promise.all(Array.from({length:Math.min(12,blockNums.length)},async()=>{while(blockIndex<blockNums.length){const n=blockNums[blockIndex++];try{const b=await withTimeout(provider.getBlock(n),'Trade timestamp',8000);if(b)blockTimes[n]=Number(b.timestamp);}catch(_){}}}));
   const now=Math.floor(Date.now()/1000),previous=(saved?.points||[]).filter(t=>Number(t.time)>=now-86400);
   const added=decoded.map(t=>({...t,time:blockTimes[t.block]||0,price:t.tokens>0?t.native/t.tokens:0})).filter(t=>t.time>=now-86400&&t.time>0);
   const byHash=new Map();[...previous,...added].forEach(t=>byHash.set(t.hash,t));
-  const recent=[...byHash.values()].filter(t=>t.time>=now-86400).sort((a,b)=>a.time-b.time);
+  const recent=[...byHash.values()].filter(t=>t.time>=now-86400).sort((a,b)=>a.time-b.time||Number(a.block||0)-Number(b.block||0)||Number(a.transactionIndex||0)-Number(b.transactionIndex||0)||Number(a.logIndex||0)-Number(b.logIndex||0));
   const volume=recent.reduce((s,t)=>s+Number(t.native||0),0),first=recent.find(t=>t.price>0),last=[...recent].reverse().find(t=>t.price>0);
   const change=first&&last&&first.price>0?(last.price/first.price-1)*100:null;
   marketText('marketVolume',marketFmt(volume,5)+' ETH');marketText('marketChange',change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%');
