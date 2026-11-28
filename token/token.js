@@ -13,7 +13,7 @@ let cached=null;try{cached=cacheKey?JSON.parse(localStorage.getItem(cacheKey)||'
 if(cached){$('tokenName').textContent=cached.name||'Token';$('tokenSymbol').textContent=cached.symbol||'—';$('tokenAddress').textContent=tokenAddress;$('tokenAddress').href=EXPLORER+'/address/'+tokenAddress;if(cached.curveAddress){$('curveAddress').textContent=cached.curveAddress;$('curveAddress').href=EXPLORER+'/address/'+cached.curveAddress;}if(cached.creator){$('creatorAddress').textContent=cached.creator;$('creatorAddress').href=EXPLORER+'/address/'+cached.creator;}$('totalSupply').textContent=cached.totalSupply||'—';$('tradeMode').textContent=cached.tradeMode||'Refreshing market…';}
 let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='curve',busy=false,account=null,canTrade=false,tokenBalance=0n,ethBalance=0n,marketLoading=false,launchBlock=null;
 const withTimeout=(promise,label,ms=12000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Error(label+' timed out. Robinhood RPC did not respond.')),ms))]);
-const compactNumber=(value,max=3)=>{const n=Number(value);if(!Number.isFinite(n))return '—';const a=Math.abs(n),sign=n<0?'-':'';for(const [limit,suffix] of [[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']])if(a>=limit){const scaled=a/limit;return sign+scaled.toLocaleString('en-US',{maximumFractionDigits:2,minimumFractionDigits:0})+suffix;}if(a>0&&a<0.001)return sign+a.toPrecision(4).replace(/(?:\\.0+|(?:(\\.\\d*?)0+))$/,'$1');return n.toLocaleString('en-US',{maximumFractionDigits:max});};
+const compactNumber=(value,max=3)=>{const n=Number(value);if(!Number.isFinite(n))return '—';const a=Math.abs(n),sign=n<0?'-':'';for(const [limit,suffix] of [[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']])if(a>=limit){const scaled=a/limit;return sign+scaled.toLocaleString('en-US',{maximumFractionDigits:2,minimumFractionDigits:0})+suffix;}if(a>0&&a<0.001)return sign+Number(a.toPrecision(4)).toString();return n.toLocaleString('en-US',{maximumFractionDigits:max});};
 const fmt=(v,d=18)=>compactNumber(ethers.formatUnits(v,d),3);
 const setStatus=m=>{const el=$('tradeStatus'),wrap=el?.closest('.app-status'),retry=$('tokenRetry');if(el)el.textContent=m||'';if(wrap)wrap.hidden=!m;if(retry)retry.hidden=!(m&&/could not|failed|unavailable|error|paused|tap retry/i.test(m));};
 function showTradeModal(state,title,message,hash){
@@ -113,7 +113,17 @@ function drawMarketChart(points){
   if(!c){c={time:key,open:price,high:price,low:price,close:price,count:0};buckets.set(key,c);}
   c.high=Math.max(c.high,price);c.low=Math.min(c.low,price);c.close=price;c.count++;
  }
- const candles=[...buckets.values()].sort((a,b)=>a.time-b.time);
+ const traded=[...buckets.values()].sort((a,b)=>a.time-b.time);
+ // Keep every time bucket on the timeline; empty intervals inherit the previous close.
+ const candles=[];
+ if(traded.length){
+  let previous=traded[0].close;
+  for(let time=traded[0].time;time<=traded[traded.length-1].time;time+=size){
+   const actual=buckets.get(time);
+   if(actual){candles.push(actual);previous=actual.close;}
+   else candles.push({time,open:previous,high:previous,low:previous,close:previous,count:0});
+  }
+ }
  const W=1000,H=300,left=104,right=22,top=22,bottom=42,plotW=W-left-right,plotH=H-top-bottom;
  const values=candles.flatMap(c=>[c.high,c.low]),rawMin=Math.min(...values),rawMax=Math.max(...values);
  const pad=(rawMax-rawMin)||Math.max(Math.abs(rawMax)*.012,1e-12),min=Math.max(0,rawMin-pad*.18),max=rawMax+pad*.18,range=max-min||1;
@@ -151,8 +161,7 @@ async function updateCurveProgress(){
   const bounded=Math.max(0,Math.min(100,pct));
   $('curveProgressPercent').textContent=graduated?'100% · Liftoff complete':bounded.toFixed(2)+'%';
   $('curveProgressFill').style.width=(graduated?100:bounded)+'%';
-  const compactCurveAmount=value=>{const n=Number(ethers.formatUnits(value,decimals));if(!Number.isFinite(n))return '—';if(n>=1e9)return (n/1e9).toFixed(2).replace(/\.00$/,'')+'B';if(n>=1e6)return (n/1e6).toFixed(2).replace(/\.00$/,'')+'M';if(n>=1e3)return (n/1e3).toFixed(2).replace(/\.00$/,'')+'K';return n.toLocaleString(undefined,{maximumFractionDigits:2});};
-  $('curveTokensSold').textContent=compactCurveAmount(sold);
+  const compactCurveAmount=value=>compactNumber(ethers.formatUnits(value,decimals),2);$('curveTokensSold').textContent=compactCurveAmount(sold);
   $('curveTokensRemaining').textContent=compactCurveAmount(remaining);
   $('curveProgressNote').textContent=graduated?'The bonding curve is complete. This token has moved to its PIXORUN Swap pool.':'Progress = tokens sold ÷ 793,100,000-token curve allocation. Values are read directly from the bonding curve contract.';
  }catch(e){$('curveProgressPercent').textContent='Unavailable';$('curveProgressNote').textContent='Could not read curve progress from Robinhood Chain Testnet. Tap Retry to refresh.';}
@@ -224,7 +233,7 @@ async function loadMarketData(){
   drawMarketChart(recent.filter(t=>t.price>0));
   const rows=recent.slice(-8).reverse();marketText('marketTradeCount',recent.length+' trades');
   const host=$('marketRecentTrades');
-  if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
+  if(host)host.innerHTML=rows.length?rows.map(t=>'<div class="market-trade-row"><strong class="'+(t.type==='Buy'?'market-buy':'market-sell')+'">'+t.type+'</strong><span>'+marketFmt(t.tokens,3)+' tokens · '+marketFmt(t.native,6)+' ETH</span><time class="market-trade-time" datetime="'+new Date(t.time*1000).toISOString()+'">'+new Date(t.time*1000).toLocaleString([],{year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})+'</time><a href="'+EXPLORER+'/tx/'+t.hash+'" target="_blank" rel="noopener noreferrer">View tx ↗</a></div>').join(''):'<p class="trade-help">No confirmed trades in the last 24 hours.</p>';
   marketText('marketDataNote','Live confirmed PIXORUN curve and swap events · rolling 24-hour window.');
   try{localStorage.setItem(marketCacheKey,JSON.stringify({savedAt:Date.now(),lastBlock:latest,price:price>0?marketFmt(price,12)+' ETH':'—',cap:price>0?marketFmt(mcap,5)+' ETH':'—',liquidity,volume:marketFmt(volume,5)+' ETH',change:change===null?'—':(change>=0?'+':'')+marketFmt(change,2)+'%',trades:String(recent.length),points:recent,tradeCount:recent.length+' trades',rows:host?host.innerHTML:''}));}catch(_){}
  }finally{marketLoading=false;}
