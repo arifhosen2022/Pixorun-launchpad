@@ -303,10 +303,9 @@ async function refresh(){
  const tradeDisabled=graduated&&mode!=='swap';canTrade=!tradeDisabled;$('buyBtn').disabled=tradeDisabled;$('sellBtn').disabled=tradeDisabled;
  if(tradeDisabled)setStatus('Liftoff completed, but the Swap pair is not available. Trading is paused until a pool is found.');
  else setStatus('');
- const metadataTask=loadMetadata();
+ const metadataTask=loadMetadata().catch(error=>console.warn('Token metadata refresh delayed:',error));
  await Promise.all([quoteBuy(),quoteSell(),updateCurveProgress()]);
  await loadMarketData();
- metadataTask.catch(error=>console.warn('Token metadata refresh delayed:',error));
  if(account)await refreshBalances();
 }
 
