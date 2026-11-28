@@ -165,7 +165,7 @@
   if(i>=sources.length){fail('Could not load the trading library. Check your connection and tap Reload.');return;}
   const s=document.createElement('script');s.src=sources[i];s.async=true;
   s.onload=function(){
-   const app=document.createElement('script');app.src='./token.js?v=token-stability-audit-20261128d';
+   const app=document.createElement('script');app.src='./token.js?v=multi-factory-token-support-20261128e';
    app.onerror=function(){fail('Token page module failed to load. Tap Reload to try again.');};
    document.body.appendChild(app);
   };

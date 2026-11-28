@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
-const FACTORY='0x81C1E1703C35e158912245288684609339A41B37',SWAP_FACTORY='0xc23b06BD92C98AE57b72160b17ACfa53e7302104',RPC='https://rpc.testnet.chain.robinhood.com',EXPLORER='https://explorer.testnet.chain.robinhood.com',CHAIN='0xb626';
-const factoryAbi=['function curveOf(address) view returns(address)','function creatorOf(address) view returns(address)','function liftoffCompleted(address) view returns(bool)'];
+const FACTORY_DEFAULTS=[{launchpadFactory:'0x81C1E1703C35e158912245288684609339A41B37',swapFactory:'0xc23b06BD92C98AE57b72160b17ACfa53e7302104'},{launchpadFactory:'0xD3B77BaA03b128f348fc45c133248b0070C1b7bc',swapFactory:'0xCC423d983E12f044F9F930463ADe7Ce150a8A644'}],RPC='https://rpc.testnet.chain.robinhood.com',EXPLORER='https://explorer.testnet.chain.robinhood.com',CHAIN='0xb626';
+const factoryAbi=['function curveOf(address) view returns(address)','function creatorOf(address) view returns(address)','function liftoffCompleted(address) view returns(bool)','function swapFactory() view returns(address)'];
 const tokenAbi=['function name() view returns(string)','function symbol() view returns(string)','function decimals() view returns(uint8)','function totalSupply() view returns(uint256)','function balanceOf(address) view returns(uint256)','function allowance(address,address) view returns(uint256)','function approve(address,uint256) returns(bool)'];
 const curveAbi=['function graduated() view returns(bool)','function totalSold() view returns(uint256)','function realNative() view returns(uint256)','function realToken() view returns(uint256)','function virtualNative() view returns(uint256)','function virtualToken() view returns(uint256)','function quoteBuy(uint256) view returns(uint256,uint256,uint256)','function quoteSell(uint256) view returns(uint256,uint256,uint256)','function buy(uint256) payable returns(uint256)','function sell(uint256,uint256) returns(uint256)'];
 const swapFactoryAbi=['function getPair(address) view returns(address)'];
@@ -56,6 +56,21 @@ function showMetadata(m){
  const links=$('tokenSocials');links.replaceChildren();
  for(const [label,url] of [['Website',m.website_url],['X / Twitter',m.x_url],['Telegram',m.telegram_url]])if(url){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=label+' ↗';links.append(a);has=true;}
  about.hidden=!has;
+}
+async function loadFactoryCandidates(){
+ const found=[];
+ try{
+  const response=await withTimeout(fetch('../contracts/deployments/robinhood-testnet.json?v=1',{cache:'no-store'}),'Deployment registry',8000);
+  if(response.ok){
+   const data=await response.json();
+   if(Number(data.chainId)===46630){
+    if(data.launchpadFactory)found.push({launchpadFactory:data.launchpadFactory,swapFactory:data.swapFactory||null});
+    if(data.previousDeployment?.launchpadFactory)found.push({launchpadFactory:data.previousDeployment.launchpadFactory,swapFactory:data.previousDeployment.swapFactory||null});
+   }
+  }
+ }catch(error){console.warn('Could not refresh deployment registry; using known factory addresses.',error);}
+ for(const item of FACTORY_DEFAULTS)if(!found.some(x=>x.launchpadFactory.toLowerCase()===item.launchpadFactory.toLowerCase()))found.push(item);
+ return found;
 }
 async function loadMetadata(){try{if(window.PIXORUN_REGISTRY){const row=await withTimeout(window.PIXORUN_REGISTRY.getLaunch(tokenAddress),'Token metadata',12000);if(row?.block_number!==undefined&&row?.block_number!==null){launchBlock=Number(row.block_number);try{const old=JSON.parse(localStorage.getItem(cacheKey)||'{}');localStorage.setItem(cacheKey,JSON.stringify({...old,launchBlock}));}catch(_){}}showMetadata(row);}}catch(e){console.warn('Token metadata could not be loaded',e);}}
 async function getBuyQuote(amount){
@@ -281,13 +296,24 @@ async function loadMarketData(){
 }
 
 async function refresh(){
- if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Explore Missions.');
- setStatus('Reading PIXORUN Factory on Robinhood Testnet…');
- const factory=new ethers.Contract(FACTORY,factoryAbi,provider);
- curveAddress=await withTimeout(factory.curveOf(tokenAddress),'Factory lookup');
- if(curveAddress===ethers.ZeroAddress)throw Error('This address is not registered in the PIXORUN Launchpad Factory.');
+ if(!tokenAddress||!ethers.isAddress(tokenAddress))throw Error('Token address is missing or invalid. Open this page from Discover.');
+ setStatus('Finding this token across PIXORUN launchpad generations…');
+ const candidates=await loadFactoryCandidates();
+ let matched=null,lookupErrors=[];
+ for(const item of candidates){
+  try{
+   const candidate=new ethers.Contract(item.launchpadFactory,factoryAbi,provider);
+   const candidateCurve=await withTimeout(candidate.curveOf(tokenAddress),'Factory lookup',10000);
+   if(candidateCurve&&candidateCurve!==ethers.ZeroAddress){matched={...item,contract:candidate,curve:candidateCurve};break;}
+  }catch(error){lookupErrors.push(item.launchpadFactory+': '+(error.shortMessage||error.message||'RPC read failed'));}
+ }
+ if(!matched)throw Error('This token was not found in the current or previous PIXORUN Factories. '+(lookupErrors.length?'Factory lookup issue: '+lookupErrors.join(' · '):'Check that the token address belongs to Robinhood Chain Testnet.'));
+ const factory=matched.contract;curveAddress=matched.curve;
  token=new ethers.Contract(tokenAddress,tokenAbi,provider);curve=new ethers.Contract(curveAddress,curveAbi,provider);
- const swapFactory=new ethers.Contract(SWAP_FACTORY,swapFactoryAbi,provider);
+ let associatedSwapFactory=matched.swapFactory;
+ try{const configured=await withTimeout(factory.swapFactory(),'Factory Swap configuration',8000);if(configured&&configured!==ethers.ZeroAddress)associatedSwapFactory=configured;}catch(error){console.warn('Could not read the factory-linked Swap Factory; using deployment registry value.',error);}
+ if(!associatedSwapFactory)throw Error('The matching PIXORUN Factory was found, but its Swap Factory configuration is unavailable.');
+ const swapFactory=new ethers.Contract(associatedSwapFactory,swapFactoryAbi,provider);
  setStatus('Factory found · loading token and market data…');
  const [name,symbol,tokenDecimals,supply,creator,done,graduatedState,pairAddr]=await withTimeout(Promise.all([token.name(),token.symbol(),token.decimals(),token.totalSupply(),factory.creatorOf(tokenAddress),factory.liftoffCompleted(tokenAddress),curve.graduated(),swapFactory.getPair(tokenAddress)]),'Token data read');decimals=Number(tokenDecimals);
  graduated=done||graduatedState;pairAddress=pairAddr;mode=graduated&&pairAddr!==ethers.ZeroAddress?'swap':'curve';
