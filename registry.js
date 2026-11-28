@@ -8,7 +8,7 @@ async function request(url,options={}){const controller=new AbortController(),ti
 async function listLaunches(creator){
  const q=new URLSearchParams({select:fields,chain_id:'eq.46630',order:'block_number.desc',limit:'500'});
  if(creator)q.set('creator_address','ilike.'+creator);
- const cacheKey='pixorun:launches:v2'+(creator?':'+creator.toLowerCase():'');
+ const cacheKey='pixorun:launches:v3'+(creator?':'+creator.toLowerCase():'');
  try{const r=await request(URL+'/rest/v1/token_launches?'+q.toString(),{headers});if(!r.ok)throw Error('Supabase returned '+r.status);const rows=await r.json();try{localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),rows}));}catch(_){}return rows;}
  catch(error){try{const saved=JSON.parse(localStorage.getItem(cacheKey)||'null');if(Array.isArray(saved?.rows))return saved.rows;}catch(_){}throw Error('Shared launch registry temporarily unavailable. '+(error.message||''));}
 }

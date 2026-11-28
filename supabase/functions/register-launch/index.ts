@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Interface, getAddress, verifyMessage } from "npm:ethers@6";
 
-const FACTORY_ALLOWLIST = new Set(["0x81C1E1703C35e158912245288684609339A41B37","0xD3B77BaA03b128f348fc45c133248b0070C1b7bc"].map((address) => address.toLowerCase()));
+const FACTORY_ALLOWLIST = new Set(["0x81C1E1703C35e158912245288684609339A41B37"].map((address) => address.toLowerCase()));
 async function isPixorunFactory(address: string) {
   const normalized = getAddress(address);
   if (FACTORY_ALLOWLIST.has(normalized.toLowerCase())) return true;
@@ -10,7 +10,7 @@ async function isPixorunFactory(address: string) {
     const response = await fetch("https://raw.githubusercontent.com/arifhosen2022/Pixorun-launchpad/main/contracts/deployments/robinhood-testnet.json", { headers: { "cache-control": "no-cache" } });
     if (!response.ok) return false;
     const deployment = await response.json();
-    return [deployment?.launchpadFactory, deployment?.previousDeployment?.launchpadFactory].some((candidate) => typeof candidate === "string" && getAddress(candidate) === normalized);
+    return typeof deployment?.launchpadFactory === "string" && getAddress(deployment.launchpadFactory) === normalized;
   } catch { return false; }
 }
 const RPC = "https://rpc.testnet.chain.robinhood.com";

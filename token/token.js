@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const FACTORY_DEFAULTS=[{launchpadFactory:'0x81C1E1703C35e158912245288684609339A41B37',swapFactory:'0xc23b06BD92C98AE57b72160b17ACfa53e7302104'},{launchpadFactory:'0xD3B77BaA03b128f348fc45c133248b0070C1b7bc',swapFactory:'0xCC423d983E12f044F9F930463ADe7Ce150a8A644'}],RPC='https://rpc.testnet.chain.robinhood.com',EXPLORER='https://explorer.testnet.chain.robinhood.com',CHAIN='0xb626';
+const FACTORY_DEFAULTS=[{launchpadFactory:'0x81C1E1703C35e158912245288684609339A41B37',swapFactory:'0xc23b06BD92C98AE57b72160b17ACfa53e7302104'}],RPC='https://rpc.testnet.chain.robinhood.com',EXPLORER='https://explorer.testnet.chain.robinhood.com',CHAIN='0xb626';
 const factoryAbi=['function curveOf(address) view returns(address)','function creatorOf(address) view returns(address)','function liftoffCompleted(address) view returns(bool)','function swapFactory() view returns(address)'];
 const tokenAbi=['function name() view returns(string)','function symbol() view returns(string)','function decimals() view returns(uint8)','function totalSupply() view returns(uint256)','function balanceOf(address) view returns(uint256)','function allowance(address,address) view returns(uint256)','function approve(address,uint256) returns(bool)'];
 const curveAbi=['function graduated() view returns(bool)','function totalSold() view returns(uint256)','function realNative() view returns(uint256)','function realToken() view returns(uint256)','function virtualNative() view returns(uint256)','function virtualToken() view returns(uint256)','function quoteBuy(uint256) view returns(uint256,uint256,uint256)','function quoteSell(uint256) view returns(uint256,uint256,uint256)','function buy(uint256) payable returns(uint256)','function sell(uint256,uint256) returns(uint256)'];
@@ -75,7 +75,7 @@ async function loadFactoryCandidates(){
    const data=await response.json();
    if(Number(data.chainId)===46630){
     if(data.launchpadFactory)found.push({launchpadFactory:data.launchpadFactory,swapFactory:data.swapFactory||null});
-    if(data.previousDeployment?.launchpadFactory)found.push({launchpadFactory:data.previousDeployment.launchpadFactory,swapFactory:data.previousDeployment.swapFactory||null});
+    
    }
   }
  }catch(error){console.warn('Could not refresh deployment registry; using known factory addresses.',error);}
@@ -317,7 +317,7 @@ async function refresh(){
    if(candidateCurve&&candidateCurve!==ethers.ZeroAddress){matched={...item,contract:candidate,curve:candidateCurve};break;}
   }catch(error){lookupErrors.push(item.launchpadFactory+': '+(error.shortMessage||error.message||'RPC read failed'));}
  }
- if(!matched)throw Error('This token was not found in the current or previous PIXORUN Factories. '+(lookupErrors.length?'Factory lookup issue: '+lookupErrors.join(' · '):'Check that the token address belongs to Robinhood Chain Testnet.'));
+ if(!matched)throw Error('This token was not found in the active PIXORUN Factory. '+(lookupErrors.length?'Factory lookup issue: '+lookupErrors.join(' · '):'Check that the token address belongs to Robinhood Chain Testnet.'));
  const factory=matched.contract;curveAddress=matched.curve;
  token=new ethers.Contract(tokenAddress,tokenAbi,provider);curve=new ethers.Contract(curveAddress,curveAbi,provider);
  let associatedSwapFactory=matched.swapFactory;
