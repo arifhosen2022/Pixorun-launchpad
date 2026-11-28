@@ -117,7 +117,7 @@ async function findBlockAtOrAfter(target,latest){let lo=0,hi=latest;while(lo<hi)
 async function loadMarketData(){
  if(marketLoading||!token||!curve)return;marketLoading=true;
  const marketCacheKey='pixorun:market:v2:'+tokenAddress.toLowerCase();let saved=null;
- try{saved=JSON.parse(localStorage.getItem(marketCacheKey)||'null');}catch(_){}
+ try{saved=JSON.parse(localStorage.getItem(marketCacheKey)||'null');if(!saved)saved=JSON.parse(localStorage.getItem('pixorun:market:v1:'+tokenAddress.toLowerCase())||'null');}catch(_){}
  // Paint the last known market immediately; never stop here because cached data must still refresh.
  if(saved){
   marketText('marketPrice',saved.price||'—');marketText('marketCap',saved.cap||'—');marketText('marketLiquidity',saved.liquidity||'—');
