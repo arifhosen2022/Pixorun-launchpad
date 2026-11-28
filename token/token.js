@@ -15,6 +15,18 @@ let token,curve,pair,curveAddress,pairAddress,decimals=18,graduated=false,mode='
 const withTimeout=(promise,label,ms=12000)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Error(label+' timed out. Robinhood RPC did not respond.')),ms))]);
 const fmt=(v,d=18)=>{const raw=ethers.formatUnits(v,d),parts=raw.split('.'),whole=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');const fraction=(parts[1]||'').replace(/0+$/,'');return fraction?whole+'.'+fraction:whole;};
 const setStatus=m=>{if($('tradeStatus'))$('tradeStatus').textContent=m;};
+function showTradeModal(state,title,message,hash){
+ const modal=$('tradeModal');if(!modal){setStatus(message);return;}
+ modal.dataset.state=state;$('tradeModalTitle').textContent=title;$('tradeModalMessage').textContent=message;
+ $('tradeModalIcon').innerHTML=state==='pending'?'<div class="trade-modal-spinner"></div>':state==='success'?'✓':'!';
+ const link=$('tradeModalLink');if(hash){link.href=EXPLORER+'/tx/'+hash;link.hidden=false;}else{link.removeAttribute('href');link.hidden=true;}
+ modal.hidden=false;
+}
+function closeTradeModal(){const modal=$('tradeModal');if(modal)modal.hidden=true;}
+$('tradeModalClose')?.addEventListener('click',closeTradeModal);
+$('tradeModal')?.addEventListener('click',e=>{if(e.target===$('tradeModal'))closeTradeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTradeModal();});
+
 function wallet(){return window.PIXORUN_WALLET?.getProvider()||null;}
 function slippage(){return Math.max(0,Math.min(50,Number($('slippage')?.value||1)));}
 function minAfterSlippage(value){return value*BigInt(Math.floor((100-slippage())*100))/10000n;}
